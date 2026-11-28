@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Api\RestoreClientController::__invoke
-* @see app/Http/Controllers/Api/RestoreClientController.php:24
+* @see app/Http/Controllers/Api/RestoreClientController.php:25
 * @route '/api/clients/{client}/restore'
 */
 const RestoreClientController = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ RestoreClientController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RestoreClientController::__invoke
-* @see app/Http/Controllers/Api/RestoreClientController.php:24
+* @see app/Http/Controllers/Api/RestoreClientController.php:25
 * @route '/api/clients/{client}/restore'
 */
 RestoreClientController.url = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ RestoreClientController.url = (args: { client: number | { id: number } } | [clie
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RestoreClientController::__invoke
-* @see app/Http/Controllers/Api/RestoreClientController.php:24
+* @see app/Http/Controllers/Api/RestoreClientController.php:25
 * @route '/api/clients/{client}/restore'
 */
 RestoreClientController.post = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ RestoreClientController.post = (args: { client: number | { id: number } } | [cli
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RestoreClientController::__invoke
-* @see app/Http/Controllers/Api/RestoreClientController.php:24
+* @see app/Http/Controllers/Api/RestoreClientController.php:25
 * @route '/api/clients/{client}/restore'
 */
 const RestoreClientControllerForm = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ const RestoreClientControllerForm = (args: { client: number | { id: number } } |
 
 /**
 * @see \Heptapod\Http\Controllers\Api\RestoreClientController::__invoke
-* @see app/Http/Controllers/Api/RestoreClientController.php:24
+* @see app/Http/Controllers/Api/RestoreClientController.php:25
 * @route '/api/clients/{client}/restore'
 */
 RestoreClientControllerForm.post = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

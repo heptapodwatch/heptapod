@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::index
-* @see app/Http/Controllers/Settings/MembersController.php:25
+* @see app/Http/Controllers/Settings/MembersController.php:23
 * @route '/settings/members'
 */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::index
-* @see app/Http/Controllers/Settings/MembersController.php:25
+* @see app/Http/Controllers/Settings/MembersController.php:23
 * @route '/settings/members'
 */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::index
-* @see app/Http/Controllers/Settings/MembersController.php:25
+* @see app/Http/Controllers/Settings/MembersController.php:23
 * @route '/settings/members'
 */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::index
-* @see app/Http/Controllers/Settings/MembersController.php:25
+* @see app/Http/Controllers/Settings/MembersController.php:23
 * @route '/settings/members'
 */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::index
-* @see app/Http/Controllers/Settings/MembersController.php:25
+* @see app/Http/Controllers/Settings/MembersController.php:23
 * @route '/settings/members'
 */
 const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::index
-* @see app/Http/Controllers/Settings/MembersController.php:25
+* @see app/Http/Controllers/Settings/MembersController.php:23
 * @route '/settings/members'
 */
 indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::index
-* @see app/Http/Controllers/Settings/MembersController.php:25
+* @see app/Http/Controllers/Settings/MembersController.php:23
 * @route '/settings/members'
 */
 indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ index.form = indexForm
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::data
-* @see app/Http/Controllers/Settings/MembersController.php:32
+* @see app/Http/Controllers/Settings/MembersController.php:30
 * @route '/settings/members/data'
 */
 export const data = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -97,7 +97,7 @@ data.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::data
-* @see app/Http/Controllers/Settings/MembersController.php:32
+* @see app/Http/Controllers/Settings/MembersController.php:30
 * @route '/settings/members/data'
 */
 data.url = (options?: RouteQueryOptions) => {
@@ -106,7 +106,7 @@ data.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::data
-* @see app/Http/Controllers/Settings/MembersController.php:32
+* @see app/Http/Controllers/Settings/MembersController.php:30
 * @route '/settings/members/data'
 */
 data.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -116,7 +116,7 @@ data.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::data
-* @see app/Http/Controllers/Settings/MembersController.php:32
+* @see app/Http/Controllers/Settings/MembersController.php:30
 * @route '/settings/members/data'
 */
 data.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -126,7 +126,7 @@ data.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::data
-* @see app/Http/Controllers/Settings/MembersController.php:32
+* @see app/Http/Controllers/Settings/MembersController.php:30
 * @route '/settings/members/data'
 */
 const dataForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -136,7 +136,7 @@ const dataForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::data
-* @see app/Http/Controllers/Settings/MembersController.php:32
+* @see app/Http/Controllers/Settings/MembersController.php:30
 * @route '/settings/members/data'
 */
 dataForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -146,7 +146,7 @@ dataForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::data
-* @see app/Http/Controllers/Settings/MembersController.php:32
+* @see app/Http/Controllers/Settings/MembersController.php:30
 * @route '/settings/members/data'
 */
 dataForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -163,7 +163,7 @@ data.form = dataForm
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::invite
-* @see app/Http/Controllers/Settings/MembersController.php:37
+* @see app/Http/Controllers/Settings/MembersController.php:35
 * @route '/settings/members/invitations'
 */
 export const invite = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -178,7 +178,7 @@ invite.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::invite
-* @see app/Http/Controllers/Settings/MembersController.php:37
+* @see app/Http/Controllers/Settings/MembersController.php:35
 * @route '/settings/members/invitations'
 */
 invite.url = (options?: RouteQueryOptions) => {
@@ -187,7 +187,7 @@ invite.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::invite
-* @see app/Http/Controllers/Settings/MembersController.php:37
+* @see app/Http/Controllers/Settings/MembersController.php:35
 * @route '/settings/members/invitations'
 */
 invite.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -197,7 +197,7 @@ invite.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::invite
-* @see app/Http/Controllers/Settings/MembersController.php:37
+* @see app/Http/Controllers/Settings/MembersController.php:35
 * @route '/settings/members/invitations'
 */
 const inviteForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -207,7 +207,7 @@ const inviteForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::invite
-* @see app/Http/Controllers/Settings/MembersController.php:37
+* @see app/Http/Controllers/Settings/MembersController.php:35
 * @route '/settings/members/invitations'
 */
 inviteForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -389,7 +389,7 @@ revoke.form = revokeForm
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::update
-* @see app/Http/Controllers/Settings/MembersController.php:48
+* @see app/Http/Controllers/Settings/MembersController.php:45
 * @route '/settings/members/{member}'
 */
 export const update = (args: { member: number | { id: number } } | [member: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -404,7 +404,7 @@ update.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::update
-* @see app/Http/Controllers/Settings/MembersController.php:48
+* @see app/Http/Controllers/Settings/MembersController.php:45
 * @route '/settings/members/{member}'
 */
 update.url = (args: { member: number | { id: number } } | [member: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -437,7 +437,7 @@ update.url = (args: { member: number | { id: number } } | [member: number | { id
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::update
-* @see app/Http/Controllers/Settings/MembersController.php:48
+* @see app/Http/Controllers/Settings/MembersController.php:45
 * @route '/settings/members/{member}'
 */
 update.patch = (args: { member: number | { id: number } } | [member: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -447,7 +447,7 @@ update.patch = (args: { member: number | { id: number } } | [member: number | { 
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::update
-* @see app/Http/Controllers/Settings/MembersController.php:48
+* @see app/Http/Controllers/Settings/MembersController.php:45
 * @route '/settings/members/{member}'
 */
 const updateForm = (args: { member: number | { id: number } } | [member: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -462,7 +462,7 @@ const updateForm = (args: { member: number | { id: number } } | [member: number 
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::update
-* @see app/Http/Controllers/Settings/MembersController.php:48
+* @see app/Http/Controllers/Settings/MembersController.php:45
 * @route '/settings/members/{member}'
 */
 updateForm.patch = (args: { member: number | { id: number } } | [member: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -479,7 +479,7 @@ update.form = updateForm
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::remove
-* @see app/Http/Controllers/Settings/MembersController.php:58
+* @see app/Http/Controllers/Settings/MembersController.php:54
 * @route '/settings/members/{member}'
 */
 export const remove = (args: { member: number | { id: number } } | [member: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -494,7 +494,7 @@ remove.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::remove
-* @see app/Http/Controllers/Settings/MembersController.php:58
+* @see app/Http/Controllers/Settings/MembersController.php:54
 * @route '/settings/members/{member}'
 */
 remove.url = (args: { member: number | { id: number } } | [member: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -527,7 +527,7 @@ remove.url = (args: { member: number | { id: number } } | [member: number | { id
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::remove
-* @see app/Http/Controllers/Settings/MembersController.php:58
+* @see app/Http/Controllers/Settings/MembersController.php:54
 * @route '/settings/members/{member}'
 */
 remove.delete = (args: { member: number | { id: number } } | [member: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -537,7 +537,7 @@ remove.delete = (args: { member: number | { id: number } } | [member: number | {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::remove
-* @see app/Http/Controllers/Settings/MembersController.php:58
+* @see app/Http/Controllers/Settings/MembersController.php:54
 * @route '/settings/members/{member}'
 */
 const removeForm = (args: { member: number | { id: number } } | [member: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -552,7 +552,7 @@ const removeForm = (args: { member: number | { id: number } } | [member: number 
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\MembersController::remove
-* @see app/Http/Controllers/Settings/MembersController.php:58
+* @see app/Http/Controllers/Settings/MembersController.php:54
 * @route '/settings/members/{member}'
 */
 removeForm.delete = (args: { member: number | { id: number } } | [member: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

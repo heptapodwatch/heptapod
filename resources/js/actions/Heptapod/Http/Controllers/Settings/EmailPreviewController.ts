@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailPreviewController::__invoke
-* @see app/Http/Controllers/Settings/EmailPreviewController.php:25
+* @see app/Http/Controllers/Settings/EmailPreviewController.php:26
 * @route '/settings/email/preview'
 */
 const EmailPreviewController = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ EmailPreviewController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailPreviewController::__invoke
-* @see app/Http/Controllers/Settings/EmailPreviewController.php:25
+* @see app/Http/Controllers/Settings/EmailPreviewController.php:26
 * @route '/settings/email/preview'
 */
 EmailPreviewController.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ EmailPreviewController.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailPreviewController::__invoke
-* @see app/Http/Controllers/Settings/EmailPreviewController.php:25
+* @see app/Http/Controllers/Settings/EmailPreviewController.php:26
 * @route '/settings/email/preview'
 */
 EmailPreviewController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ EmailPreviewController.get = (options?: RouteQueryOptions): RouteDefinition<'get
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailPreviewController::__invoke
-* @see app/Http/Controllers/Settings/EmailPreviewController.php:25
+* @see app/Http/Controllers/Settings/EmailPreviewController.php:26
 * @route '/settings/email/preview'
 */
 EmailPreviewController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ EmailPreviewController.head = (options?: RouteQueryOptions): RouteDefinition<'he
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailPreviewController::__invoke
-* @see app/Http/Controllers/Settings/EmailPreviewController.php:25
+* @see app/Http/Controllers/Settings/EmailPreviewController.php:26
 * @route '/settings/email/preview'
 */
 const EmailPreviewControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const EmailPreviewControllerForm = (options?: RouteQueryOptions): RouteFormDefin
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailPreviewController::__invoke
-* @see app/Http/Controllers/Settings/EmailPreviewController.php:25
+* @see app/Http/Controllers/Settings/EmailPreviewController.php:26
 * @route '/settings/email/preview'
 */
 EmailPreviewControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ EmailPreviewControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinit
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailPreviewController::__invoke
-* @see app/Http/Controllers/Settings/EmailPreviewController.php:25
+* @see app/Http/Controllers/Settings/EmailPreviewController.php:26
 * @route '/settings/email/preview'
 */
 EmailPreviewControllerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

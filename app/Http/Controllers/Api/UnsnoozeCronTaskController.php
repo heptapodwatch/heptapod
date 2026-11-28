@@ -8,21 +8,19 @@ use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\UnsnoozeCronTask;
 use Heptapod\Concerns\AuthorizesCronTasks;
-use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Http\Resources\OhDear\CronTaskResource;
-use Illuminate\Http\Request;
+use Heptapod\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 
 #[Group('Cron tasks')]
 final class UnsnoozeCronTaskController extends Controller
 {
     use AuthorizesCronTasks;
-    use ResolvesApiPrincipal;
 
-    public function __invoke(Request $request, int $cronTask, AuthorizeSiteWrite $authorize): CronTaskResource
+    public function __invoke(#[CurrentUser] User $user, int $cronTask, AuthorizeSiteWrite $authorize): CronTaskResource
     {
         [$task, $check] = $this->task($cronTask, 'snooze');
-        $user = $this->principal($request);
         $authorize($user, 'snooze', static fn () => app(UnsnoozeCronTask::class)($check, $task->id, $user), $check);
 
         return new CronTaskResource($task);

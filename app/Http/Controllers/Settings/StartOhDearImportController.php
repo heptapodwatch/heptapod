@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Heptapod\Http\Controllers\Settings;
 
 use Heptapod\Actions\StartOhDearImport;
-use Heptapod\Concerns\AuthorizesSettingsOperator;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\ImportRun;
+use Heptapod\Models\User;
 use Heptapod\Support\ImportAssignments;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -16,11 +17,8 @@ use Illuminate\Validation\Rule;
 
 final class StartOhDearImportController extends Controller
 {
-    use AuthorizesSettingsOperator;
-
-    public function __invoke(Request $request, string $run, StartOhDearImport $claim): JsonResponse
+    public function __invoke(#[CurrentUser] User $user, Request $request, string $run, StartOhDearImport $claim): JsonResponse
     {
-        $user = $this->operator($request);
         $importRun = ImportRun::query()->findOrFail($run);
         abort_unless($importRun->user_id === $user->id, 403);
         $target = ['required', 'array:client_id,new_client'];

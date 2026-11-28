@@ -14,6 +14,7 @@ use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
 use Heptapod\Queries\AddSiteReader;
 use Heptapod\Settings\InstanceSettings;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -25,21 +26,16 @@ use Inertia\Response;
 
 final class AddSiteController extends Controller
 {
-    public function create(Request $request, AddSiteReader $reader): Response
+    public function create(#[CurrentUser] User $user, Request $request, AddSiteReader $reader): Response
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
-
         Validator::make($request->all(), ['client_id' => ['sometimes', 'integer', 'min:1']])->validate();
 
         return Inertia::render('sites/create', $reader->read($user, $request->filled('client_id') ? $request->integer('client_id') : null)->toArray())
             ->with('instanceTimezone', app(InstanceSettings::class)->timezone);
     }
 
-    public function store(Request $request, CreateSite $create, SitePolicy $policy, SiteProbe $probe, NormaliseSiteUrl $normalise, ThrottleRequestsExactly $throttle): RedirectResponse
+    public function store(#[CurrentUser] User $user, Request $request, CreateSite $create, SitePolicy $policy, SiteProbe $probe, NormaliseSiteUrl $normalise, ThrottleRequestsExactly $throttle): RedirectResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         // A client gone or out of reach is refused at the Client field alike (a restored draft, a pick made elsewhere).
         Validator::make($request->all(), ['client_id' => ['required', 'integer', 'min:1', $policy->visibleClientRule($user)]],
             ['client_id.exists' => __('sites.client_unavailable')])->validate();

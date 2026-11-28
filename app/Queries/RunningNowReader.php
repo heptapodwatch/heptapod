@@ -11,6 +11,7 @@ use Heptapod\Data\Ui\RunningBackupData;
 use Heptapod\Data\Ui\RunningCheckRunData;
 use Heptapod\Data\Ui\RunningImportData;
 use Heptapod\Data\Ui\RunningNowData;
+use Heptapod\Enums\Capability;
 use Heptapod\Enums\ImportRunStatus;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\CheckRunAttempt;
@@ -64,7 +65,7 @@ final readonly class RunningNowReader
             ?? throw new \LogicException('A picked run must load.'), $user, $results), $picked);
 
         return new RunningNowData($rows, $picked === [] ? 0 : $picked[0]->active_total,
-            $user->hasAnyRole(['Owner', 'Admin']) ? $this->imports($user, $since) : [], $user->hasRole('Owner') ? $this->backup($user, $since) : null);
+            Capability::Manage->allows($user) ? $this->imports($user, $since) : [], Capability::ManageInstance->allows($user) ? $this->backup($user, $since) : null);
     }
 
     /**
@@ -101,7 +102,7 @@ final readonly class RunningNowReader
     }
 
     /**
-     * Imports are Owner/Admin work (AuthorizesSettingsOperator). Never `results`: one row per monitor, too large for every page.
+     * Imports are Owner/Admin work (Capability::Manage). Never `results`: one row per monitor, too large for every page.
      * import_runs_active and import_runs_user_finished keep the read off the finished history.
      *
      * @return list<RunningImportData>

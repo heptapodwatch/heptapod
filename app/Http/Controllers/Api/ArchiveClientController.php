@@ -7,11 +7,12 @@ namespace Heptapod\Http\Controllers\Api;
 use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Actions\ArchiveClient;
 use Heptapod\Concerns\RejectsUnsupportedFields;
-use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Http\Resources\ClientResource;
 use Heptapod\Models\Client;
+use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
@@ -21,12 +22,11 @@ use Illuminate\Validation\ValidationException;
 #[Group('Clients')]
 final class ArchiveClientController extends Controller
 {
-    use RejectsUnsupportedFields, ResolvesApiPrincipal;
+    use RejectsUnsupportedFields;
 
-    public function __invoke(Request $request, Client $client, ArchiveClient $archive, SitePolicy $policy): ClientResource
+    public function __invoke(#[CurrentUser] User $user, Request $request, Client $client, ArchiveClient $archive, SitePolicy $policy): ClientResource
     {
         Gate::authorize('archive', $client);
-        $user = $this->principal($request);
         // The mode has no default: a missing, empty or malformed JSON body decodes to no fields and fails on `sites`.
         $input = $request->json()->all();
         $this->rejectUnsupportedFields($input, ['sites', 'move_to_client_id']);

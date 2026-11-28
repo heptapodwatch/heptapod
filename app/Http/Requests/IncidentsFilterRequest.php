@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\FilterKind;
 use Heptapod\Contracts\ListFilters;
+use Heptapod\Enums\Capability;
 use Heptapod\Enums\IncidentCause;
 use Heptapod\Http\ListPageSize;
 use Heptapod\Models\User;
@@ -23,7 +24,9 @@ final class IncidentsFilterRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->hasAnyRole(['Owner', 'Admin', 'Member']) ?? false;
+        $user = $this->user();
+
+        return $user instanceof User && Capability::ViewInstance->allows($user);
     }
 
     /** @return array<string, mixed> */

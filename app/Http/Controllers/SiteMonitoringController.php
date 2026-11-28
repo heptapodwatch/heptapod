@@ -10,6 +10,7 @@ use Heptapod\Actions\PauseSite;
 use Heptapod\Actions\ResumeSite;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -17,11 +18,9 @@ use Illuminate\Support\Facades\Validator;
 
 final class SiteMonitoringController extends Controller
 {
-    public function store(Request $request, Site $site, PauseSite $pause, AuthorizeSiteWrite $authorize): RedirectResponse
+    public function store(#[CurrentUser] User $user, Request $request, Site $site, PauseSite $pause, AuthorizeSiteWrite $authorize): RedirectResponse
     {
         Gate::authorize('update', $site);
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         /** @var array{until?: 'manual'|'hour'|'tomorrow'} $data */
         $data = Validator::make($request->all(), ['until' => ['sometimes', 'in:manual,hour,tomorrow']])->validate();
         $now = CarbonImmutable::now($user->resolvedTimezone());
@@ -36,19 +35,11 @@ final class SiteMonitoringController extends Controller
         return back();
     }
 
-    public function destroy(Request $request, Site $site, ResumeSite $resume, AuthorizeSiteWrite $authorize): RedirectResponse
+    public function destroy(#[CurrentUser] User $user, Site $site, ResumeSite $resume, AuthorizeSiteWrite $authorize): RedirectResponse
     {
         Gate::authorize('update', $site);
-        $authorize($this->user($request), 'update', static fn () => $resume($site), $site);
+        $authorize($user, 'update', static fn () => $resume($site), $site);
 
         return back();
-    }
-
-    private function user(Request $request): User
-    {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
-
-        return $user;
     }
 }

@@ -12,6 +12,7 @@ use Heptapod\Models\Client;
 use Heptapod\Models\User;
 use Heptapod\Queries\ClientSettingsReader;
 use Heptapod\Settings\InstanceSettings;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,15 +24,12 @@ final class ClientSettingsController extends Controller
 {
     public function create(): Response
     {
-        Gate::authorize('create', Client::class);
-
         return Inertia::render('clients/settings', new ClientSettingsPageData(null, [], false, \DateTimeZone::listIdentifiers())->toArray())
             ->with('instanceTimezone', app(InstanceSettings::class)->timezone);
     }
 
     public function store(Request $request, CreateClient $create): RedirectResponse|JsonResponse
     {
-        Gate::authorize('create', Client::class);
         /** @var array<string, mixed> $attributes */
         $attributes = $request->all();
         $client = $create($attributes);
@@ -42,12 +40,9 @@ final class ClientSettingsController extends Controller
         return redirect()->route('clients.show', ['client' => $client->id]);
     }
 
-    public function edit(Request $request, Client $client, ClientSettingsReader $reader): Response
+    public function edit(#[CurrentUser] User $user, Client $client, ClientSettingsReader $reader): Response
     {
         Gate::authorize('update', $client);
-
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
 
         return Inertia::render('clients/settings', $reader->read($client, $user)->toArray())->with('instanceTimezone', app(InstanceSettings::class)->timezone);
     }

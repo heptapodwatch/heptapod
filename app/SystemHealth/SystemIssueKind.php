@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\SystemHealth;
 
+use Heptapod\Enums\Capability;
 use Heptapod\Enums\HealthStatus;
 use Heptapod\Models\User;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
@@ -73,10 +74,10 @@ enum SystemIssueKind: string
     /** @return array{action_key: string, href: string} */
     public function navigationAction(?User $user): array
     {
-        if ($this === self::MailLogOnly && $user?->hasRole('Owner') === true) {
+        if ($this === self::MailLogOnly && $user instanceof User && Capability::ManageInstance->allows($user)) {
             return ['action_key' => 'Open mail settings', 'href' => route('settings.email.edit')];
         }
-        if ($user?->hasAnyRole(['Owner', 'Admin']) === true) {
+        if ($user instanceof User && Capability::Manage->allows($user)) {
             return ['action_key' => 'Open System health', 'href' => route('settings.system.edit')];
         }
 

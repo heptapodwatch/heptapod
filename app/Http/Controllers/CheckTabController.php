@@ -9,6 +9,7 @@ use Heptapod\Enums\DailyMetricRange;
 use Heptapod\Enums\ResponseTimeRange;
 use Heptapod\Models\User;
 use Heptapod\Queries\SiteDetailReader;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -16,10 +17,8 @@ use Inertia\Response;
 
 final class CheckTabController extends Controller
 {
-    public function __invoke(Request $request, int $site, int $check, SiteDetailReader $reader): Response|RedirectResponse
+    public function __invoke(#[CurrentUser] User $user, Request $request, int $site, int $check, SiteDetailReader $reader): Response|RedirectResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         $requested = $request->query('response_range', ResponseTimeRange::Hours24->value);
         $range = is_string($requested) ? ResponseTimeRange::tryFrom($requested) : null;
         // An edited or outdated link: open the same check on its default range and say so.

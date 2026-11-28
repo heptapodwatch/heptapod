@@ -82,7 +82,7 @@ edit.form = editForm
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\SystemHealthController::__invoke
-* @see app/Http/Controllers/Settings/SystemHealthController.php:35
+* @see app/Http/Controllers/Settings/SystemHealthController.php:33
 * @route '/settings/system/data'
 */
 export const data = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -97,7 +97,7 @@ data.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\SystemHealthController::__invoke
-* @see app/Http/Controllers/Settings/SystemHealthController.php:35
+* @see app/Http/Controllers/Settings/SystemHealthController.php:33
 * @route '/settings/system/data'
 */
 data.url = (options?: RouteQueryOptions) => {
@@ -106,7 +106,7 @@ data.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\SystemHealthController::__invoke
-* @see app/Http/Controllers/Settings/SystemHealthController.php:35
+* @see app/Http/Controllers/Settings/SystemHealthController.php:33
 * @route '/settings/system/data'
 */
 data.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -116,7 +116,7 @@ data.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\SystemHealthController::__invoke
-* @see app/Http/Controllers/Settings/SystemHealthController.php:35
+* @see app/Http/Controllers/Settings/SystemHealthController.php:33
 * @route '/settings/system/data'
 */
 data.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -126,7 +126,7 @@ data.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\SystemHealthController::__invoke
-* @see app/Http/Controllers/Settings/SystemHealthController.php:35
+* @see app/Http/Controllers/Settings/SystemHealthController.php:33
 * @route '/settings/system/data'
 */
 const dataForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -136,7 +136,7 @@ const dataForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\SystemHealthController::__invoke
-* @see app/Http/Controllers/Settings/SystemHealthController.php:35
+* @see app/Http/Controllers/Settings/SystemHealthController.php:33
 * @route '/settings/system/data'
 */
 dataForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -146,7 +146,7 @@ dataForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\SystemHealthController::__invoke
-* @see app/Http/Controllers/Settings/SystemHealthController.php:35
+* @see app/Http/Controllers/Settings/SystemHealthController.php:33
 * @route '/settings/system/data'
 */
 dataForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

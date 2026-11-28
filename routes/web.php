@@ -1,5 +1,6 @@
 <?php
 
+use Heptapod\Enums\Capability;
 use Heptapod\Http\Controllers\AcceptDnsSnapshotController;
 use Heptapod\Http\Controllers\ActivityController;
 use Heptapod\Http\Controllers\AddSiteController;
@@ -93,8 +94,8 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('search', SearchController::class)->name('search');
     Route::get('pickers/{kind}', PickerController::class)->whereIn('kind', ['sites', 'clients'])->middleware('throttle:pickers')->name('pickers');
     Route::get('clients', ClientsIndexController::class)->name('clients.index');
-    Route::get('clients/create', [ClientSettingsController::class, 'create'])->name('clients.create');
-    Route::post('clients', [ClientSettingsController::class, 'store'])->name('clients.store');
+    Route::get('clients/create', [ClientSettingsController::class, 'create'])->can(Capability::Manage)->name('clients.create');
+    Route::post('clients', [ClientSettingsController::class, 'store'])->can(Capability::Manage)->name('clients.store');
     Route::get('clients/{client}', ClientDetailController::class)->whereNumber('client')->name('clients.show');
     Route::get('clients/{client}/logo/{hash}', ClientLogoController::class)->whereNumber('client')->where('hash', '[a-f0-9]{64}')->name('clients.logo');
     Route::get('clients/{client}/settings', [ClientSettingsController::class, 'edit'])->whereNumber('client')->name('clients.settings');
@@ -108,22 +109,22 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::post('clients/{client}/client-messages/preview', ClientMessagePreviewController::class)->whereNumber('client')->name('clients.messages.preview');
     Route::post('clients/{client}/client-messages', [ClientMessagesController::class, 'store'])->whereNumber('client')->name('clients.messages.store');
     Route::get('maintenance', [MaintenanceController::class, 'index'])->name('maintenance.index');
-    Route::post('maintenance', [MaintenanceController::class, 'store'])->name('maintenance.store');
-    Route::put('maintenance/series/{series}', [MaintenanceSeriesController::class, 'update'])->whereNumber('series')->name('maintenance.series.update');
-    Route::delete('maintenance/series/{series}', [MaintenanceSeriesController::class, 'destroy'])->whereNumber('series')->name('maintenance.series.destroy');
-    Route::put('maintenance/{window}', [MaintenanceController::class, 'update'])->whereNumber('window')->name('maintenance.update');
-    Route::delete('maintenance/{window}', [MaintenanceController::class, 'destroy'])->whereNumber('window')->name('maintenance.destroy');
-    Route::post('maintenance/{window}/end', EndMaintenanceController::class)->whereNumber('window')->name('maintenance.end');
+    Route::post('maintenance', [MaintenanceController::class, 'store'])->can(Capability::Manage)->name('maintenance.store');
+    Route::put('maintenance/series/{series}', [MaintenanceSeriesController::class, 'update'])->whereNumber('series')->can(Capability::Manage)->name('maintenance.series.update');
+    Route::delete('maintenance/series/{series}', [MaintenanceSeriesController::class, 'destroy'])->whereNumber('series')->can(Capability::Manage)->name('maintenance.series.destroy');
+    Route::put('maintenance/{window}', [MaintenanceController::class, 'update'])->whereNumber('window')->can(Capability::Manage)->name('maintenance.update');
+    Route::delete('maintenance/{window}', [MaintenanceController::class, 'destroy'])->whereNumber('window')->can(Capability::Manage)->name('maintenance.destroy');
+    Route::post('maintenance/{window}/end', EndMaintenanceController::class)->whereNumber('window')->can(Capability::Manage)->name('maintenance.end');
     Route::get('incidents', IncidentsIndexController::class)->name('incidents.index');
     Route::get('incidents/export.{format}', IncidentExportController::class)->name('incidents.export');
-    Route::get('incidents/{incident}/alerts/{event}', IncidentAlertPreviewController::class)->whereNumber(['incident', 'event'])->name('incidents.alert-preview');
+    Route::get('incidents/{incident}/alerts/{event}', IncidentAlertPreviewController::class)->whereNumber(['incident', 'event'])->can(Capability::Manage)->name('incidents.alert-preview');
     Route::get('incidents/{incident}', IncidentDetailController::class)->whereNumber('incident')->name('incidents.show');
     Route::put('incidents/{incident}/note', [IncidentActionsController::class, 'update'])->whereNumber('incident')->name('incidents.note');
     Route::post('incidents/{incident}/snooze', [IncidentActionsController::class, 'store'])->whereNumber('incident')->name('incidents.snooze');
     Route::delete('incidents/{incident}/snooze', [IncidentActionsController::class, 'destroy'])->whereNumber('incident')->name('incidents.unsnooze');
     Route::get('sites', SitesIndexController::class)->name('sites.index');
     Route::get('sites/create', [AddSiteController::class, 'create'])->name('sites.create');
-    Route::post('sites/probe', SiteProbeController::class)->middleware('throttle:site-probe')->name('sites.probe');
+    Route::post('sites/probe', SiteProbeController::class)->can(Capability::Manage)->middleware('throttle:site-probe')->name('sites.probe');
     Route::post('sites', [AddSiteController::class, 'store'])->name('sites.store');
     Route::get('sites/{site}', SiteOverviewController::class)->whereNumber('site')->name('sites.show');
     Route::get('sites/{site}/maintenance', [MaintenanceController::class, 'show'])->whereNumber('site')->name('sites.maintenance');

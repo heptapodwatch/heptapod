@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Policies;
 
+use Heptapod\Enums\Capability;
 use Heptapod\Models\Client;
 use Heptapod\Models\User;
 use Illuminate\Auth\Access\Response;
@@ -12,21 +13,21 @@ final class ClientPolicy
 {
     public function create(User $user): Response
     {
-        return $user->hasAnyRole(['Owner', 'Admin']) ? Response::allow() : Response::deny();
+        return Capability::Manage->allows($user) ? Response::allow() : Response::deny();
     }
 
     public function view(User $user, Client $client): Response
     {
-        if (! $user->hasAnyRole(['Owner', 'Admin', 'Member'])) {
+        if (! Capability::ViewInstance->allows($user)) {
             return Response::deny();
         }
 
-        return $user->canAccessClient($client->id) ? Response::allow() : Response::denyAsNotFound();
+        return Capability::ViewClient->allows($user, $client->id) ? Response::allow() : Response::denyAsNotFound();
     }
 
     public function update(User $user, Client $client): Response
     {
-        return $user->canAccessClient($client->id) && $user->hasAnyRole(['Owner', 'Admin']) ? Response::allow() : Response::denyAsNotFound();
+        return Capability::ViewClient->allows($user, $client->id) && Capability::Manage->allows($user) ? Response::allow() : Response::denyAsNotFound();
     }
 
     public function restore(User $user, Client $client): Response

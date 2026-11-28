@@ -13,6 +13,7 @@ use Heptapod\Models\Client;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\User;
 use Heptapod\Policies\NotificationDestinationPolicy;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -22,10 +23,8 @@ use Illuminate\Validation\Rule;
 /** Add, edit and remove channels of RecipientSettings (design §7.1). Every write goes through NotificationDestinationPolicy. */
 final class NotificationChannelsController extends Controller
 {
-    public function store(Request $request, SaveNotificationChannel $save, NotificationDestinationPolicy $policy): JsonResponse
+    public function store(#[CurrentUser] User $actor, Request $request, SaveNotificationChannel $save, NotificationDestinationPolicy $policy): JsonResponse
     {
-        $actor = $request->user();
-        abort_unless($actor instanceof User, 401);
         /** @var array{recipient_kind: string, client_id?: int} $recipient */
         $recipient = Validator::make($request->all(), [
             'recipient_kind' => ['required', Rule::enum(RecipientKind::class)],
@@ -48,11 +47,9 @@ final class NotificationChannelsController extends Controller
         return response()->json(['id' => $channel->id, 'check_types' => $channel->check_types], 201);
     }
 
-    public function update(Request $request, NotificationDestination $channel, SaveNotificationChannel $save): JsonResponse
+    public function update(#[CurrentUser] User $actor, Request $request, NotificationDestination $channel, SaveNotificationChannel $save): JsonResponse
     {
         Gate::authorize('update', $channel);
-        $actor = $request->user();
-        abort_unless($actor instanceof User, 401);
         /** @var array<string, mixed> $attributes */
         $attributes = $request->all();
         $channel = $save->edit($channel, $attributes, $actor);
@@ -61,7 +58,7 @@ final class NotificationChannelsController extends Controller
     }
 
     /** Remove archives: history stays and queued work is suppressed. The account channel cannot be removed. */
-    public function destroy(Request $request, NotificationDestination $channel, ArchiveNotificationChannel $archive): JsonResponse
+    public function destroy(#[CurrentUser] User $actor, NotificationDestination $channel, ArchiveNotificationChannel $archive): JsonResponse
     {
         Gate::authorize('update', $channel);
         if ($channel->account_mail) {
@@ -71,8 +68,6 @@ final class NotificationChannelsController extends Controller
                 errorCode: 'account_channel_kept',
             );
         }
-        $actor = $request->user();
-        abort_unless($actor instanceof User, 401);
         $suppressed = $archive($channel, ArchiveNotificationChannel::Archived, $actor);
 
         return response()->json(['id' => $channel->id, 'suppressed_count' => $suppressed]);

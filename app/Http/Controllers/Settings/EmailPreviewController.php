@@ -13,6 +13,7 @@ use Heptapod\Events\Notifications\EmailPreviewSample;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\User;
 use Heptapod\Notifications\AccountMailFactory;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -22,10 +23,8 @@ use Illuminate\Validation\Rule;
 final class EmailPreviewController extends Controller
 {
     /** Draft logos carry only their size; the page fills in the image. */
-    public function __invoke(Request $request, EmailPreviewSample $sample, AccountMailFactory $accountMails, MailRenderer $renderer): JsonResponse
+    public function __invoke(#[CurrentUser] User $user, Request $request, EmailPreviewSample $sample, AccountMailFactory $accountMails, MailRenderer $renderer): JsonResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User && $user->hasRole('Owner'), 403);
         /** @var array{kind: string, design: string, sender_name?: string|null, accent?: string|null, footer?: string|null, logo_width?: int|string|null, logo_height?: int|string|null, logo_dark_width?: int|string|null, logo_dark_height?: int|string|null} $draft */
         $draft = Validator::make($request->query(), [
             'kind' => ['required', Rule::in(['alert', 'reset'])],

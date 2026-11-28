@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Heptapod\Enums\Capability;
 use Heptapod\Enums\ClientScope;
 use Heptapod\Models\Client;
 use Heptapod\Models\Site;
@@ -30,7 +31,7 @@ it('treats Owner and Admin as instance-wide despite stale membership and cleans 
     $member->clients()->attach($allowed);
     $policy = app(SitePolicy::class);
     expect($policy->visibleSiteIds($operator))->toContain($allowedSite->id, $otherSite->id)
-        ->and($operator->canAccessClient($otherSite->client_id))->toBeTrue()
+        ->and(Capability::ViewClient->allows($operator, $otherSite->client_id))->toBeTrue()
         ->and($policy->visibleSiteIds($member))->toContain($allowedSite->id)->not->toContain($otherSite->id);
     $migration = require database_path('migrations/2026_10_04_034303_clear_operator_client_scopes.php');
     $migration->up();

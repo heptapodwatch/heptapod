@@ -11,17 +11,14 @@ use Heptapod\Models\Delivery;
 use Heptapod\Models\Event;
 use Heptapod\Models\User;
 use Heptapod\Queries\IncidentsReader;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 final class IncidentAlertPreviewController extends Controller
 {
-    public function __invoke(Request $request, int $incident, int $event, IncidentsReader $reader, NotificationMessage $messages): JsonResponse
+    public function __invoke(#[CurrentUser] User $user, int $incident, int $event, IncidentsReader $reader, NotificationMessage $messages): JsonResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
-        abort_unless($user->hasAnyRole(['Owner', 'Admin']), 403);
         $reader->scoped($user)->whereKey($incident)->firstOrFail();
         $events = Event::incidentAlertPreviewTypes()->with(['site.client', 'check', 'incident'])->where('incident_id', $incident)->whereKey($event);
         $row = $events->firstOrFail();

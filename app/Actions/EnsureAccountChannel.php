@@ -7,6 +7,7 @@ namespace Heptapod\Actions;
 use Heptapod\Contracts\Schema\ValidatedConfig;
 use Heptapod\Enums\NotificationMode;
 use Heptapod\Enums\RecipientKind;
+use Heptapod\Enums\Role;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\NotificationPreference;
 use Heptapod\Models\User;
@@ -28,7 +29,7 @@ final readonly class EnsureAccountChannel
             if ($existing instanceof NotificationDestination) {
                 return $existing;
             }
-            $role = array_find(['Owner', 'Admin', 'Member'], static fn (string $name): bool => $user->hasRole($name));
+            $role = Role::of($user)?->value;
             $channel = NotificationDestination::query()->create(['recipient_kind' => RecipientKind::User, 'user_id' => $user->id,
                 'account_mail' => true, 'channel' => 'mail', 'label' => $user->name, 'enabled' => true, 'locale' => null,
                 'config' => new ValidatedConfig([], [])]);

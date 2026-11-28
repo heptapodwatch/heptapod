@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Settings\RetryOhDearImportController::__invoke
-* @see app/Http/Controllers/Settings/RetryOhDearImportController.php:18
+* @see app/Http/Controllers/Settings/RetryOhDearImportController.php:16
 * @route '/settings/import/ohdear/runs/{run}/retry'
 */
 const RetryOhDearImportController = (args: { run: string | number } | [run: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ RetryOhDearImportController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\RetryOhDearImportController::__invoke
-* @see app/Http/Controllers/Settings/RetryOhDearImportController.php:18
+* @see app/Http/Controllers/Settings/RetryOhDearImportController.php:16
 * @route '/settings/import/ohdear/runs/{run}/retry'
 */
 RetryOhDearImportController.url = (args: { run: string | number } | [run: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -43,7 +43,7 @@ RetryOhDearImportController.url = (args: { run: string | number } | [run: string
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\RetryOhDearImportController::__invoke
-* @see app/Http/Controllers/Settings/RetryOhDearImportController.php:18
+* @see app/Http/Controllers/Settings/RetryOhDearImportController.php:16
 * @route '/settings/import/ohdear/runs/{run}/retry'
 */
 RetryOhDearImportController.post = (args: { run: string | number } | [run: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -53,7 +53,7 @@ RetryOhDearImportController.post = (args: { run: string | number } | [run: strin
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\RetryOhDearImportController::__invoke
-* @see app/Http/Controllers/Settings/RetryOhDearImportController.php:18
+* @see app/Http/Controllers/Settings/RetryOhDearImportController.php:16
 * @route '/settings/import/ohdear/runs/{run}/retry'
 */
 const RetryOhDearImportControllerForm = (args: { run: string | number } | [run: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -63,7 +63,7 @@ const RetryOhDearImportControllerForm = (args: { run: string | number } | [run: 
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\RetryOhDearImportController::__invoke
-* @see app/Http/Controllers/Settings/RetryOhDearImportController.php:18
+* @see app/Http/Controllers/Settings/RetryOhDearImportController.php:16
 * @route '/settings/import/ohdear/runs/{run}/retry'
 */
 RetryOhDearImportControllerForm.post = (args: { run: string | number } | [run: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

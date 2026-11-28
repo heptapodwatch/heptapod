@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Actions;
 
+use Heptapod\Enums\Capability;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Models\Check;
 use Heptapod\Models\Incident;
@@ -75,7 +76,7 @@ final readonly class AuthorizeSiteWrite
         return NotificationLocks::transaction(function () use ($actor, $write): mixed {
             NotificationLocks::accessShared();
             $current = $this->currentActor($actor);
-            abort_unless($current->disabled_at === null && $current->hasAnyRole(['Owner', 'Admin']), 403);
+            abort_unless(Capability::Manage->allows($current), 403);
 
             return $write($current);
         });

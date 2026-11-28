@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Auth;
 
+use Heptapod\Enums\Role;
 use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +18,7 @@ final class MemberAccessGuard
 
     public function canManage(User $actor, User $member): bool
     {
-        return $actor->disabled_at === null && ($actor->hasRole('Owner') || ($actor->hasRole('Admin') && $member->hasRole('Member')));
+        return $actor->disabled_at === null && (Role::of($actor) === Role::Owner || (Role::of($actor) === Role::Admin && Role::of($member) === Role::Member));
     }
 
     public function lockOwners(): void

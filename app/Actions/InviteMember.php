@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Actions;
 
 use Heptapod\Enums\ClientScope;
+use Heptapod\Enums\Role;
 use Heptapod\Models\Invitation;
 use Heptapod\Models\User;
 use Heptapod\Notifications\TeamInvitation;
@@ -20,11 +21,11 @@ final class InviteMember
     /** @param array<string, mixed> $attributes */
     public function __invoke(User $actor, array $attributes): Invitation
     {
-        abort_unless($actor->hasAnyRole(['Owner', 'Admin']), 403);
+        abort_unless(in_array(Role::of($actor), [Role::Owner, Role::Admin], true), 403);
         /** @var array{email: string, role: string, client_ids?: list<int>} $data */
         $data = Validator::make($attributes, [
             'email' => ['required', 'email:rfc', 'max:254'],
-            'role' => ['required', Rule::in($actor->hasRole('Owner') ? ['Admin', 'Member'] : ['Member'])],
+            'role' => ['required', Rule::in(Role::of($actor) === Role::Owner ? ['Admin', 'Member'] : ['Member'])],
             'client_ids' => [Rule::requiredIf(($attributes['role'] ?? null) === 'Member'), 'array',
                 Rule::when(($attributes['role'] ?? null) === 'Member', ['min:1'], ['size:0'])],
             'client_ids.*' => ['integer', 'distinct', Rule::exists('clients', 'id')],
@@ -34,7 +35,7 @@ final class InviteMember
         ])->validate();
         $email = Str::lower(trim($data['email']));
         $existing = User::query()->where('email', $email)->first();
-        if (($existing !== null && ($existing->disabled_at === null || (! $actor->hasRole('Owner') && ! $existing->hasRole('Member'))))
+        if (($existing !== null && ($existing->disabled_at === null || (Role::of($actor) !== Role::Owner && Role::of($existing) !== Role::Member)))
             || Invitation::query()->where('email', $email)->getQuery()->exists()) {
             throw ValidationException::withMessages(['email' => __('validation.unique', ['attribute' => __('Email')])]);
         }

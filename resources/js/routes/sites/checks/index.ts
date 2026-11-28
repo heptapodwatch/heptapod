@@ -4,7 +4,7 @@ import attempts from './attempts'
 import tasks from './tasks'
 /**
 * @see \Heptapod\Http\Controllers\CheckTabController::__invoke
-* @see app/Http/Controllers/CheckTabController.php:19
+* @see app/Http/Controllers/CheckTabController.php:20
 * @route '/sites/{site}/checks/{check}'
 */
 export const show = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -19,7 +19,7 @@ show.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\CheckTabController::__invoke
-* @see app/Http/Controllers/CheckTabController.php:19
+* @see app/Http/Controllers/CheckTabController.php:20
 * @route '/sites/{site}/checks/{check}'
 */
 show.url = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions) => {
@@ -45,7 +45,7 @@ show.url = (args: { site: string | number, check: string | number } | [site: str
 
 /**
 * @see \Heptapod\Http\Controllers\CheckTabController::__invoke
-* @see app/Http/Controllers/CheckTabController.php:19
+* @see app/Http/Controllers/CheckTabController.php:20
 * @route '/sites/{site}/checks/{check}'
 */
 show.get = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -55,7 +55,7 @@ show.get = (args: { site: string | number, check: string | number } | [site: str
 
 /**
 * @see \Heptapod\Http\Controllers\CheckTabController::__invoke
-* @see app/Http/Controllers/CheckTabController.php:19
+* @see app/Http/Controllers/CheckTabController.php:20
 * @route '/sites/{site}/checks/{check}'
 */
 show.head = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -65,7 +65,7 @@ show.head = (args: { site: string | number, check: string | number } | [site: st
 
 /**
 * @see \Heptapod\Http\Controllers\CheckTabController::__invoke
-* @see app/Http/Controllers/CheckTabController.php:19
+* @see app/Http/Controllers/CheckTabController.php:20
 * @route '/sites/{site}/checks/{check}'
 */
 const showForm = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -75,7 +75,7 @@ const showForm = (args: { site: string | number, check: string | number } | [sit
 
 /**
 * @see \Heptapod\Http\Controllers\CheckTabController::__invoke
-* @see app/Http/Controllers/CheckTabController.php:19
+* @see app/Http/Controllers/CheckTabController.php:20
 * @route '/sites/{site}/checks/{check}'
 */
 showForm.get = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -85,7 +85,7 @@ showForm.get = (args: { site: string | number, check: string | number } | [site:
 
 /**
 * @see \Heptapod\Http\Controllers\CheckTabController::__invoke
-* @see app/Http/Controllers/CheckTabController.php:19
+* @see app/Http/Controllers/CheckTabController.php:20
 * @route '/sites/{site}/checks/{check}'
 */
 showForm.head = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -102,7 +102,7 @@ show.form = showForm
 
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:40
+* @see app/Http/Controllers/FindingsExportController.php:41
 * @route '/sites/{site}/checks/{check}/findings.{format}'
 */
 export const findings = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -117,7 +117,7 @@ findings.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:40
+* @see app/Http/Controllers/FindingsExportController.php:41
 * @route '/sites/{site}/checks/{check}/findings.{format}'
 */
 findings.url = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions) => {
@@ -146,7 +146,7 @@ findings.url = (args: { site: string | number, check: string | number, format: s
 
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:40
+* @see app/Http/Controllers/FindingsExportController.php:41
 * @route '/sites/{site}/checks/{check}/findings.{format}'
 */
 findings.get = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -156,7 +156,7 @@ findings.get = (args: { site: string | number, check: string | number, format: s
 
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:40
+* @see app/Http/Controllers/FindingsExportController.php:41
 * @route '/sites/{site}/checks/{check}/findings.{format}'
 */
 findings.head = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -166,7 +166,7 @@ findings.head = (args: { site: string | number, check: string | number, format: 
 
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:40
+* @see app/Http/Controllers/FindingsExportController.php:41
 * @route '/sites/{site}/checks/{check}/findings.{format}'
 */
 const findingsForm = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -176,7 +176,7 @@ const findingsForm = (args: { site: string | number, check: string | number, for
 
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:40
+* @see app/Http/Controllers/FindingsExportController.php:41
 * @route '/sites/{site}/checks/{check}/findings.{format}'
 */
 findingsForm.get = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -186,7 +186,7 @@ findingsForm.get = (args: { site: string | number, check: string | number, forma
 
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:40
+* @see app/Http/Controllers/FindingsExportController.php:41
 * @route '/sites/{site}/checks/{check}/findings.{format}'
 */
 findingsForm.head = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -203,7 +203,7 @@ findings.form = findingsForm
 
 /**
 * @see \Heptapod\Http\Controllers\UpdateCheckSettingsController::__invoke
-* @see app/Http/Controllers/UpdateCheckSettingsController.php:23
+* @see app/Http/Controllers/UpdateCheckSettingsController.php:24
 * @route '/sites/{site}/checks/{check}'
 */
 export const update = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -218,7 +218,7 @@ update.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\UpdateCheckSettingsController::__invoke
-* @see app/Http/Controllers/UpdateCheckSettingsController.php:23
+* @see app/Http/Controllers/UpdateCheckSettingsController.php:24
 * @route '/sites/{site}/checks/{check}'
 */
 update.url = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions) => {
@@ -244,7 +244,7 @@ update.url = (args: { site: string | number, check: string | number } | [site: s
 
 /**
 * @see \Heptapod\Http\Controllers\UpdateCheckSettingsController::__invoke
-* @see app/Http/Controllers/UpdateCheckSettingsController.php:23
+* @see app/Http/Controllers/UpdateCheckSettingsController.php:24
 * @route '/sites/{site}/checks/{check}'
 */
 update.patch = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -254,7 +254,7 @@ update.patch = (args: { site: string | number, check: string | number } | [site:
 
 /**
 * @see \Heptapod\Http\Controllers\UpdateCheckSettingsController::__invoke
-* @see app/Http/Controllers/UpdateCheckSettingsController.php:23
+* @see app/Http/Controllers/UpdateCheckSettingsController.php:24
 * @route '/sites/{site}/checks/{check}'
 */
 const updateForm = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -269,7 +269,7 @@ const updateForm = (args: { site: string | number, check: string | number } | [s
 
 /**
 * @see \Heptapod\Http\Controllers\UpdateCheckSettingsController::__invoke
-* @see app/Http/Controllers/UpdateCheckSettingsController.php:23
+* @see app/Http/Controllers/UpdateCheckSettingsController.php:24
 * @route '/sites/{site}/checks/{check}'
 */
 updateForm.patch = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -432,7 +432,7 @@ disable.form = disableForm
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::snooze
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:20
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:21
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 export const snooze = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -447,7 +447,7 @@ snooze.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::snooze
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:20
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:21
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 snooze.url = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions) => {
@@ -473,7 +473,7 @@ snooze.url = (args: { site: string | number, check: string | number } | [site: s
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::snooze
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:20
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:21
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 snooze.post = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -483,7 +483,7 @@ snooze.post = (args: { site: string | number, check: string | number } | [site: 
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::snooze
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:20
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:21
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 const snoozeForm = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -493,7 +493,7 @@ const snoozeForm = (args: { site: string | number, check: string | number } | [s
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::snooze
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:20
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:21
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 snoozeForm.post = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -505,7 +505,7 @@ snooze.form = snoozeForm
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::unsnooze
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:30
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:31
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 export const unsnooze = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -520,7 +520,7 @@ unsnooze.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::unsnooze
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:30
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:31
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 unsnooze.url = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions) => {
@@ -546,7 +546,7 @@ unsnooze.url = (args: { site: string | number, check: string | number } | [site:
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::unsnooze
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:30
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:31
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 unsnooze.delete = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -556,7 +556,7 @@ unsnooze.delete = (args: { site: string | number, check: string | number } | [si
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::unsnooze
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:30
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:31
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 const unsnoozeForm = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -571,7 +571,7 @@ const unsnoozeForm = (args: { site: string | number, check: string | number } | 
 
 /**
 * @see \Heptapod\Http\Controllers\SiteCheckSnoozeController::unsnooze
-* @see app/Http/Controllers/SiteCheckSnoozeController.php:30
+* @see app/Http/Controllers/SiteCheckSnoozeController.php:31
 * @route '/sites/{site}/checks/{check}/snooze'
 */
 unsnoozeForm.delete = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -588,7 +588,7 @@ unsnooze.form = unsnoozeForm
 
 /**
 * @see \Heptapod\Http\Controllers\RequestCheckRunController::__invoke
-* @see app/Http/Controllers/RequestCheckRunController.php:22
+* @see app/Http/Controllers/RequestCheckRunController.php:23
 * @route '/sites/{site}/checks/{check}/run'
 */
 export const run = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -603,7 +603,7 @@ run.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\RequestCheckRunController::__invoke
-* @see app/Http/Controllers/RequestCheckRunController.php:22
+* @see app/Http/Controllers/RequestCheckRunController.php:23
 * @route '/sites/{site}/checks/{check}/run'
 */
 run.url = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions) => {
@@ -629,7 +629,7 @@ run.url = (args: { site: string | number, check: string | number } | [site: stri
 
 /**
 * @see \Heptapod\Http\Controllers\RequestCheckRunController::__invoke
-* @see app/Http/Controllers/RequestCheckRunController.php:22
+* @see app/Http/Controllers/RequestCheckRunController.php:23
 * @route '/sites/{site}/checks/{check}/run'
 */
 run.post = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -639,7 +639,7 @@ run.post = (args: { site: string | number, check: string | number } | [site: str
 
 /**
 * @see \Heptapod\Http\Controllers\RequestCheckRunController::__invoke
-* @see app/Http/Controllers/RequestCheckRunController.php:22
+* @see app/Http/Controllers/RequestCheckRunController.php:23
 * @route '/sites/{site}/checks/{check}/run'
 */
 const runForm = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -649,7 +649,7 @@ const runForm = (args: { site: string | number, check: string | number } | [site
 
 /**
 * @see \Heptapod\Http\Controllers\RequestCheckRunController::__invoke
-* @see app/Http/Controllers/RequestCheckRunController.php:22
+* @see app/Http/Controllers/RequestCheckRunController.php:23
 * @route '/sites/{site}/checks/{check}/run'
 */
 runForm.post = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -661,7 +661,7 @@ run.form = runForm
 
 /**
 * @see \Heptapod\Http\Controllers\AcceptDnsSnapshotController::__invoke
-* @see app/Http/Controllers/AcceptDnsSnapshotController.php:21
+* @see app/Http/Controllers/AcceptDnsSnapshotController.php:22
 * @route '/sites/{site}/checks/{check}/accept-dns'
 */
 export const acceptDns = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -676,7 +676,7 @@ acceptDns.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\AcceptDnsSnapshotController::__invoke
-* @see app/Http/Controllers/AcceptDnsSnapshotController.php:21
+* @see app/Http/Controllers/AcceptDnsSnapshotController.php:22
 * @route '/sites/{site}/checks/{check}/accept-dns'
 */
 acceptDns.url = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions) => {
@@ -702,7 +702,7 @@ acceptDns.url = (args: { site: string | number, check: string | number } | [site
 
 /**
 * @see \Heptapod\Http\Controllers\AcceptDnsSnapshotController::__invoke
-* @see app/Http/Controllers/AcceptDnsSnapshotController.php:21
+* @see app/Http/Controllers/AcceptDnsSnapshotController.php:22
 * @route '/sites/{site}/checks/{check}/accept-dns'
 */
 acceptDns.post = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -712,7 +712,7 @@ acceptDns.post = (args: { site: string | number, check: string | number } | [sit
 
 /**
 * @see \Heptapod\Http\Controllers\AcceptDnsSnapshotController::__invoke
-* @see app/Http/Controllers/AcceptDnsSnapshotController.php:21
+* @see app/Http/Controllers/AcceptDnsSnapshotController.php:22
 * @route '/sites/{site}/checks/{check}/accept-dns'
 */
 const acceptDnsForm = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -722,7 +722,7 @@ const acceptDnsForm = (args: { site: string | number, check: string | number } |
 
 /**
 * @see \Heptapod\Http\Controllers\AcceptDnsSnapshotController::__invoke
-* @see app/Http/Controllers/AcceptDnsSnapshotController.php:21
+* @see app/Http/Controllers/AcceptDnsSnapshotController.php:22
 * @route '/sites/{site}/checks/{check}/accept-dns'
 */
 acceptDnsForm.post = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

@@ -12,7 +12,6 @@ use Heptapod\Actions\RequestSiteDeletion;
 use Heptapod\Actions\UpdateSite;
 use Heptapod\Actions\UpdateSiteSettings;
 use Heptapod\Checks\NoResultFreshness;
-use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Contracts\Http\PaginatedCollection;
 use Heptapod\Contracts\Http\PaginationRequest;
 use Heptapod\Http\Controllers\Controller;
@@ -20,8 +19,10 @@ use Heptapod\Http\Resources\OhDear\MonitorResource;
 use Heptapod\Models\Client;
 use Heptapod\Models\Site;
 use Heptapod\Models\SiteRepository;
+use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
 use Heptapod\Support\RepositoryUrl;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\JsonResponse;
@@ -34,11 +35,8 @@ use Illuminate\Validation\ValidationException;
 #[Group('Monitors')]
 final class MonitorController extends Controller
 {
-    use ResolvesApiPrincipal;
-
-    public function index(PaginationRequest $request, SitePolicy $policy, NoResultFreshness $noResultFreshness): JsonResponse
+    public function index(#[CurrentUser] User $user, PaginationRequest $request, SitePolicy $policy, NoResultFreshness $noResultFreshness): JsonResponse
     {
-        $user = $this->principal($request);
         Validator::make($request->all(), ['filter' => ['sometimes', 'array:team_id,repository_url'], 'filter.team_id' => ['sometimes', 'integer', 'in:1'],
             'filter.repository_url' => ['sometimes', 'string', 'max:'.RepositoryUrl::MaxLength, RepositoryUrl::rule()]])->validate();
         $query = $policy->visibleSites($user)->with(['checks' => static function (Relation $checks): void {
@@ -70,12 +68,12 @@ final class MonitorController extends Controller
         }, 'checks.snoozes', 'tags', 'client', 'repositories']));
     }
 
-    public function store(Request $request, CreateSite $create, SitePolicy $policy): JsonResponse
+    public function store(#[CurrentUser] User $user, Request $request, CreateSite $create, SitePolicy $policy): JsonResponse
     {
         /** @var array{client_id?: int|null} $data */
         $data = Validator::make($request->all(), ['team_id' => ['required', 'integer', 'in:1'], 'type' => ['required', 'in:http'],
             // Omitted or null: No client. Any other value must be filled, since a blank string skips the non-implicit rules after it.
-            'client_id' => [$request->input('client_id') === null ? 'nullable' : 'filled', 'integer:strict', $policy->visibleClientRule($this->principal($request), includeArchived: true)]])->validate();
+            'client_id' => [$request->input('client_id') === null ? 'nullable' : 'filled', 'integer:strict', $policy->visibleClientRule($user, includeArchived: true)]])->validate();
         $client = isset($data['client_id']) ? Client::query()->findOrFail($data['client_id']) : Client::query()->where('is_internal', true)->firstOrFail();
         // Before the policy, which refuses an archived client with a bare 403.
         if ($client->archived_at !== null) {
@@ -91,14 +89,13 @@ final class MonitorController extends Controller
         }, 'checks.snoozes', 'tags', 'client', 'repositories']))->response()->setStatusCode(201);
     }
 
-    public function update(Request $request, Site $monitor, UpdateSite $update, UpdateSiteSettings $move, AuthorizeSiteWrite $authorize, SitePolicy $policy): MonitorResource
+    public function update(#[CurrentUser] User $user, Request $request, Site $monitor, UpdateSite $update, UpdateSiteSettings $move, AuthorizeSiteWrite $authorize, SitePolicy $policy): MonitorResource
     {
         /** @var array<string, mixed> $attributes */
         $attributes = $request->all();
         // Early and unlocked, so a hidden monitor answers 404 like a missing one even while the access lock is busy. A move-only
         // request out of an archived client is allowed as on the web; UpdateSiteSettings refuses other fields there.
         Gate::authorize(array_key_exists('client_id', $attributes) ? 'move' : 'update', $monitor);
-        $user = $this->principal($request);
         /** @var array{client_id?: int} $data */
         $data = Validator::make($attributes, ['client_id' => ['sometimes', 'required', 'integer:strict', $policy->visibleClientRule($user, includeArchived: true)]])->validate();
         if (isset($data['client_id'])) {
@@ -114,10 +111,10 @@ final class MonitorController extends Controller
         }, 'checks.snoozes', 'tags', 'client', 'repositories']));
     }
 
-    public function destroy(Request $request, Site $monitor, RequestSiteDeletion $delete, AuthorizeSiteWrite $authorize): Response
+    public function destroy(#[CurrentUser] User $user, Site $monitor, RequestSiteDeletion $delete, AuthorizeSiteWrite $authorize): Response
     {
         Gate::authorize('delete', $monitor);
-        $authorize($this->principal($request), 'delete', static fn () => $delete($monitor), $monitor);
+        $authorize($user, 'delete', static fn () => $delete($monitor), $monitor);
 
         return response()->noContent();
     }

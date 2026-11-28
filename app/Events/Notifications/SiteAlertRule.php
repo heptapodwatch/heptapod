@@ -10,6 +10,7 @@ use Heptapod\Actions\SendClientMessage;
 use Heptapod\Contracts\Notifications\AlertNotification;
 use Heptapod\Contracts\Notifications\AlertSeverity;
 use Heptapod\Contracts\Notifications\DeliveryState;
+use Heptapod\Enums\Capability;
 use Heptapod\Enums\IncidentCause;
 use Heptapod\Enums\IncidentResolutionReason;
 use Heptapod\Enums\RecipientKind;
@@ -164,7 +165,7 @@ final readonly class SiteAlertRule implements AlertRule
         $site = $event->site;
         $recipient = $channel->user;
         if ($site !== null) {
-            if ($recipient !== null && $recipient->disabled_at === null && (! $recipient->hasAnyRole(['Owner', 'Admin', 'Member']) || ! $recipient->canAccessClient($site->client_id))) {
+            if ($recipient !== null && $recipient->disabled_at === null && ! Capability::ViewClient->allows($recipient, $site->client_id)) {
                 return DeliveryDecision::suppress('personal_site_access_revoked');
             }
             // Client channels follow site.client_id: a moved site no longer reaches its old client.

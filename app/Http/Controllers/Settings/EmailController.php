@@ -9,7 +9,6 @@ use Heptapod\Data\Ui\EmailPageData;
 use Heptapod\Data\Ui\EmailSettingsData;
 use Heptapod\Data\Ui\InstanceSettingsData;
 use Heptapod\Http\Controllers\Controller;
-use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,9 +18,8 @@ use Inertia\Response;
 /** Settings → Email (Owner): the email appearance with its live preview, and the read-only delivery facts. */
 final class EmailController extends Controller
 {
-    public function edit(Request $request, InstanceSettings $settings): Response
+    public function edit(InstanceSettings $settings): Response
     {
-        $this->owner($request);
         $logoUrl = static fn (string $variant, ?string $path): ?string => $path === null ? null
             : route('settings.email.logo', ['variant' => $variant, 'file' => basename($path)]);
 
@@ -33,18 +31,11 @@ final class EmailController extends Controller
 
     public function update(Request $request, SaveEmailSettings $save): RedirectResponse
     {
-        $this->owner($request);
         /** @var array<string, mixed> $input */
         $input = $request->all();
         $save($input);
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Email settings saved.')]);
 
         return to_route('settings.email.edit');
-    }
-
-    private function owner(Request $request): void
-    {
-        $user = $request->user();
-        abort_unless($user instanceof User && $user->hasRole('Owner'), 403);
     }
 }

@@ -19,6 +19,7 @@ use Heptapod\Models\Check;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Queries\RunsReader;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -26,10 +27,8 @@ use Spatie\LaravelData\Lazy;
 
 final class RunsController extends Controller
 {
-    public function __invoke(Request $request, RunsReader $reader): Response
+    public function __invoke(#[CurrentUser] User $user, Request $request, RunsReader $reader): Response
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         $query = ListFilters::read($request, [
             'check' => ['kind' => FilterKind::Chip, 'label' => 'Check', 'rules' => ['integer', 'min:1'],
                 'display' => static function (string $id, array $remaining) use ($reader, $user): array {

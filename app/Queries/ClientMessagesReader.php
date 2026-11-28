@@ -10,6 +10,7 @@ use Heptapod\Actions\CompleteNotificationDelivery;
 use Heptapod\Contracts\Mail\MailDesign;
 use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Data\Ui\ClientMessageRowData;
+use Heptapod\Enums\Capability;
 use Heptapod\Enums\DeliveryOutcome;
 use Heptapod\Models\Client;
 use Heptapod\Models\User;
@@ -30,7 +31,7 @@ final readonly class ClientMessagesReader
     public function page(User $viewer, Client $client, ?int $before): array
     {
         // Every channel here is a client channel, so identityVisibleTo() reduces to the viewer's role.
-        $visible = $viewer->hasAnyRole(['Owner', 'Admin']);
+        $visible = Capability::Manage->allows($viewer);
         $hidden = __('notifications.delivery_hidden_address');
         $hidden = is_string($hidden) ? $hidden : throw new \LogicException('Translations are text.');
         // Page ids first: the newest PageSize + 1 per channel, each read backwards on deliveries (destination_id, id), then merged.

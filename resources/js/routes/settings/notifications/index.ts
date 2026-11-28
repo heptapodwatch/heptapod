@@ -164,7 +164,7 @@ data.form = dataForm
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\TeamNotificationSettingsController::team
-* @see app/Http/Controllers/Notifications/TeamNotificationSettingsController.php:21
+* @see app/Http/Controllers/Notifications/TeamNotificationSettingsController.php:19
 * @route '/settings/notifications/team'
 */
 export const team = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -179,7 +179,7 @@ team.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\TeamNotificationSettingsController::team
-* @see app/Http/Controllers/Notifications/TeamNotificationSettingsController.php:21
+* @see app/Http/Controllers/Notifications/TeamNotificationSettingsController.php:19
 * @route '/settings/notifications/team'
 */
 team.url = (options?: RouteQueryOptions) => {
@@ -188,7 +188,7 @@ team.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\TeamNotificationSettingsController::team
-* @see app/Http/Controllers/Notifications/TeamNotificationSettingsController.php:21
+* @see app/Http/Controllers/Notifications/TeamNotificationSettingsController.php:19
 * @route '/settings/notifications/team'
 */
 team.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -198,7 +198,7 @@ team.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\TeamNotificationSettingsController::team
-* @see app/Http/Controllers/Notifications/TeamNotificationSettingsController.php:21
+* @see app/Http/Controllers/Notifications/TeamNotificationSettingsController.php:19
 * @route '/settings/notifications/team'
 */
 team.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -208,7 +208,7 @@ team.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\TeamNotificationSettingsController::team
-* @see app/Http/Controllers/Notifications/TeamNotificationSettingsController.php:21
+* @see app/Http/Controllers/Notifications/TeamNotificationSettingsController.php:19
 * @route '/settings/notifications/team'
 */
 const teamForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -218,7 +218,7 @@ const teamForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\TeamNotificationSettingsController::team
-* @see app/Http/Controllers/Notifications/TeamNotificationSettingsController.php:21
+* @see app/Http/Controllers/Notifications/TeamNotificationSettingsController.php:19
 * @route '/settings/notifications/team'
 */
 teamForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -228,7 +228,7 @@ teamForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\TeamNotificationSettingsController::team
-* @see app/Http/Controllers/Notifications/TeamNotificationSettingsController.php:21
+* @see app/Http/Controllers/Notifications/TeamNotificationSettingsController.php:19
 * @route '/settings/notifications/team'
 */
 teamForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

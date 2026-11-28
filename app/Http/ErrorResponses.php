@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Http;
 
 use Heptapod\Data\Ui\ErrorPageData;
+use Heptapod\Enums\Capability;
 use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Models\User;
 use Illuminate\Http\Exceptions\PostTooLargeException;
@@ -191,8 +192,7 @@ final class ErrorResponses
             && $request->isMethod('GET')
             && in_array($status, self::InShellStatuses, true)
             && $user instanceof User
-            && $user->disabled_at === null
-            && $user->hasAnyRole(['Owner', 'Admin', 'Member'])
+            && Capability::ViewInstance->allows($user)
         ) {
             $pageData = new ErrorPageData(
                 status: $status,

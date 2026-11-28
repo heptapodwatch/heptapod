@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Actions;
 
 use Heptapod\Auth\MemberAccessGuard;
+use Heptapod\Enums\Role;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Models\User;
@@ -34,7 +35,7 @@ final readonly class DeactivateMember
             }
             abort_if($currentActor->disabled_at !== null, 403);
             $this->guard->authorize($currentActor, $current);
-            if ($current->hasRole('Owner')) {
+            if (Role::of($current) === Role::Owner) {
                 $this->guard->protectLastOwner();
             }
             $current->forceFill(['disabled_at' => now()])->save();

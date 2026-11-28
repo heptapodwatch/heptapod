@@ -7,6 +7,7 @@ namespace Heptapod\Queries;
 use Heptapod\Data\Ui\ClientData;
 use Heptapod\Data\Ui\ClientMemberData;
 use Heptapod\Data\Ui\ClientSettingsPageData;
+use Heptapod\Enums\Role;
 use Heptapod\Models\Client;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
@@ -29,12 +30,9 @@ final readonly class ClientSettingsReader
         });
         $users->getQuery()->orderBy('users.name');
         $members = $users->get()->map(static function (User $user): ClientMemberData {
-            $role = $user->getRoleNames()->first();
-            if (! is_string($role)) {
-                throw new \LogicException('Client member must have a role.');
-            }
+            $role = Role::of($user) ?? throw new \LogicException('Client member must have a role.');
 
-            return new ClientMemberData($user->name, $role);
+            return new ClientMemberData($user->name, $role->value);
         })->all();
 
         $client->load(Client::AvatarRelations);

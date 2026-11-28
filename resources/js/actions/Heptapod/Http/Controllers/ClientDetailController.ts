@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\ClientDetailController::__invoke
-* @see app/Http/Controllers/ClientDetailController.php:21
+* @see app/Http/Controllers/ClientDetailController.php:23
 * @route '/clients/{client}'
 */
 const ClientDetailController = (args: { client: string | number } | [client: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ ClientDetailController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\ClientDetailController::__invoke
-* @see app/Http/Controllers/ClientDetailController.php:21
+* @see app/Http/Controllers/ClientDetailController.php:23
 * @route '/clients/{client}'
 */
 ClientDetailController.url = (args: { client: string | number } | [client: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -43,7 +43,7 @@ ClientDetailController.url = (args: { client: string | number } | [client: strin
 
 /**
 * @see \Heptapod\Http\Controllers\ClientDetailController::__invoke
-* @see app/Http/Controllers/ClientDetailController.php:21
+* @see app/Http/Controllers/ClientDetailController.php:23
 * @route '/clients/{client}'
 */
 ClientDetailController.get = (args: { client: string | number } | [client: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -53,7 +53,7 @@ ClientDetailController.get = (args: { client: string | number } | [client: strin
 
 /**
 * @see \Heptapod\Http\Controllers\ClientDetailController::__invoke
-* @see app/Http/Controllers/ClientDetailController.php:21
+* @see app/Http/Controllers/ClientDetailController.php:23
 * @route '/clients/{client}'
 */
 ClientDetailController.head = (args: { client: string | number } | [client: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -63,7 +63,7 @@ ClientDetailController.head = (args: { client: string | number } | [client: stri
 
 /**
 * @see \Heptapod\Http\Controllers\ClientDetailController::__invoke
-* @see app/Http/Controllers/ClientDetailController.php:21
+* @see app/Http/Controllers/ClientDetailController.php:23
 * @route '/clients/{client}'
 */
 const ClientDetailControllerForm = (args: { client: string | number } | [client: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -73,7 +73,7 @@ const ClientDetailControllerForm = (args: { client: string | number } | [client:
 
 /**
 * @see \Heptapod\Http\Controllers\ClientDetailController::__invoke
-* @see app/Http/Controllers/ClientDetailController.php:21
+* @see app/Http/Controllers/ClientDetailController.php:23
 * @route '/clients/{client}'
 */
 ClientDetailControllerForm.get = (args: { client: string | number } | [client: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -83,7 +83,7 @@ ClientDetailControllerForm.get = (args: { client: string | number } | [client: s
 
 /**
 * @see \Heptapod\Http\Controllers\ClientDetailController::__invoke
-* @see app/Http/Controllers/ClientDetailController.php:21
+* @see app/Http/Controllers/ClientDetailController.php:23
 * @route '/clients/{client}'
 */
 ClientDetailControllerForm.head = (args: { client: string | number } | [client: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

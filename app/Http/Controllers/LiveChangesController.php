@@ -6,6 +6,7 @@ namespace Heptapod\Http\Controllers;
 
 use Heptapod\Live\LiveChannels;
 use Heptapod\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -16,10 +17,8 @@ use Illuminate\Support\Facades\Validator;
  */
 final class LiveChangesController extends Controller
 {
-    public function __invoke(Request $request, LiveChannels $channels): JsonResponse
+    public function __invoke(#[CurrentUser] User $user, Request $request, LiveChannels $channels): JsonResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         Validator::make($request->all(), ['since' => ['required', 'integer', 'min:0']])->validate();
 
         return response()->json(['changed' => $channels->changedSince($channels->forUser($user), $request->integer('since'))], 200,

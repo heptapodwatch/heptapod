@@ -149,6 +149,22 @@ test('raw secret property access stays in credential handling boundaries', funct
     }
 });
 
+test('only the capability definitions read roles', function (): void {
+    $root = dirname(__DIR__, 2);
+    foreach (['app', 'addons', 'routes'] as $directory) {
+        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root.'/'.$directory)) as $file) {
+            if ($file->getExtension() !== 'php') {
+                continue;
+            }
+            $source = file_get_contents($file->getPathname());
+            expect($source)->not->toBeFalse();
+            if (preg_match('/->(?:hasRole|hasAnyRole|hasAllRoles|hasExactRoles|getRoleNames)\s*\(/', $source) === 1) {
+                expect(substr($file->getPathname(), strlen($root) + 1))->toBe('app/Enums/Role.php');
+            }
+        }
+    }
+});
+
 arch('storage and presentation share the credential redaction context')
     ->expect([TransactionalResultRecorder::class, CauseSummary::class, EventPresenter::class, NotificationMessage::class, SiteDetailReader::class])
     ->toUse(RedactionContext::class);

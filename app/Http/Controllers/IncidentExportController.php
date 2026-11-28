@@ -15,6 +15,7 @@ use Heptapod\Http\Requests\IncidentsFilterRequest;
 use Heptapod\Models\Incident;
 use Heptapod\Models\User;
 use Heptapod\Queries\IncidentsReader;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -22,10 +23,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 final class IncidentExportController extends Controller
 {
     /** GET incidents/export.{format}: the incidents the list shows for the same filters; `page`/`per_page` (This page) limit it to that page. */
-    public function __invoke(IncidentsFilterRequest $request, ExportFormat $format, IncidentsReader $reader): StreamedResponse
+    public function __invoke(#[CurrentUser] User $user, IncidentsFilterRequest $request, ExportFormat $format, IncidentsReader $reader): StreamedResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         $present = static function (Collection $incidents) use ($reader): \Generator {
             /** @var Collection<int, Incident> $typed */
             $typed = $incidents;

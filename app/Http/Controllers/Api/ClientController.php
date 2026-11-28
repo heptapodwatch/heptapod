@@ -8,13 +8,14 @@ use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Actions\CreateClient;
 use Heptapod\Actions\UpdateClient;
 use Heptapod\Concerns\RejectsUnsupportedFields;
-use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Contracts\Http\PaginatedCollection;
 use Heptapod\Contracts\Http\PaginationRequest;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Http\Resources\ClientResource;
 use Heptapod\Models\Client;
+use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -24,7 +25,7 @@ use Illuminate\Validation\ValidationException;
 #[Group('Clients')]
 final class ClientController extends Controller
 {
-    use RejectsUnsupportedFields, ResolvesApiPrincipal;
+    use RejectsUnsupportedFields;
 
     /** The client fields the API writes; logos and site-icon avatars stay in the web app. */
     private const array Fields = ['name', 'short_name', 'locale', 'timezone', 'accent_color'];
@@ -45,9 +46,8 @@ final class ClientController extends Controller
         return $attributes;
     }
 
-    public function index(PaginationRequest $request, SitePolicy $policy): JsonResponse
+    public function index(#[CurrentUser] User $user, PaginationRequest $request, SitePolicy $policy): JsonResponse
     {
-        $user = $this->principal($request);
         Validator::make($request->all(), ['filter' => ['sometimes', 'array:include_archived'], 'filter.include_archived' => ['sometimes', 'in:true,false,1,0']])->validate();
         $query = $policy->visibleClients($user, includeArchived: in_array($request->input('filter.include_archived'), ['true', '1'], true));
         $query->getQuery()->orderBy('clients.id');
@@ -64,9 +64,8 @@ final class ClientController extends Controller
     }
 
     /** @throws ValidationException from the UpdateClient rules */
-    public function store(Request $request, CreateClient $create): JsonResponse
+    public function store(#[CurrentUser] User $user, Request $request, CreateClient $create): JsonResponse
     {
-        $user = $this->principal($request, 403);
         Gate::authorize('create', Client::class);
         // A token limited to one client cannot widen its own reach.
         abort_if($user->tokenClientConstraint() !== null, 403);

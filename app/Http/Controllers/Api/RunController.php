@@ -9,7 +9,6 @@ use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\RequestCheckRun;
 use Heptapod\Checks\CheckRunPresentations;
 use Heptapod\Checks\Execution\RunOrigin;
-use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Contracts\RunPhase;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\RunResult;
@@ -21,6 +20,7 @@ use Heptapod\Models\User;
 use Heptapod\Support\Api\ApiHeadline;
 use Heptapod\Support\Api\ApiProblem;
 use Heptapod\Support\Api\Idempotency;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -29,12 +29,9 @@ use Illuminate\Support\Facades\Validator;
 #[Group('Check runs')]
 final class RunController extends Controller
 {
-    use ResolvesApiPrincipal;
-
-    public function store(Request $request, int $check, RequestCheckRun $run, Idempotency $idempotency, AuthorizeSiteWrite $authorize): JsonResponse
+    public function store(#[CurrentUser] User $user, Request $request, int $check, RequestCheckRun $run, Idempotency $idempotency, AuthorizeSiteWrite $authorize): JsonResponse
     {
-        $user = $this->principal($request);
-        $token = $this->token($user);
+        $token = $user->currentAccessToken();
         $target = $this->visibleCheck($user, $check);
         Gate::authorize('update', $target);
 
@@ -49,10 +46,8 @@ final class RunController extends Controller
         }), $target);
     }
 
-    public function show(Request $request, string $attemptRef, CheckRunPresentations $presentations): JsonResponse
+    public function show(#[CurrentUser] User $user, Request $request, string $attemptRef, CheckRunPresentations $presentations): JsonResponse
     {
-        $user = $this->principal($request);
-        $this->token($user);
         /** @var array{locale?: string} $input */
         $input = Validator::make($request->query(), ['locale' => ApiHeadline::localeRules()])->validate();
         ApiHeadline::applyLocale($input['locale'] ?? null);

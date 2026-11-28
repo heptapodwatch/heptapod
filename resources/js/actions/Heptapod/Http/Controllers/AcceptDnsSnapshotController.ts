@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\AcceptDnsSnapshotController::__invoke
-* @see app/Http/Controllers/AcceptDnsSnapshotController.php:21
+* @see app/Http/Controllers/AcceptDnsSnapshotController.php:22
 * @route '/sites/{site}/checks/{check}/accept-dns'
 */
 const AcceptDnsSnapshotController = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ AcceptDnsSnapshotController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\AcceptDnsSnapshotController::__invoke
-* @see app/Http/Controllers/AcceptDnsSnapshotController.php:21
+* @see app/Http/Controllers/AcceptDnsSnapshotController.php:22
 * @route '/sites/{site}/checks/{check}/accept-dns'
 */
 AcceptDnsSnapshotController.url = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions) => {
@@ -42,7 +42,7 @@ AcceptDnsSnapshotController.url = (args: { site: string | number, check: string 
 
 /**
 * @see \Heptapod\Http\Controllers\AcceptDnsSnapshotController::__invoke
-* @see app/Http/Controllers/AcceptDnsSnapshotController.php:21
+* @see app/Http/Controllers/AcceptDnsSnapshotController.php:22
 * @route '/sites/{site}/checks/{check}/accept-dns'
 */
 AcceptDnsSnapshotController.post = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -52,7 +52,7 @@ AcceptDnsSnapshotController.post = (args: { site: string | number, check: string
 
 /**
 * @see \Heptapod\Http\Controllers\AcceptDnsSnapshotController::__invoke
-* @see app/Http/Controllers/AcceptDnsSnapshotController.php:21
+* @see app/Http/Controllers/AcceptDnsSnapshotController.php:22
 * @route '/sites/{site}/checks/{check}/accept-dns'
 */
 const AcceptDnsSnapshotControllerForm = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -62,7 +62,7 @@ const AcceptDnsSnapshotControllerForm = (args: { site: string | number, check: s
 
 /**
 * @see \Heptapod\Http\Controllers\AcceptDnsSnapshotController::__invoke
-* @see app/Http/Controllers/AcceptDnsSnapshotController.php:21
+* @see app/Http/Controllers/AcceptDnsSnapshotController.php:22
 * @route '/sites/{site}/checks/{check}/accept-dns'
 */
 AcceptDnsSnapshotControllerForm.post = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

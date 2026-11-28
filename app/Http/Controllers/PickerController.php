@@ -6,6 +6,7 @@ namespace Heptapod\Http\Controllers;
 
 use Heptapod\Models\User;
 use Heptapod\Queries\PickerReader;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -13,10 +14,8 @@ use Illuminate\Support\Facades\Validator;
 /** The server-searched site and client pickers: `q` searches, `ids` names the chosen values instead. */
 final class PickerController extends Controller
 {
-    public function __invoke(Request $request, string $kind, PickerReader $reader): JsonResponse
+    public function __invoke(#[CurrentUser] User $user, Request $request, string $kind, PickerReader $reader): JsonResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         /** @var array{q?: string|null, ids?: string, client?: int|string, icon?: bool|string, archived?: bool|string, browse?: bool|string} $data */
         $data = Validator::make($request->query(), [
             'q' => ['sometimes', 'nullable', 'string', 'max:255'],

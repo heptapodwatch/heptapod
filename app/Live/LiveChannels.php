@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Live;
 
 use Carbon\CarbonImmutable;
-use Heptapod\Enums\ClientScope;
+use Heptapod\Enums\Capability;
 use Heptapod\Events\LiveSignal;
 use Heptapod\Models\User;
 use Heptapod\Queries\SitesReader;
@@ -24,11 +24,11 @@ final readonly class LiveChannels
     /** @return list<string> */
     public function forUser(User $user): array
     {
-        if (! $user->hasAnyRole(['Owner', 'Admin', 'Member'])) {
+        if (! Capability::ViewInstance->allows($user)) {
             return [];
         }
 
-        return $user->hasAnyRole(['Owner', 'Admin']) || $user->client_scope === ClientScope::All
+        return ! $user->isRestrictedMember()
             ? ['instance']
             : array_map(static fn (int $clientId): string => 'client.'.$clientId, $this->sites->clientIds($user));
     }

@@ -20,6 +20,7 @@ use Heptapod\Contracts\ServersAccess;
 use Heptapod\Enums\NotificationCategory;
 use Heptapod\Enums\NotificationMode;
 use Heptapod\Enums\RecipientKind;
+use Heptapod\Enums\Role;
 use Heptapod\Events\Notifications\AlertRule;
 use Heptapod\Events\Notifications\DeliveryDecision;
 use Heptapod\Events\Notifications\IssueAlerts;
@@ -66,7 +67,7 @@ final readonly class ServerIssueMailer implements AlertRule, ServerIssueAlerts
             RecipientKind::User => match (true) {
                 $user === null => 'servers_team_only',
                 $user->disabled_at !== null => 'personal_user_disabled',
-                ! $user->hasAnyRole(['Owner', 'Admin']) => 'servers_owner_or_admin_only',
+                ! in_array(Role::of($user), [Role::Owner, Role::Admin], true) => 'servers_owner_or_admin_only',
                 default => null,
             },
         };

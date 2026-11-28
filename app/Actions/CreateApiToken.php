@@ -6,6 +6,7 @@ namespace Heptapod\Actions;
 
 use DateTimeInterface;
 use Heptapod\Contracts\ServersAccess;
+use Heptapod\Enums\Capability;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -84,7 +85,7 @@ final readonly class CreateApiToken
             // No new `*`: existing wildcard tokens keep working, new grants name their abilities.
             Validator::make(['name' => $name, 'abilities' => $abilities], ['name' => ['required', 'string', 'max:255'], 'abilities' => ['required', 'array', 'min:1'], 'abilities.*' => ['string', 'distinct', Rule::in($this->allowedAbilities($user, $clientId !== null))]])->validate();
 
-            if ($clientId !== null && ! $user->canAccessClient($clientId)) {
+            if ($clientId !== null && ! Capability::ViewClient->allows($user, $clientId)) {
                 throw ValidationException::withMessages(['client_id' => __('validation.exists', ['attribute' => 'client_id'])]);
             }
             if ($expiresAt instanceof DateTimeInterface && $expiresAt <= now()) {
@@ -107,7 +108,7 @@ final readonly class CreateApiToken
     {
         $abilities = $this->servers->enabled() && ! $limitedToClient ? self::Abilities : array_values(array_diff(self::Abilities, self::ServerAbilities));
 
-        return $user->hasAnyRole(['Owner', 'Admin']) ? $abilities
+        return Capability::Manage->allows($user) ? $abilities
             : array_values(array_diff($abilities, [...self::AdminAbilities, ...self::ServerAbilities]));
     }
 }

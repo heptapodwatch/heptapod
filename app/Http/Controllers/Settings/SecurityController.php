@@ -8,6 +8,7 @@ use Heptapod\Http\Controllers\Controller;
 use Heptapod\Http\Requests\Settings\PasswordUpdateRequest;
 use Heptapod\Http\Requests\Settings\TwoFactorAuthenticationRequest;
 use Heptapod\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
@@ -20,11 +21,8 @@ final class SecurityController extends Controller
     /**
      * Show the user's security settings page.
      */
-    public function edit(TwoFactorAuthenticationRequest $request): Response
+    public function edit(#[CurrentUser] User $user, TwoFactorAuthenticationRequest $request): Response
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
-
         $props = [
             'canManageTwoFactor' => Features::canManageTwoFactorAuthentication(),
             'canManagePasskeys' => Features::canManagePasskeys(),
@@ -59,11 +57,8 @@ final class SecurityController extends Controller
     /**
      * Update the user's password.
      */
-    public function update(PasswordUpdateRequest $request, ChangePassword $change): RedirectResponse
+    public function update(#[CurrentUser] User $user, PasswordUpdateRequest $request, ChangePassword $change): RedirectResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
-
         $change($user, $request->string('password')->toString());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Password updated.')]);

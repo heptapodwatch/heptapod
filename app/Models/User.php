@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Database\Factories\UserFactory;
 use Heptapod\Concerns\AuditsConfiguration;
 use Heptapod\Enums\ClientScope;
+use Heptapod\Enums\Role;
 use Heptapod\Notifications\PasswordReset;
 use Heptapod\Settings\InstanceSettings;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -22,6 +23,7 @@ use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
+use Laravel\Sanctum\PersonalAccessToken;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
@@ -93,23 +95,17 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
 
     public function isRestrictedMember(): bool
     {
-        return $this->client_scope === ClientScope::Restricted && ! $this->hasAnyRole(['Owner', 'Admin']) && $this->hasRole('Member');
+        return $this->client_scope === ClientScope::Restricted && Role::of($this) === Role::Member;
     }
 
-    public function canAccessClient(int $clientId): bool
-    {
-        $constraint = $this->tokenClientConstraint();
-
-        return $this->disabled_at === null && ($constraint === null || $constraint === $clientId)
-            && (! $this->isRestrictedMember() || $this->clients()->toBase()->where('clients.id', $clientId)->exists());
-    }
-
+    /** The client an API token is limited to; Sanctum sets a personal access token only on the account it authenticated. */
     public function tokenClientConstraint(): ?int
     {
-        if (! request()->is('api/*')) {
+        $token = $this->currentAccessToken();
+        // Sanctum types the token as always set; it is null for sessions and for accounts other than the authenticated one.
+        if (! $token instanceof PersonalAccessToken) { // @phpstan-ignore instanceof.alwaysTrue
             return null;
         }
-        $token = $this->currentAccessToken();
         $clientId = $token->getAttribute('client_id');
         if ($clientId !== null && ! is_int($clientId)) {
             throw new \UnexpectedValueException('Token client constraint must be an integer.');

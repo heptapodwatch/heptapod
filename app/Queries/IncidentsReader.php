@@ -21,6 +21,7 @@ use Heptapod\Data\Ui\IncidentNotificationGroupData;
 use Heptapod\Data\Ui\IncidentNotificationPageData;
 use Heptapod\Data\Ui\IncidentSummaryData;
 use Heptapod\Data\Ui\IncidentTimelineEntryData;
+use Heptapod\Enums\Capability;
 use Heptapod\Enums\DeliveryGroupOutcome;
 use Heptapod\Enums\DeliveryOutcome;
 use Heptapod\Enums\IncidentCause;
@@ -502,7 +503,7 @@ final readonly class IncidentsReader
     {
         /** @var Collection<int, int|string> $previewIds */
         $previewIds = collect();
-        if ($user->hasAnyRole(['Owner', 'Admin']) && $rows->contains(static fn (Delivery $delivery): bool => $delivery->state === DeliveryState::Sent && ! $delivery->suppressed && ! $delivery->digest)) {
+        if (Capability::Manage->allows($user) && $rows->contains(static fn (Delivery $delivery): bool => $delivery->state === DeliveryState::Sent && ! $delivery->suppressed && ! $delivery->digest)) {
             $previewQuery = Delivery::query()
                 ->whereHas('event', static function (Builder $query): void {
                     $query->scopes('incidentAlertPreviewTypes');

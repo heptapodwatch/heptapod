@@ -15,6 +15,7 @@ use Heptapod\Contracts\ListFilters;
 use Heptapod\Data\Ui\MaintenanceIndexPageData;
 use Heptapod\Data\Ui\MaintenanceTargetOptionData;
 use Heptapod\Data\Ui\MaintenanceWindowData;
+use Heptapod\Enums\Capability;
 use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Http\MaintenanceReturnContext;
 use Heptapod\Maintenance\LocalMaintenanceTime;
@@ -25,6 +26,7 @@ use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
 use Heptapod\Queries\MaintenanceReader;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -38,7 +40,7 @@ use Spatie\Tags\Tag;
 
 final class MaintenanceController extends Controller
 {
-    public function index(Request $request, MaintenanceReader $reader, SitePolicy $policy): Response
+    public function index(#[CurrentUser] User $user, Request $request, MaintenanceReader $reader, SitePolicy $policy): Response
     {
         $siteName = null;
         $filters = ListFilters::read($request, [
@@ -50,12 +52,10 @@ final class MaintenanceController extends Controller
                 }],
             'state' => ['kind' => FilterKind::Segmented, 'label' => 'Window state', 'default' => 'all', 'options' => ['all' => 'All', 'active' => 'Active', 'planned' => 'Planned', 'done' => 'Done']],
         ], ['page' => ['sometimes', 'integer', 'between:1,10000']]);
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         $state = $filters->value('state') ?? throw new \LogicException('The maintenance state has no default.');
         $result = $reader->index($user, $filters->integer('site_id'), $filters->integer('client_id'), $state);
         $siteName = $result['site_name'];
-        $canManage = $user->hasAnyRole(['Owner', 'Admin']);
+        $canManage = Capability::Manage->allows($user);
         // The rows name a targeted client with its mark; only the clients of the listed windows are read.
         $windowClientIds = array_values(array_unique(array_map(static fn (MaintenanceWindowData $window): int => $window->targetId,
             array_filter($result['windows'], static fn (MaintenanceWindowData $window): bool => $window->targetType === 'client'))));
@@ -95,27 +95,23 @@ final class MaintenanceController extends Controller
             array_values($windowClients), $filters->data())->toArray());
     }
 
-    public function show(Request $request, Site $site, MaintenanceReader $reader): JsonResponse
+    public function show(#[CurrentUser] User $user, Site $site, MaintenanceReader $reader): JsonResponse
     {
-        return response()->json(['window' => $reader->siteHeader($this->user($request), $site)?->toArray()]);
+        return response()->json(['window' => $reader->siteHeader($user, $site)?->toArray()]);
     }
 
-    public function store(Request $request, CreateMaintenanceWindow $create, AuthorizeSiteWrite $authorize): RedirectResponse
+    public function store(#[CurrentUser] User $user, Request $request, CreateMaintenanceWindow $create, AuthorizeSiteWrite $authorize): RedirectResponse
     {
-        $this->writable($request);
         $returnContext = MaintenanceReturnContext::parameters($request);
         /** @var array<string, mixed> $input */
         $input = $request->all();
-        $user = $this->user($request);
         $authorize->asManager($user, static fn (User $current): MaintenancePeriod|RecurringMaintenancePeriod => $create($current, $input));
 
         return to_route('maintenance.index', $returnContext);
     }
 
-    public function update(Request $request, MaintenancePeriod $window, UpdateMaintenancePeriod $update,
-        LocalMaintenanceTime $localTime, AuthorizeSiteWrite $authorize): RedirectResponse
+    public function update(#[CurrentUser] User $user, Request $request, MaintenancePeriod $window, UpdateMaintenancePeriod $update, LocalMaintenanceTime $localTime, AuthorizeSiteWrite $authorize): RedirectResponse
     {
-        $this->writable($request);
         // Answered before the form is validated, and decided again on the locked window.
         $this->refuseEnded($window, CarbonImmutable::now('UTC'));
         $returnContext = MaintenanceReturnContext::parameters($request);
@@ -131,7 +127,7 @@ final class MaintenanceController extends Controller
         $start = $localTime->resolve(substr($data['starts_local'], 0, 10), substr($data['starts_local'], 11), $data['timezone']);
         $end = $localTime->resolve(substr($data['ends_local'], 0, 10), substr($data['ends_local'], 11), $data['timezone']);
         // The replacement target is validated under the access lock: a site deleted while the edit waited is gone by then.
-        $authorize->asManager($this->user($request), function () use ($update, $window, $data, $start, $end): MaintenancePeriod {
+        $authorize->asManager($user, function () use ($update, $window, $data, $start, $end): MaintenancePeriod {
             $this->validTarget($data['target_type'], $data['target_id']);
 
             return $update($window, $data['name'] ?? null, $start, $end, $data, $this->refuseEnded(...));
@@ -140,11 +136,10 @@ final class MaintenanceController extends Controller
         return to_route('maintenance.index', $returnContext);
     }
 
-    public function destroy(Request $request, MaintenancePeriod $window, DeleteMaintenancePeriod $delete, AuthorizeSiteWrite $authorize): RedirectResponse
+    public function destroy(#[CurrentUser] User $user, Request $request, MaintenancePeriod $window, DeleteMaintenancePeriod $delete, AuthorizeSiteWrite $authorize): RedirectResponse
     {
-        $this->writable($request);
         $returnContext = MaintenanceReturnContext::parameters($request);
-        $authorize->asManager($this->user($request), fn () => $delete($window, $this->refuseStarted(...)));
+        $authorize->asManager($user, fn () => $delete($window, $this->refuseStarted(...)));
 
         return to_route('maintenance.index', $returnContext);
     }
@@ -172,19 +167,6 @@ final class MaintenanceController extends Controller
                 errorCode: 'maintenance_already_started',
             );
         }
-    }
-
-    private function user(Request $request): User
-    {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
-
-        return $user;
-    }
-
-    private function writable(Request $request): void
-    {
-        abort_unless($this->user($request)->hasAnyRole(['Owner', 'Admin']), 403);
     }
 
     private function validTarget(string $type, int $id): void

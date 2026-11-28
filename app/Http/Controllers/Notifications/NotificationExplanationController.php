@@ -11,6 +11,7 @@ use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\Check;
 use Heptapod\Models\User;
 use Heptapod\Queries\NotificationExplanationReader;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -20,10 +21,8 @@ use Illuminate\Validation\Rule;
 /** GET /notifications/explain (design §2.3): who would get one category of this check's alerts at a moment, and why. */
 final class NotificationExplanationController extends Controller
 {
-    public function __invoke(Request $request, NotificationExplanationReader $reader): JsonResponse
+    public function __invoke(#[CurrentUser] User $user, Request $request, NotificationExplanationReader $reader): JsonResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         /** @var array{check_id: int, category: string, at: string, recovery_origin?: string} $data */
         $data = Validator::make($request->all(), [
             'check_id' => ['required', 'integer'],

@@ -7,6 +7,7 @@ use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Request;
+use Heptapod\Enums\Capability;
 use Heptapod\Enums\ClientScope;
 use Heptapod\Enums\HealthStatus;
 use Heptapod\Events\LiveSignal;
@@ -75,7 +76,7 @@ it('authorizes only the assigned client channels and keeps restricted members of
     $member->assignRole('Member');
     $member->clients()->attach($client);
     expect($member->hasRole('Member'))->toBeTrue();
-    expect($member->canAccessClient($client->id))->toBeTrue();
+    expect(Capability::ViewClient->allows($member, $client->id))->toBeTrue();
 
     $this->actingAs($member)->post('/broadcasting/auth', ['socket_id' => '1.1', 'channel_name' => 'presence-client.'.$client->id])->assertOk();
     $this->post('/broadcasting/auth', ['socket_id' => '1.1', 'channel_name' => 'presence-client.'.$other->id])->assertForbidden();

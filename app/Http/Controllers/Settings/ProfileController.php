@@ -10,6 +10,7 @@ use Heptapod\Http\Requests\Settings\ProfileDeleteRequest;
 use Heptapod\Http\Requests\Settings\ProfileUpdateRequest;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,11 +38,8 @@ final class ProfileController extends Controller
     /**
      * Update the user's profile information.
      */
-    public function update(ProfileUpdateRequest $request, UpdateProfile $update): RedirectResponse
+    public function update(#[CurrentUser] User $user, ProfileUpdateRequest $request, UpdateProfile $update): RedirectResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
-
         /** @var array<string, mixed> $attributes */
         $attributes = $request->safe()->except('current_password');
         $update($user, $attributes);
@@ -62,11 +60,8 @@ final class ProfileController extends Controller
     /**
      * Delete the user's profile.
      */
-    public function destroy(ProfileDeleteRequest $request, DeleteProfile $delete): RedirectResponse
+    public function destroy(#[CurrentUser] User $user, ProfileDeleteRequest $request, DeleteProfile $delete): RedirectResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
-
         $delete($user);
 
         Auth::logout();

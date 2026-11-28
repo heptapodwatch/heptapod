@@ -23,12 +23,14 @@ use Heptapod\Data\Ui\IncidentNotificationPageData;
 use Heptapod\Data\Ui\MaintenanceSiteHeaderData;
 use Heptapod\Data\Ui\SiteIdentityData;
 use Heptapod\Data\Ui\SiteRowData;
+use Heptapod\Enums\Capability;
 use Heptapod\Enums\IncidentCause;
 use Heptapod\Models\Incident;
 use Heptapod\Models\User;
 use Heptapod\Queries\IncidentsReader;
 use Heptapod\Queries\SiteDetailReader;
 use Heptapod\Settings\InstanceSettings;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
@@ -38,11 +40,8 @@ use Spatie\LaravelData\Lazy;
 
 final class IncidentDetailController extends Controller
 {
-    public function __invoke(Request $request, int $incident, IncidentsReader $reader, SiteDetailReader $details, CheckRunPresentations $presentations, ClaimService $claims): Response
+    public function __invoke(#[CurrentUser] User $user, Request $request, int $incident, IncidentsReader $reader, SiteDetailReader $details, CheckRunPresentations $presentations, ClaimService $claims): Response
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
-
         $row = $reader->scoped($user)->with('noteAuthor')->whereKey($incident)->firstOrFail();
         $getIncident = static fn (): Incident => $row;
         $check = $row->check ?? throw new \LogicException('Incident check missing.');
@@ -77,7 +76,7 @@ final class IncidentDetailController extends Controller
             other_deliveries: Lazy::closure(static fn (): array => $getOtherDeliveries()['rows']),
             other_deliveries_pagination: Lazy::closure(static fn (): PaginationData => $getOtherDeliveries()['pagination']),
             evidence: Lazy::closure(static fn (): IncidentEvidenceData => $reader->evidence($getIncident())),
-            alert_preview_available: Lazy::closure(static fn (): bool => $user->hasAnyRole(['Owner', 'Admin']) && app()->bound(AlertPreviewRenderer::class)),
+            alert_preview_available: Lazy::closure(static fn (): bool => Capability::Manage->allows($user) && app()->bound(AlertPreviewRenderer::class)),
             maintenance: Lazy::closure(static fn (): ?MaintenanceSiteHeaderData => $details->maintenance($user, $getIncident()->site_id)),
             opened_during_maintenance: Lazy::closure(static fn (): bool => $getIncident()->opened_during_maintenance_window_id !== null),
             opening_presentation: Lazy::closure(static fn (): ?CheckRunPresentationData => $presentations->atOpening($getIncident())),

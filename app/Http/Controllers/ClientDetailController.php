@@ -8,8 +8,10 @@ use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\ClientData;
 use Heptapod\Data\Ui\ClientDetailPageData;
 use Heptapod\Data\Ui\DashboardTilesData;
+use Heptapod\Enums\Capability;
 use Heptapod\Models\User;
 use Heptapod\Queries\ClientsReader;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
@@ -18,10 +20,8 @@ use Spatie\LaravelData\Lazy;
 
 final class ClientDetailController extends Controller
 {
-    public function __invoke(Request $request, int $client, ClientsReader $reader): Response
+    public function __invoke(#[CurrentUser] User $user, Request $request, int $client, ClientsReader $reader): Response
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         Validator::make($request->all(), ['page' => ['sometimes', 'integer', 'min:1']])->validate();
 
         // Eager, so a missing or hidden client 404s first; the closure keeps nested partials (client.name) resolving the whole client.
@@ -37,7 +37,7 @@ final class ClientDetailController extends Controller
             sites: Lazy::closure(static fn (): array => $getSites()['sites']),
             sites_pagination: Lazy::closure(static fn (): PaginationData => $getSites()['pagination']),
             incidents: Lazy::closure(static fn (): array => $reader->incidents($user, $client)),
-            can_manage: Lazy::closure(static fn (): bool => $user->hasAnyRole(['Owner', 'Admin'])),
+            can_manage: Lazy::closure(static fn (): bool => Capability::Manage->allows($user)),
         ));
     }
 }

@@ -12,31 +12,29 @@ use Heptapod\Models\Client;
 use Heptapod\Models\User;
 use Heptapod\Policies\NotificationDestinationPolicy;
 use Heptapod\Queries\NotificationSettingsReader;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /** RecipientSettings for one client (design §7.1): ClientPolicy::update. */
 final class ClientNotificationSettingsController extends Controller
 {
-    public function edit(Request $request, Client $client, NotificationSettingsReader $reader, NotificationDestinationPolicy $policy): Response
+    public function edit(#[CurrentUser] User $user, Client $client, NotificationSettingsReader $reader, NotificationDestinationPolicy $policy): Response
     {
         return Inertia::render('clients/notifications', new ClientNotificationsPageData(
-            settings: $this->data($request, $client, $reader, $policy),
+            settings: $this->data($user, $client, $reader, $policy),
             client: ClientData::fromClient($client),
         ));
     }
 
-    public function show(Request $request, Client $client, NotificationSettingsReader $reader, NotificationDestinationPolicy $policy): JsonResponse
+    public function show(#[CurrentUser] User $user, Client $client, NotificationSettingsReader $reader, NotificationDestinationPolicy $policy): JsonResponse
     {
-        return response()->json($this->data($request, $client, $reader, $policy));
+        return response()->json($this->data($user, $client, $reader, $policy));
     }
 
-    private function data(Request $request, Client $client, NotificationSettingsReader $reader, NotificationDestinationPolicy $policy): NotificationSettingsPageData
+    private function data(User $user, Client $client, NotificationSettingsReader $reader, NotificationDestinationPolicy $policy): NotificationSettingsPageData
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         $policy->manageClient($user, $client->id)->authorize();
 
         return $reader->client($user, $client);

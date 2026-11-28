@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceSeriesController::update
-* @see app/Http/Controllers/MaintenanceSeriesController.php:21
+* @see app/Http/Controllers/MaintenanceSeriesController.php:20
 * @route '/maintenance/series/{series}'
 */
 export const update = (args: { series: number | { id: number } } | [series: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -16,7 +16,7 @@ update.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceSeriesController::update
-* @see app/Http/Controllers/MaintenanceSeriesController.php:21
+* @see app/Http/Controllers/MaintenanceSeriesController.php:20
 * @route '/maintenance/series/{series}'
 */
 update.url = (args: { series: number | { id: number } } | [series: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ update.url = (args: { series: number | { id: number } } | [series: number | { id
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceSeriesController::update
-* @see app/Http/Controllers/MaintenanceSeriesController.php:21
+* @see app/Http/Controllers/MaintenanceSeriesController.php:20
 * @route '/maintenance/series/{series}'
 */
 update.put = (args: { series: number | { id: number } } | [series: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -59,7 +59,7 @@ update.put = (args: { series: number | { id: number } } | [series: number | { id
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceSeriesController::update
-* @see app/Http/Controllers/MaintenanceSeriesController.php:21
+* @see app/Http/Controllers/MaintenanceSeriesController.php:20
 * @route '/maintenance/series/{series}'
 */
 const updateForm = (args: { series: number | { id: number } } | [series: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -74,7 +74,7 @@ const updateForm = (args: { series: number | { id: number } } | [series: number 
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceSeriesController::update
-* @see app/Http/Controllers/MaintenanceSeriesController.php:21
+* @see app/Http/Controllers/MaintenanceSeriesController.php:20
 * @route '/maintenance/series/{series}'
 */
 updateForm.put = (args: { series: number | { id: number } } | [series: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -91,7 +91,7 @@ update.form = updateForm
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceSeriesController::destroy
-* @see app/Http/Controllers/MaintenanceSeriesController.php:57
+* @see app/Http/Controllers/MaintenanceSeriesController.php:55
 * @route '/maintenance/series/{series}'
 */
 export const destroy = (args: { series: number | { id: number } } | [series: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -106,7 +106,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceSeriesController::destroy
-* @see app/Http/Controllers/MaintenanceSeriesController.php:57
+* @see app/Http/Controllers/MaintenanceSeriesController.php:55
 * @route '/maintenance/series/{series}'
 */
 destroy.url = (args: { series: number | { id: number } } | [series: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -139,7 +139,7 @@ destroy.url = (args: { series: number | { id: number } } | [series: number | { i
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceSeriesController::destroy
-* @see app/Http/Controllers/MaintenanceSeriesController.php:57
+* @see app/Http/Controllers/MaintenanceSeriesController.php:55
 * @route '/maintenance/series/{series}'
 */
 destroy.delete = (args: { series: number | { id: number } } | [series: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -149,7 +149,7 @@ destroy.delete = (args: { series: number | { id: number } } | [series: number | 
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceSeriesController::destroy
-* @see app/Http/Controllers/MaintenanceSeriesController.php:57
+* @see app/Http/Controllers/MaintenanceSeriesController.php:55
 * @route '/maintenance/series/{series}'
 */
 const destroyForm = (args: { series: number | { id: number } } | [series: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -164,7 +164,7 @@ const destroyForm = (args: { series: number | { id: number } } | [series: number
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceSeriesController::destroy
-* @see app/Http/Controllers/MaintenanceSeriesController.php:57
+* @see app/Http/Controllers/MaintenanceSeriesController.php:55
 * @route '/maintenance/series/{series}'
 */
 destroyForm.delete = (args: { series: number | { id: number } } | [series: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

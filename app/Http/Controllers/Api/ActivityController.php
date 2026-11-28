@@ -7,7 +7,6 @@ namespace Heptapod\Http\Controllers\Api;
 use Carbon\CarbonImmutable;
 use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Checks\CheckRunPresentations;
-use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\CheckRunPresentationData;
 use Heptapod\Contracts\CheckRunPresentationPartData;
@@ -17,10 +16,12 @@ use Heptapod\Enums\IncidentCause;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\Client;
 use Heptapod\Models\Event;
+use Heptapod\Models\User;
 use Heptapod\Queries\EventsReader;
 use Heptapod\Support\Api\ApiHeadline;
 use Heptapod\Support\Api\CursorCodec;
 use Heptapod\Support\Api\TrustedSummary;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -28,12 +29,9 @@ use Illuminate\Support\Facades\Validator;
 #[Group('Activity & upcoming')]
 final class ActivityController extends Controller
 {
-    use ResolvesApiPrincipal;
-
-    public function __invoke(Request $request, EventsReader $events, CursorCodec $cursors, CheckRunPresentations $presentations): JsonResponse
+    public function __invoke(#[CurrentUser] User $user, Request $request, EventsReader $events, CursorCodec $cursors, CheckRunPresentations $presentations): JsonResponse
     {
-        $user = $this->principal($request);
-        $token = $this->token($user);
+        $token = $user->currentAccessToken();
         /** @var array{days?: int|string, client_id?: int|string, limit?: int|string, cursor?: string, locale?: string} $input */
         $input = Validator::make($request->query(), ['locale' => ApiHeadline::localeRules(), 'days' => ['sometimes', 'integer', 'min:1', 'max:90'], 'client_id' => ['sometimes', 'integer', 'min:1'],
             'limit' => ['sometimes', 'integer', 'min:1', 'max:100'], 'cursor' => ['sometimes', 'string']])->validate();

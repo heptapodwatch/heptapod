@@ -6,6 +6,7 @@ namespace Heptapod\Actions;
 
 use Heptapod\Auth\MemberAccessGuard;
 use Heptapod\Contracts\Notifications\DeliveryState;
+use Heptapod\Enums\Role;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\User;
@@ -38,7 +39,7 @@ final readonly class DeleteProfile
                 })
                 ->union(DB::table('deliveries')->select('id')->where('actor_id', $user->id)));
             $current = User::query()->findOrFail($user->id);
-            if ($current->hasRole('Owner') && $this->guard->activeOwnerCount() <= 1) {
+            if (Role::of($current) === Role::Owner && $this->guard->activeOwnerCount() <= 1) {
                 throw ValidationException::withMessages(['password' => __('profile.delete_last_owner')]);
             }
             ($this->revoke)($current);

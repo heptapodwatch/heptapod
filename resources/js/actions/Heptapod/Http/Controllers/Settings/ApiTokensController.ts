@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Settings\ApiTokensController::edit
-* @see app/Http/Controllers/Settings/ApiTokensController.php:28
+* @see app/Http/Controllers/Settings/ApiTokensController.php:30
 * @route '/settings/api-tokens'
 */
 export const edit = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ edit.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ApiTokensController::edit
-* @see app/Http/Controllers/Settings/ApiTokensController.php:28
+* @see app/Http/Controllers/Settings/ApiTokensController.php:30
 * @route '/settings/api-tokens'
 */
 edit.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ edit.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ApiTokensController::edit
-* @see app/Http/Controllers/Settings/ApiTokensController.php:28
+* @see app/Http/Controllers/Settings/ApiTokensController.php:30
 * @route '/settings/api-tokens'
 */
 edit.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ edit.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ApiTokensController::edit
-* @see app/Http/Controllers/Settings/ApiTokensController.php:28
+* @see app/Http/Controllers/Settings/ApiTokensController.php:30
 * @route '/settings/api-tokens'
 */
 edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ApiTokensController::edit
-* @see app/Http/Controllers/Settings/ApiTokensController.php:28
+* @see app/Http/Controllers/Settings/ApiTokensController.php:30
 * @route '/settings/api-tokens'
 */
 const editForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const editForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ApiTokensController::edit
-* @see app/Http/Controllers/Settings/ApiTokensController.php:28
+* @see app/Http/Controllers/Settings/ApiTokensController.php:30
 * @route '/settings/api-tokens'
 */
 editForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ editForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ApiTokensController::edit
-* @see app/Http/Controllers/Settings/ApiTokensController.php:28
+* @see app/Http/Controllers/Settings/ApiTokensController.php:30
 * @route '/settings/api-tokens'
 */
 editForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ edit.form = editForm
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ApiTokensController::index
-* @see app/Http/Controllers/Settings/ApiTokensController.php:35
+* @see app/Http/Controllers/Settings/ApiTokensController.php:37
 * @route '/settings/api-tokens/data'
 */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -97,7 +97,7 @@ index.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ApiTokensController::index
-* @see app/Http/Controllers/Settings/ApiTokensController.php:35
+* @see app/Http/Controllers/Settings/ApiTokensController.php:37
 * @route '/settings/api-tokens/data'
 */
 index.url = (options?: RouteQueryOptions) => {
@@ -106,7 +106,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ApiTokensController::index
-* @see app/Http/Controllers/Settings/ApiTokensController.php:35
+* @see app/Http/Controllers/Settings/ApiTokensController.php:37
 * @route '/settings/api-tokens/data'
 */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -116,7 +116,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ApiTokensController::index
-* @see app/Http/Controllers/Settings/ApiTokensController.php:35
+* @see app/Http/Controllers/Settings/ApiTokensController.php:37
 * @route '/settings/api-tokens/data'
 */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -126,7 +126,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ApiTokensController::index
-* @see app/Http/Controllers/Settings/ApiTokensController.php:35
+* @see app/Http/Controllers/Settings/ApiTokensController.php:37
 * @route '/settings/api-tokens/data'
 */
 const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -136,7 +136,7 @@ const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ApiTokensController::index
-* @see app/Http/Controllers/Settings/ApiTokensController.php:35
+* @see app/Http/Controllers/Settings/ApiTokensController.php:37
 * @route '/settings/api-tokens/data'
 */
 indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -146,7 +146,7 @@ indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ApiTokensController::index
-* @see app/Http/Controllers/Settings/ApiTokensController.php:35
+* @see app/Http/Controllers/Settings/ApiTokensController.php:37
 * @route '/settings/api-tokens/data'
 */
 indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -163,7 +163,7 @@ index.form = indexForm
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ApiTokensController::store
-* @see app/Http/Controllers/Settings/ApiTokensController.php:71
+* @see app/Http/Controllers/Settings/ApiTokensController.php:72
 * @route '/settings/api-tokens'
 */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -178,7 +178,7 @@ store.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ApiTokensController::store
-* @see app/Http/Controllers/Settings/ApiTokensController.php:71
+* @see app/Http/Controllers/Settings/ApiTokensController.php:72
 * @route '/settings/api-tokens'
 */
 store.url = (options?: RouteQueryOptions) => {
@@ -187,7 +187,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ApiTokensController::store
-* @see app/Http/Controllers/Settings/ApiTokensController.php:71
+* @see app/Http/Controllers/Settings/ApiTokensController.php:72
 * @route '/settings/api-tokens'
 */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -197,7 +197,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ApiTokensController::store
-* @see app/Http/Controllers/Settings/ApiTokensController.php:71
+* @see app/Http/Controllers/Settings/ApiTokensController.php:72
 * @route '/settings/api-tokens'
 */
 const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -207,7 +207,7 @@ const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\ApiTokensController::store
-* @see app/Http/Controllers/Settings/ApiTokensController.php:71
+* @see app/Http/Controllers/Settings/ApiTokensController.php:72
 * @route '/settings/api-tokens'
 */
 storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

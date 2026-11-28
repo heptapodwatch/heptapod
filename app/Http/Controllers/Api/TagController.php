@@ -7,11 +7,13 @@ namespace Heptapod\Http\Controllers\Api;
 use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\CreateTag;
-use Heptapod\Concerns\ResolvesApiPrincipal;
+use Heptapod\Enums\Capability;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Http\Resources\OhDear\TagResource;
 use Heptapod\Models\Site;
+use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -23,11 +25,8 @@ use Spatie\Tags\Tag;
 #[Group('Monitors')]
 final class TagController extends Controller
 {
-    use ResolvesApiPrincipal;
-
-    public function index(Request $request, SitePolicy $policy): JsonResponse
+    public function index(#[CurrentUser] User $user, Request $request, SitePolicy $policy): JsonResponse
     {
-        $user = $this->principal($request);
         $visible = $policy->visibleSites($user)->getQuery()->select('sites.id');
         /** @var Collection<int, object{tag_id: int, taggable_id: int}&\stdClass> $associations */
         $associations = DB::table('taggables')->where('taggable_type', new Site()->getMorphClass())->whereIn('taggable_id', $visible)->orderBy('taggable_id')->get(['tag_id', 'taggable_id']);
@@ -44,10 +43,9 @@ final class TagController extends Controller
         return response()->json(['data' => $tags->map(fn (Tag $tag): array => new TagResource($tag, $sitesByTag[$tag->id] ?? [])->resolve($request))->all()]);
     }
 
-    public function store(Request $request, CreateTag $create, SitePolicy $policy, AuthorizeSiteWrite $authorize): JsonResponse
+    public function store(#[CurrentUser] User $user, Request $request, CreateTag $create, SitePolicy $policy, AuthorizeSiteWrite $authorize): JsonResponse
     {
-        $user = $this->principal($request, 403);
-        abort_unless($user->hasAnyRole(['Owner', 'Admin']), 403);
+        abort_unless(Capability::Manage->allows($user), 403);
         $visibleSite = $policy->visibleSiteRule($user);
         /** @var array{name: string, monitors?: list<int>, sites?: list<int>} $data */
         $data = Validator::make($request->all(), ['team_id' => ['required', 'integer', 'in:1'], 'name' => ['required', 'string', 'max:255'], 'monitors' => ['sometimes', 'array'], 'monitors.*' => ['integer', $visibleSite], 'sites' => ['sometimes', 'array'], 'sites.*' => ['integer', $visibleSite]])->validate();

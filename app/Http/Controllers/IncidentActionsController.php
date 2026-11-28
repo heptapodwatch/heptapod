@@ -10,16 +10,15 @@ use Heptapod\Actions\SnoozeIncidentReminders;
 use Heptapod\Models\Incident;
 use Heptapod\Models\User;
 use Heptapod\Queries\IncidentsReader;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 final class IncidentActionsController extends Controller
 {
-    public function update(Request $request, int $incident, IncidentsReader $reader, SaveIncidentNote $save, AuthorizeSiteWrite $authorize): RedirectResponse
+    public function update(#[CurrentUser] User $user, Request $request, int $incident, IncidentsReader $reader, SaveIncidentNote $save, AuthorizeSiteWrite $authorize): RedirectResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         $data = Validator::make($request->all(), ['note' => ['present', 'nullable', 'string', 'max:10000']])->validate();
         $note = $data['note'];
         if ($note !== null && ! is_string($note)) {
@@ -30,20 +29,16 @@ final class IncidentActionsController extends Controller
         return back();
     }
 
-    public function store(Request $request, int $incident, IncidentsReader $reader, SnoozeIncidentReminders $snooze, AuthorizeSiteWrite $authorize): RedirectResponse
+    public function store(#[CurrentUser] User $user, Request $request, int $incident, IncidentsReader $reader, SnoozeIncidentReminders $snooze, AuthorizeSiteWrite $authorize): RedirectResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         Validator::make($request->all(), ['minutes' => ['required', 'integer', 'between:1,525600']])->validate();
         $authorize->incident($user, $reader->scoped($user)->findOrFail($incident), static fn (Incident $visible): Incident => $snooze($visible, $request->integer('minutes')));
 
         return back();
     }
 
-    public function destroy(Request $request, int $incident, IncidentsReader $reader, SnoozeIncidentReminders $snooze, AuthorizeSiteWrite $authorize): RedirectResponse
+    public function destroy(#[CurrentUser] User $user, int $incident, IncidentsReader $reader, SnoozeIncidentReminders $snooze, AuthorizeSiteWrite $authorize): RedirectResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         $authorize->incident($user, $reader->scoped($user)->findOrFail($incident), static fn (Incident $visible): Incident => $snooze($visible, null));
 
         return back();

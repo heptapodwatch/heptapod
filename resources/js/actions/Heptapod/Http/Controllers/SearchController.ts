@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\SearchController::__invoke
-* @see app/Http/Controllers/SearchController.php:15
+* @see app/Http/Controllers/SearchController.php:16
 * @route '/search'
 */
 const SearchController = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ SearchController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SearchController::__invoke
-* @see app/Http/Controllers/SearchController.php:15
+* @see app/Http/Controllers/SearchController.php:16
 * @route '/search'
 */
 SearchController.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ SearchController.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\SearchController::__invoke
-* @see app/Http/Controllers/SearchController.php:15
+* @see app/Http/Controllers/SearchController.php:16
 * @route '/search'
 */
 SearchController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ SearchController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => 
 
 /**
 * @see \Heptapod\Http\Controllers\SearchController::__invoke
-* @see app/Http/Controllers/SearchController.php:15
+* @see app/Http/Controllers/SearchController.php:16
 * @route '/search'
 */
 SearchController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ SearchController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> =
 
 /**
 * @see \Heptapod\Http\Controllers\SearchController::__invoke
-* @see app/Http/Controllers/SearchController.php:15
+* @see app/Http/Controllers/SearchController.php:16
 * @route '/search'
 */
 const SearchControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const SearchControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<
 
 /**
 * @see \Heptapod\Http\Controllers\SearchController::__invoke
-* @see app/Http/Controllers/SearchController.php:15
+* @see app/Http/Controllers/SearchController.php:16
 * @route '/search'
 */
 SearchControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ SearchControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'g
 
 /**
 * @see \Heptapod\Http\Controllers\SearchController::__invoke
-* @see app/Http/Controllers/SearchController.php:15
+* @see app/Http/Controllers/SearchController.php:16
 * @route '/search'
 */
 SearchControllerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
