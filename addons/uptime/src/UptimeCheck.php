@@ -74,6 +74,8 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
             'name' => new Field(FieldType::String, ['required', 'regex:/^[!#$%&\'*+.^_`|~0-9A-Za-z-]+$/']),
             'value' => new Field(FieldType::Secret, ['present', 'not_regex:/[\r\n]/']),
         ]);
+        $request = 'uptime.settings.request';
+        $response = 'uptime.settings.response';
         $number = new Field(FieldType::Number, ['present', 'nullable', 'min:0']);
         $curl = array_fill_keys(['namelookup_time', 'connect_time', 'appconnect_time', 'starttransfer_time', 'pretransfer_time', 'redirect_time', 'total_time'], $number);
         foreach (['header_size', 'size_download', 'speed_download'] as $key) {
@@ -84,26 +86,26 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
             CheckKey::Uptime, 'checks.uptime.label', 'activity', 'checks-fast', 60, 60, 2, ExecutionMode::Poll,
             new Schema([
                 'location' => new Field(FieldType::String, ['sometimes'], presentation: new FieldPresentation('uptime.location', 'uptime.local_probe')),
-                'http_verb' => new Field(FieldType::String, ['sometimes', 'in:GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS'], default: 'GET', uppercase: true),
-                'look_for_string' => new Field(FieldType::String, ['sometimes', 'nullable'], default: null),
-                'absent_string' => new Field(FieldType::String, ['sometimes', 'nullable'], default: null),
+                'http_verb' => new Field(FieldType::String, ['sometimes', 'in:GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS'], presentation: new FieldPresentation('Method', group: $request), default: 'GET', uppercase: true),
+                'look_for_string' => new Field(FieldType::String, ['sometimes', 'nullable'], presentation: new FieldPresentation('Body contains', group: $response), default: null),
+                'absent_string' => new Field(FieldType::String, ['sometimes', 'nullable'], presentation: new FieldPresentation('Body must not contain', group: $response), default: null),
                 'expected_response_headers' => new Field(FieldType::List, ['sometimes'], items: new Field(FieldType::Object, properties: [
                     'name' => new Field(FieldType::String, ['required']),
                     'condition' => new Field(FieldType::String, ['required', 'in:equals,not equals,contains,not contains']),
                     'value' => new Field(FieldType::String, ['present']),
-                ]), default: []),
+                ]), presentation: new FieldPresentation('Expected response headers', group: $response), default: []),
                 'response_body_assertions' => new Field(FieldType::List, ['sometimes', 'nullable', 'max:10'], items: new Field(FieldType::Object, properties: [
                     'path' => new Field(FieldType::String, ['required']),
                     'operator' => new Field(FieldType::String, ['required', 'in:equals,not equals,contains,greater than,less than,exists,does not exist']),
                     'value' => new Field(FieldType::String, ['present_unless:values.response_body_assertions.*.operator,exists,does not exist', 'nullable']),
-                ]), default: []),
-                'payload' => new Field(FieldType::List, ['sometimes'], items: $pair, default: []),
-                'raw_payload' => new Field(FieldType::Secret, ['sometimes', 'nullable', 'json'], default: null, allowShortSecret: true),
-                'timeout' => new Field(FieldType::Integer, ['sometimes', 'min:1'], default: 30),
-                'valid_status_codes' => new Field(FieldType::List, ['sometimes', 'min:1'], items: new Field(FieldType::String, ['required', 'regex:/^[1-5][0-9*]{0,2}$/']), default: ['2*']),
-                'max_redirect_count' => new Field(FieldType::Integer, ['sometimes', 'min:0'], default: 5),
-                'expected_final_redirect_url' => new Field(FieldType::Secret, ['sometimes', 'nullable', 'url:http,https'], default: null),
-                'http_client_headers' => new Field(FieldType::List, ['sometimes'], items: $headers, default: []),
+                ]), presentation: new FieldPresentation('Response body rules', group: $response), default: []),
+                'payload' => new Field(FieldType::List, ['sometimes'], items: $pair, presentation: new FieldPresentation('Request fields', group: $request), default: []),
+                'raw_payload' => new Field(FieldType::Secret, ['sometimes', 'nullable', 'json'], presentation: new FieldPresentation('Raw request body', group: $request), default: null, allowShortSecret: true),
+                'timeout' => new Field(FieldType::Integer, ['sometimes', 'min:1'], presentation: new FieldPresentation('Timeout', group: $request), default: 30),
+                'valid_status_codes' => new Field(FieldType::List, ['sometimes', 'min:1'], items: new Field(FieldType::String, ['required', 'regex:/^[1-5][0-9*]{0,2}$/']), presentation: new FieldPresentation('Accepted HTTP statuses', 'uptime.status_codes_help', group: $response), default: ['2*']),
+                'max_redirect_count' => new Field(FieldType::Integer, ['sometimes', 'min:0'], presentation: new FieldPresentation('Maximum redirects', group: $request), default: 5),
+                'expected_final_redirect_url' => new Field(FieldType::Secret, ['sometimes', 'nullable', 'url:http,https'], presentation: new FieldPresentation('Final redirect URL', group: $response), default: null),
+                'http_client_headers' => new Field(FieldType::List, ['sometimes'], items: $headers, presentation: new FieldPresentation('uptime.settings.headers', group: $request), default: []),
             ]),
             new Schema([
                 'dns_time_in_seconds' => $number,
@@ -115,6 +117,7 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
                 'curl' => new Field(FieldType::Object, ['required'], properties: $curl),
                 'date' => new Field(FieldType::String, ['required', 'date']),
             ]),
+            intervalPresetsMinutes: [1, 5, 15, 60],
         );
     }
 

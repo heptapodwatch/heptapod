@@ -88,6 +88,12 @@ A 429 response includes `Retry-After`.
 - A mask with no previous value returns a field-level 422.
 - Other strings are stored exactly, including whitespace and empty strings.
 
+## Broken links settings
+
+Use `broken_links_check_settings.do_not_crawl_urls` to replace the **Do not crawl URLs** list. The deprecated `exclude_patterns` field is still accepted on writes: its entries are added to `do_not_crawl_urls` without duplicates. If you send only the deprecated field, the API adds those entries to the stored list. Responses return the combined list as `do_not_crawl_urls`.
+
+**Do not crawl URLs**, **Always crawl URLs**, and **Ignored URLs** match the normalized full URL. Only `*` is a wildcard; it can span path segments. A query delimiter (`?`) and square brackets are literal. Review older patterns that used `?` or bracket expressions as wildcards.
+
 ## OpenAPI document
 
 `GET /api/openapi.json` describes every `/api` operation in OpenAPI 3.1.
@@ -401,6 +407,7 @@ Add `--only=sites,maintenance,cron,channels` (any subset) to read and write only
 | Frequency value and unit                                 | Values 1–60 in minutes, hours or days, as `interval_seconds`. Without a value, the check's default. Without a unit, minutes.                                                         |
 | Domain expiry threshold                                  | Reported as unsupported when it cannot apply.                                                                                                                                        |
 | DNS ignored types                                        | Uppercase names known to `spatie/dns`. Unknown names are invalid.                                                                                                                    |
+| `broken_links_check_settings.exclude_patterns`           | Folded into **Do not crawl URLs**.                                                                                                                                                   |
 | `broken_links_check_settings.whitelisted_urls`           | **Ignored URLs**. Invalid entries are skipped with a notice.                                                                                                                         |
 | `sitemap_check_settings` `path` and `speed`              | Relative paths gain a leading `/`. Absolute URLs, `..` and query strings (`?`) are invalid; send credentials through crawler headers instead. Default: `/sitemap.xml` and `default`. |
 

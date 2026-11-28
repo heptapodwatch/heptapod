@@ -145,9 +145,13 @@ for (const file of [
                 );
             // The schema-enum exemption is only for the runtime enum-size
             // branch in schema-fields.tsx; anywhere else it does not exempt.
+            const intervalPresets =
+                commentOf('interval-presets') &&
+                file === 'resources/js/components/check-interval-field.tsx';
             const namedException =
-                commentOf('schema-enum') &&
-                file === 'resources/js/components/schema-fields.tsx';
+                (commentOf('schema-enum') &&
+                    file === 'resources/js/components/schema-fields.tsx') ||
+                intervalPresets;
             if (commentOf('schema-enum') && !namedException)
                 failures.push(
                     `${file}:${line}: form-select: schema-enum is only allowed in schema-fields.tsx; use the searchable Combobox for data-driven lists`,
@@ -193,7 +197,7 @@ for (const file of [
                         );
                 }
             }
-            if (count >= 1 && count <= 4 && !exception)
+            if (count >= 1 && count <= 4 && !exception && !intervalPresets)
                 failures.push(
                     `${file}:${line}: static form Select with ${count} options; use RadioGroup/RadioCards (or checkboxes for multi choice)`,
                 );

@@ -212,6 +212,7 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
                 'finished_at' => new Field(FieldType::Integer, ['present', 'nullable', 'min:1']),
                 'response_time_in_seconds' => new Field(FieldType::Number, ['present', 'nullable', 'min:0']),
             ]), emittedEvents: ['application_health.component_changed'], recommended: false,
+            intervalPresetsMinutes: [1, 5, 15, 60],
         );
     }
 

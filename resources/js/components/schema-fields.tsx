@@ -2,7 +2,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import cronstrue from 'cronstrue';
 import 'cronstrue/locales/de';
 import { Plus, Trash2 } from 'lucide-react';
-import { useId } from 'react';
+import { useId, useState, type ComponentProps } from 'react';
+import { FormSection } from '@/components/form-section';
 import { useTranslation } from 'react-i18next';
 import PasswordInput from '@/components/password-input';
 import InputError, { fieldErrorProps } from '@/components/input-error';
@@ -35,11 +36,25 @@ export function schemaFieldViews(
     namespace = '',
     labels: Record<string, string> = {},
 ): FieldSchema[] {
-    return Object.entries(schema.fields).map(([name, field]) => {
+    const visibleFields = Object.entries(schema.fields).filter(
+        ([, field]) => !field.presentation?.hidden,
+    );
+    return visibleFields.map(([name, field]) => {
+        const rules = (field.items ?? field).rules;
+        const url = rules.some(
+            (rule) => rule === 'url' || rule.startsWith('url:'),
+        );
+        const urlPattern = rules.some(
+            (rule) => rule.split(':', 1)[0] === 'crawl_url_pattern',
+        );
         const common = {
             name: namespace + name,
             label: labels[name] ?? field.presentation?.labelKey ?? name,
-            help: field.presentation?.helpKey ?? undefined,
+            help: urlPattern
+                ? 'crawl.settings.url_pattern_help'
+                : (field.presentation?.helpKey ?? undefined),
+            group: field.presentation?.group ?? undefined,
+            url,
             required: field.rules.includes('required'),
         };
         const choices = Object.entries(field.presentation?.options ?? {});
@@ -63,15 +78,17 @@ export function schemaFieldViews(
                     typeof field.default === 'number'
                         ? field.default
                         : undefined,
-                unit: name.endsWith('_in_days')
-                    ? 'days'
-                    : name.endsWith('_in_ms')
-                      ? 'ms'
-                      : name === 'timeout'
-                        ? 'seconds'
-                        : name.endsWith('_percentage')
-                          ? '%'
-                          : '',
+                unit:
+                    field.presentation?.unit ??
+                    (name.endsWith('_in_days')
+                        ? 'days'
+                        : name.endsWith('_in_ms')
+                          ? 'ms'
+                          : name === 'timeout'
+                            ? 'seconds'
+                            : name.endsWith('_percentage')
+                              ? '%'
+                              : ''),
             };
         if (field.type === 'secret') return { ...common, type: 'secret' };
         if (field.type === 'list') {
@@ -111,7 +128,7 @@ export function schemaFieldViews(
                         },
                     ),
                 };
-            return { ...common, type: 'string-list' };
+            return { ...common, type: 'string-list', urlPattern };
         }
         if (field.type !== 'string')
             throw new Error(
@@ -157,19 +174,77 @@ export function cronPreview(expression: string, locale: string): string | null {
     }
 }
 
-export function SchemaFields({
-    schema,
-    values,
-    errors = {},
-    onChange,
-    columns = 2,
-}: {
+function StringListInput({
+    value,
+    onValueChange,
+    ...props
+}: Omit<ComponentProps<typeof Textarea>, 'value' | 'onChange'> & {
+    value: string;
+    onValueChange: (value: string[]) => void;
+}) {
+    const [draft, setDraft] = useState({ text: value, committed: value });
+    return (
+        <Textarea
+            {...props}
+            value={draft.committed === value ? draft.text : value}
+            onChange={(event) => {
+                const text = event.target.value;
+                const lines = text
+                    .split(/\r?\n/)
+                    .filter((line) => line.trim() !== '');
+                const committed = lines.join('\n');
+                setDraft({ text, committed });
+                if (committed !== value) onValueChange(lines);
+            }}
+        />
+    );
+}
+
+export function SchemaFields(props: SchemaFieldsProps) {
+    const { t } = useTranslation();
+    if (!props.schema.some((field) => field.group))
+        return <SchemaFieldGrid {...props} />;
+
+    const groups = new Map<string | undefined, FieldSchema[]>();
+    for (const field of props.schema) {
+        const group = groups.get(field.group) ?? [];
+        group.push(field);
+        groups.set(field.group, group);
+    }
+    return (
+        <div>
+            {[...groups].map(([group, schema]) =>
+                group ? (
+                    <FormSection key={group} title={t(group)}>
+                        <SchemaFieldGrid {...props} schema={schema} />
+                    </FormSection>
+                ) : (
+                    <SchemaFieldGrid
+                        key="ungrouped"
+                        {...props}
+                        schema={schema}
+                    />
+                ),
+            )}
+        </div>
+    );
+}
+
+type SchemaFieldsProps = {
     schema: FieldSchema[];
     columns?: 1 | 2;
     values: Record<string, FieldValue>;
     errors?: Record<string, string>;
     onChange: (name: string, value: FieldValue) => void;
-}) {
+};
+
+function SchemaFieldGrid({
+    schema,
+    values,
+    errors = {},
+    onChange,
+    columns = 2,
+}: SchemaFieldsProps) {
     const { t, i18n } = useTranslation();
     const prefix = useId();
     return (
@@ -206,8 +281,18 @@ export function SchemaFields({
                 switch (field.type) {
                     case 'string-list':
                         control = (
-                            <Textarea
+                            <StringListInput
                                 {...common}
+                                rows={
+                                    field.url || field.urlPattern
+                                        ? 5
+                                        : undefined
+                                }
+                                className={
+                                    field.url || field.urlPattern
+                                        ? 'field-sizing-fixed font-mono'
+                                        : undefined
+                                }
                                 value={
                                     Array.isArray(value)
                                         ? value
@@ -221,13 +306,8 @@ export function SchemaFields({
                                               .join('\n')
                                         : ''
                                 }
-                                onChange={(event) =>
-                                    onChange(
-                                        field.name,
-                                        event.target.value
-                                            .split(/\r?\n/)
-                                            .filter(Boolean),
-                                    )
+                                onValueChange={(lines) =>
+                                    onChange(field.name, lines)
                                 }
                             />
                         );
@@ -621,7 +701,9 @@ export function SchemaFields({
                         control = (
                             <PasswordInput
                                 {...common}
-                                className="h-10"
+                                className={
+                                    field.url ? 'h-10 font-mono' : 'h-10'
+                                }
                                 value={text}
                                 autoComplete="new-password"
                                 onChange={(event) =>
@@ -669,7 +751,9 @@ export function SchemaFields({
                                 type="text"
                                 value={text}
                                 className={
-                                    field.type === 'cron' ? 'font-mono' : ''
+                                    field.type === 'cron' || field.url
+                                        ? 'font-mono'
+                                        : ''
                                 }
                                 onChange={(event) =>
                                     onChange(field.name, event.target.value)
@@ -682,7 +766,11 @@ export function SchemaFields({
                     <div
                         key={field.name}
                         className={
-                            field.type === 'object-list' && columns === 2
+                            columns === 2 &&
+                            (field.url ||
+                                field.type === 'object-list' ||
+                                field.type === 'multi-select' ||
+                                field.type === 'string-list')
                                 ? 'min-w-0 space-y-2 sm:col-span-2'
                                 : 'min-w-0 space-y-2'
                         }

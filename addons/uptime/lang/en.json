@@ -1,4 +1,8 @@
 {
+    "uptime.settings.request": "Request",
+    "uptime.settings.headers": "Headers",
+    "uptime.settings.response": "Response",
+    "uptime.status_codes_help": "One status per line; 2* matches 200–299.",
     "uptime.label": "Uptime",
     "causes.timeout": "Timed out after :seconds s",
     "causes.tls": "TLS handshake failed",

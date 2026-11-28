@@ -240,7 +240,7 @@ final readonly class LighthouseCheck implements CheckDetailProvider, CheckHistor
         $thresholds = [];
         $metrics = [];
         foreach (self::Categories as $category => $id) {
-            $thresholds[$category] = new Field(FieldType::Integer, ['sometimes', 'nullable', 'min:0', 'max:100'], presentation: new FieldPresentation('lighthouse.'.$category));
+            $thresholds[$category] = new Field(FieldType::Integer, ['sometimes', 'nullable', 'min:0', 'max:100'], presentation: new FieldPresentation('lighthouse.'.$category, 'lighthouse.score_threshold_help', unit: 'lighthouse.score_points'));
             $metrics[$category.'_score'] = new Field(FieldType::Integer, ['required', 'min:0', 'max:100']);
         }
         $metrics['progressive_web_app_score'] = new Field(FieldType::Integer, ['present', 'nullable', 'min:0', 'max:100']);
@@ -252,7 +252,7 @@ final readonly class LighthouseCheck implements CheckDetailProvider, CheckHistor
             CheckKey::Lighthouse, 'checks.lighthouse.label', 'gauge',
             'checks-browser', 170, 86400, 1, ExecutionMode::Poll,
             new Schema([
-                'continent' => new Field(FieldType::String, ['sometimes', 'nullable', 'max:100'], presentation: new FieldPresentation('lighthouse.continent', 'lighthouse.continent_help'), default: null),
+                'continent' => new Field(FieldType::String, ['sometimes', 'nullable', 'max:100'], presentation: new FieldPresentation('lighthouse.continent', hidden: true), default: null),
                 'device_emulation' => new Field(FieldType::String, ['sometimes', 'in:mobile,desktop'], presentation: new FieldPresentation('lighthouse.device', options: ['mobile' => 'Mobile', 'desktop' => 'Desktop']), default: 'mobile'),
                 'cpu_slowdown_modifier' => new Field(FieldType::Number, ['sometimes', 'nullable', 'min:1', 'max:20'], presentation: new FieldPresentation('lighthouse.cpu'), default: null),
                 'notification_settings' => new Field(FieldType::Object, ['sometimes', 'nullable'], properties: $thresholds, presentation: new FieldPresentation('lighthouse.thresholds', 'lighthouse.thresholds_help'), additionalProperties: true, default: null),
@@ -261,6 +261,7 @@ final readonly class LighthouseCheck implements CheckDetailProvider, CheckHistor
                     'value' => new Field(FieldType::Secret, ['required', 'max:4096', 'not_regex:/[\r\n]/']),
                 ]), presentation: new FieldPresentation('lighthouse.headers', 'lighthouse.headers_help'), default: []),
             ]), new Schema($metrics), emittedEvents: ['lighthouse.score_threshold_crossed'], detailDataClass: LighthouseDetail::class,
+            intervalPresetsMinutes: [360, 720, 1440, 10080],
         );
     }
 

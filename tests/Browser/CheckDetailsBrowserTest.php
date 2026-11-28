@@ -256,7 +256,7 @@ it('keeps unsaved health settings gated after a failed probe', function (): void
     expect($page->script('(() => { const button = [...document.querySelectorAll("button")].find((item) => item.textContent.startsWith("Switch site section")); const rect = button.getBoundingClientRect(); return rect.width > 0 && rect.left >= 0 && rect.right <= innerWidth; })()'))->toBeTrue();
     $page->click('button[aria-label="More actions"]')->click('[role="menuitem"]:has-text("Configure check…")')
         ->fill('input[name="result_url"]', 'http://127.0.0.1/new-health')
-        ->assertSee('Edit health check')->assertCount('[data-slot=sheet-content] [role=tablist]', 0)
+        ->assertSee('Check settings')->assertCount('[data-slot=sheet-content] [role=tablist]', 0)
         ->assertSee('Not saved yet. Test successfully before saving.')
         ->assertDontSee('stored-health-secret');
     expect($page->script('document.querySelector("button[type=submit]")?.disabled'))->toBeTrue();

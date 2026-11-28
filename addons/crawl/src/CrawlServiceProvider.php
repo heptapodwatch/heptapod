@@ -20,8 +20,8 @@ final class CrawlServiceProvider extends ServiceProvider
 
     public function boot(CheckRegistry $registry): void
     {
-        Validator::extend('crawl_whitelist_url', static fn (string $attribute, mixed $value): bool => CrawlWhitelist::valid($value));
-        Validator::replacer('crawl_whitelist_url', static fn (string $message, string $attribute): string => __('validation.url', ['attribute' => $attribute]));
+        Validator::extend('crawl_url_pattern', static fn (string $attribute, mixed $value, array $parameters): bool => CrawlWhitelist::valid($value, allowLegacy: $parameters === ['legacy']));
+        Validator::replacer('crawl_url_pattern', static fn (string $message, string $attribute): string => __('validation.url', ['attribute' => $attribute]));
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         $this->loadJsonTranslationsFrom(__DIR__.'/../lang');
         $registry->register(BrokenLinksCheck::class, new OhDearImportMapping([...array_keys(BrokenLinksCheck::configSchema()->fields), 'frequency_value', 'frequency_unit', 'failed_notification_threshold']));

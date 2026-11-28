@@ -13,6 +13,7 @@ final class CheckDefinition extends Data
 {
     /** @param list<string> $emittedEvents
      * @param  class-string<CheckDetailData>|null  $detailDataClass  Addon-owned detail snapshot registered for generated UI types.
+     * @param  list<positive-int>  $intervalPresetsMinutes  Suggestions for the settings sheet, not validation limits.
      */
     public function __construct(
         public readonly CheckKey $key,
@@ -30,6 +31,7 @@ final class CheckDefinition extends Data
         public readonly bool $recommended = true,
         public readonly ?string $detailDataClass = null,
         public readonly ?int $minimumIncreaseInMs = null,
+        public readonly array $intervalPresetsMinutes = [],
     ) {
         if ($detailDataClass !== null && ! is_subclass_of($detailDataClass, CheckDetailData::class)) {
             throw new \InvalidArgumentException('Check detail DTO must extend the core contract.');

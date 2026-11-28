@@ -167,6 +167,7 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
                 'hasIssues' => new Field(FieldType::Boolean, ['required']),
             ]),
             emittedEvents: ['sitemap.issues_changed'], detailDataClass: SitemapSnapshot::class,
+            intervalPresetsMinutes: [360, 720, 1440, 10080],
         );
     }
 

@@ -650,6 +650,7 @@ readonly requiresHttps: boolean,
 readonly recommended: boolean,
 readonly detailDataClass: string | null,
 readonly minimumIncreaseInMs: number | null,
+readonly intervalPresetsMinutes: number[],
 };
 export type CheckDetailData = Heptapod.Addons.CertificateHealth.CertificateSnapshot & {
 readonly check_type: 'certificate_health',
@@ -1020,6 +1021,9 @@ export type FieldPresentation = {
 readonly labelKey: string,
 readonly helpKey: string | null,
 readonly options: Record<string, string>,
+readonly group?: string,
+readonly hidden?: boolean,
+readonly unit?: string,
 };
 export type FieldType = 'string' | 'integer' | 'numeric' | 'boolean' | 'object' | 'list' | 'secret';
 export type Schema = {
@@ -1233,6 +1237,7 @@ readonly config_schema: Heptapod.Contracts.Schema.Schema,
 readonly settings: object,
 readonly can_update: boolean,
 readonly attention_reason: string | null,
+readonly interval_presets_minutes: number[],
 };
 export type CheckStripData = {
 readonly state: Heptapod.Enums.SiteStatus,

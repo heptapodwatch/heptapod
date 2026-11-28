@@ -1120,16 +1120,21 @@ function schemaField(
 const checkSchemas: Record<CheckKey, Heptapod.Contracts.Schema.Schema> = {
     uptime: {
         fields: {
-            http_verb: schemaField('string', [
-                'sometimes',
-                'in:GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS',
-            ]),
-            timeout: schemaField('integer', ['sometimes', 'min:1']),
-            look_for_string: schemaField('string', ['sometimes', 'nullable']),
+            http_verb: schemaField(
+                'string',
+                ['sometimes', 'in:GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS'],
+                'Method',
+            ),
+            timeout: schemaField('integer', ['sometimes', 'min:1'], 'Timeout'),
+            look_for_string: schemaField(
+                'string',
+                ['sometimes', 'nullable'],
+                'Body contains',
+            ),
             http_client_headers: schemaField(
                 'list',
                 ['sometimes'],
-                null,
+                'uptime.settings.headers',
                 schemaField('object', [], null, null, {
                     name: schemaField('string', ['required']),
                     value: schemaField('secret', ['present']),
@@ -1438,6 +1443,8 @@ export function checkTabPageFixture(
             label_key: check.label_key,
             enabled: check.enabled,
             interval_seconds: 60,
+            interval_presets_minutes:
+                check.key === 'uptime' ? [1, 5, 15, 60] : [],
             config_schema: checkSchemas[check.key],
             settings: checkSettingsFixture(site)[check.key],
             can_update: true,

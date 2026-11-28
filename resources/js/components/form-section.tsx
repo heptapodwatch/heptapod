@@ -22,7 +22,7 @@ export function FormSection({
 }: {
     title: string;
     /** One sentence. */
-    description: string;
+    description?: string;
     /** Anything beyond that sentence, behind an InfoTooltip. */
     detail?: string;
     /**
@@ -37,15 +37,17 @@ export function FormSection({
     const heading = (
         <div className="space-y-1">
             <SectionHeading id={titleId}>{title}</SectionHeading>
-            <p className="text-sm text-muted-foreground">
-                {description}
-                {detail && (
-                    <>
-                        {' '}
-                        <InfoTooltip>{detail}</InfoTooltip>
-                    </>
-                )}
-            </p>
+            {(description || detail) && (
+                <p className="text-sm text-muted-foreground">
+                    {description}
+                    {detail && (
+                        <>
+                            {' '}
+                            <InfoTooltip>{detail}</InfoTooltip>
+                        </>
+                    )}
+                </p>
+            )}
         </div>
     );
     return (

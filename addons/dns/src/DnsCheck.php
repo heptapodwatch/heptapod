@@ -316,6 +316,7 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
                 'issue_count' => new Field(FieldType::Integer, ['required', 'min:0']),
                 'changed' => new Field(FieldType::Boolean, ['required']),
             ]), emittedEvents: ['dns.records_changed'], detailDataClass: DnsSnapshot::class,
+            intervalPresetsMinutes: [15, 60, 360, 1440],
         );
     }
 

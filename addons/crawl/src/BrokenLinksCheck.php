@@ -33,6 +33,7 @@ use Heptapod\Contracts\Schema\Field;
 use Heptapod\Contracts\Schema\FieldPresentation;
 use Heptapod\Contracts\Schema\FieldType;
 use Heptapod\Contracts\Schema\Schema;
+use Heptapod\Contracts\Schema\ValidatedConfig;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Validation\ValidationException;
 
@@ -123,7 +124,7 @@ final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetail
 
     public function definition(): CheckDefinition
     {
-        return new CheckDefinition(CheckKey::BrokenLinks, 'checks.broken_links.label', 'unlink', 'checks-crawl', Config::integer('heptapod.crawl.timeout_seconds'), Config::integer('heptapod.crawl.interval_seconds'), 1, ExecutionMode::Poll, self::configSchema(), CrawlMetrics::schema(), ['broken_links.new_broken_found'], detailDataClass: CrawlSnapshot::class);
+        return new CheckDefinition(CheckKey::BrokenLinks, 'checks.broken_links.label', 'unlink', 'checks-crawl', Config::integer('heptapod.crawl.timeout_seconds'), Config::integer('heptapod.crawl.interval_seconds'), 1, ExecutionMode::Poll, self::configSchema(), CrawlMetrics::schema(), ['broken_links.new_broken_found'], detailDataClass: CrawlSnapshot::class, intervalPresetsMinutes: [360, 720, 1440, 10080]);
     }
 
     public function detail(int $checkId, ?LatestRunEvidence $latestRun = null): ?CrawlSnapshot
@@ -151,6 +152,23 @@ final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetail
         $target = CrawlWhitelist::canonical($url);
 
         return array_values(array_filter($entries, static fn (string $entry): bool => str_contains($entry, '*') || CrawlWhitelist::canonical($entry) !== $target));
+    }
+
+    public function foldExcludedUrls(ValidatedConfig $config): ValidatedConfig
+    {
+        $settings = $config->public;
+        if (! array_key_exists('exclude_patterns', $settings)) {
+            return $config;
+        }
+
+        /** @var list<string> $excluded */
+        $excluded = $settings['exclude_patterns'];
+        /** @var list<string> $scope */
+        $scope = $settings['do_not_crawl_urls'] ?? [];
+        $settings['do_not_crawl_urls'] = array_values(array_unique([...$scope, ...$excluded]));
+        unset($settings['exclude_patterns']);
+
+        return self::configSchema()->validateConfig($settings);
     }
 
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData
@@ -300,16 +318,21 @@ final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetail
     {
         /** @var array<string, array<array-key, mixed>|string|int|float|bool|null> $defaults */
         $defaults = Config::array('heptapod.crawl.defaults');
-        $fields = [];
+        $scope = 'crawl.settings.scope';
+        $criteria = 'crawl.settings.criteria';
+        $fields = [
+            'max_depth' => new Field(FieldType::Integer, ['sometimes', 'between:0,20'], presentation: new FieldPresentation('crawl.settings.max_depth', group: $scope), default: $defaults['max_depth']),
+            'max_pages' => new Field(FieldType::Integer, ['sometimes', 'between:1,10000'], presentation: new FieldPresentation('crawl.settings.max_pages', group: $scope), default: $defaults['max_pages']),
+        ];
+        foreach (['respect_robots', 'check_include_external_links'] as $key) {
+            $fields[$key] = new Field(FieldType::Boolean, ['sometimes'], presentation: new FieldPresentation('crawl.settings.'.$key, group: $scope), default: $defaults[$key]);
+        }
         foreach (['exclude_patterns', 'do_not_crawl_urls', 'force_crawl_urls', 'whitelisted_urls'] as $key) {
-            $fields[$key] = new Field(FieldType::List, ['sometimes', 'max:1000'], items: new Field(FieldType::String, $key === 'whitelisted_urls' ? ['required', 'crawl_whitelist_url', 'max:1024'] : ['required', 'max:1024']), presentation: new FieldPresentation('crawl.settings.'.$key, $key === 'whitelisted_urls' ? 'crawl.settings.whitelisted_urls_help' : null), default: $defaults[$key], trimmedStrings: $key !== 'whitelisted_urls');
+            $ignored = $key === 'whitelisted_urls';
+            $fields[$key] = new Field(FieldType::List, ['sometimes', $key === 'do_not_crawl_urls' ? 'max:2000' : 'max:1000'], items: new Field(FieldType::String, ['required', $ignored ? 'crawl_url_pattern' : 'crawl_url_pattern:legacy', 'max:1024']), presentation: new FieldPresentation('crawl.settings.'.$key, group: $ignored ? $criteria : $scope, hidden: $key === 'exclude_patterns'), default: $defaults[$key], trimmedStrings: ! $ignored);
         }
-        foreach (['check_include_external_links', 'new_links_only', 'respect_robots'] as $key) {
-            $fields[$key] = new Field(FieldType::Boolean, ['sometimes'], presentation: new FieldPresentation('crawl.settings.'.$key), default: $defaults[$key]);
-        }
-        $fields['types'] = new Field(FieldType::List, ['sometimes', 'min:1', 'max:5'], items: new Field(FieldType::String, ['required', 'in:'.implode(',', array_keys(CrawlFindingValues::ResourceKinds))]), presentation: new FieldPresentation('crawl.settings.types', options: CrawlFindingValues::ResourceKinds), default: $defaults['types']);
-        $fields['max_depth'] = new Field(FieldType::Integer, ['sometimes', 'between:0,20'], presentation: new FieldPresentation('crawl.settings.max_depth'), default: $defaults['max_depth']);
-        $fields['max_pages'] = new Field(FieldType::Integer, ['sometimes', 'between:1,10000'], presentation: new FieldPresentation('crawl.settings.max_pages'), default: $defaults['max_pages']);
+        $fields['types'] = new Field(FieldType::List, ['sometimes', 'min:1', 'max:5'], items: new Field(FieldType::String, ['required', 'in:'.implode(',', array_keys(CrawlFindingValues::ResourceKinds))]), presentation: new FieldPresentation('crawl.settings.types', options: CrawlFindingValues::ResourceKinds, group: $criteria), default: $defaults['types']);
+        $fields['new_links_only'] = new Field(FieldType::Boolean, ['sometimes'], presentation: new FieldPresentation('crawl.settings.new_links_only', group: $criteria), default: $defaults['new_links_only']);
 
         return new Schema($fields);
     }

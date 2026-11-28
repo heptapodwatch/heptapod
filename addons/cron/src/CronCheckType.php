@@ -180,6 +180,7 @@ final readonly class CronCheckType implements CheckHistoryProvider, CheckRunPres
                 'failed' => new Field(FieldType::Integer, ['required', 'min:0']),
                 'pending' => new Field(FieldType::Integer, ['required', 'min:0']),
             ]), ['cron.task_result_changed'], recommended: false,
+            intervalPresetsMinutes: [1, 5, 15, 60],
         );
     }
 

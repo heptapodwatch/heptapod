@@ -262,7 +262,7 @@ it('saves a check from its settings row without submitting or discarding the sit
             name: 'checks.settings_section.configure',
         }),
     );
-    fireEvent.change(screen.getByLabelText('Check interval'), {
+    fireEvent.change(screen.getByLabelText('Interval amount'), {
         target: { value: '2' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));

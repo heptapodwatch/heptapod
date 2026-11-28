@@ -182,9 +182,10 @@ final readonly class SiteDetailReader
             $attentionReason = $type instanceof CheckConfigAttention
                 ? $type->configAttentionReason($check->executionConfig())
                 : null;
+            $definition = $type?->definition();
             $settings[] = new CheckSettingsData($site->id, $check->id, $check->type, $strip->label_key, $check->enabled,
-                $check->interval_seconds, $type?->definition()->configSchema ?? new Schema([]),
-                (object) CheckSettingsProjection::masked($check), $canUpdate, $attentionReason);
+                $check->interval_seconds, $definition->configSchema ?? new Schema([]),
+                (object) CheckSettingsProjection::masked($check), $canUpdate, $attentionReason, $definition->intervalPresetsMinutes ?? []);
         }
 
         return $settings;

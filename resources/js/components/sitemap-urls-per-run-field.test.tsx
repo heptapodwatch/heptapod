@@ -62,6 +62,7 @@ function sitemapCheck(
     return {
         ...fixture.check_settings,
         check_key: 'sitemap',
+        interval_presets_minutes: [360, 720, 1440, 10080],
         config_schema: sitemapSchema,
         settings: {},
         interval_seconds: intervalSeconds,
@@ -183,6 +184,13 @@ it('follows the draft interval and choice, and saves the chosen string value', a
     expect(helperLine()).toBe(
         'At 100 per run, all 1,663 URLs are covered every 17 days.',
     );
+    fireEvent.keyDown(
+        screen.getByRole('combobox', { name: 'Check interval' }),
+        { key: 'Enter' },
+    );
+    fireEvent.keyDown(screen.getByRole('option', { name: 'Custom…' }), {
+        key: 'Enter',
+    });
     fireEvent.click(screen.getByRole('radio', { name: 'Hours' }));
     expect(helperLine()).toBe(
         'At 100 per run, all 1,663 URLs are covered every 17 hours.',

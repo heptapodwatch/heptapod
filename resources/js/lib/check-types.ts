@@ -48,18 +48,6 @@ export function checkIcon(iconId: string): LucideIcon {
     return icon;
 }
 export const checkSettingLabels: Record<string, string> = {
-    http_verb: 'Method',
-    timeout: 'Timeout',
-    look_for_string: 'Body contains',
-    absent_string: 'Body must not contain',
-    expected_response_headers: 'Expected response headers',
-    response_body_assertions: 'Response body rules',
-    payload: 'Request fields',
-    raw_payload: 'Raw request body',
-    valid_status_codes: 'Accepted HTTP statuses',
-    max_redirect_count: 'Maximum redirects',
-    expected_final_redirect_url: 'Final redirect URL',
-    http_client_headers: 'Headers',
     headers: 'Request headers',
     threshold_in_ms: 'Threshold',
     change_percentage: 'performance.minimum_increase',

@@ -485,6 +485,8 @@ test('imported full-URL whitelist suppresses matching findings after fragment an
         'https://fixtures.test/news/issue?edition=1#section',
         '*/other-missing?edition=*',
     ];
+    $account['monitors'][0]['broken_links_check_settings']['exclude_patterns'] = ['*/deprecated/*'];
+    $account['monitors'][0]['broken_links_check_settings']['do_not_crawl_urls'] = ['*/current/*'];
     $account['monitors'][0]['broken_links_check_settings']['types'] = ['link'];
     $account['monitors'][0]['broken_links_check_settings']['respect_robots'] = false;
     app(OhDearAccountTransport::class)->fake($account);
@@ -492,6 +494,8 @@ test('imported full-URL whitelist suppresses matching findings after fragment an
     $check = Site::query()->where('oh_dear_id', 501)->sole()->checks()->where('type', 'broken_links')->sole();
     expect($check->site->url)->toBe('https://fixtures.test/crawl-addon/whitelist')
         ->and($check->executionConfig()['whitelisted_urls'])->toBe($account['monitors'][0]['broken_links_check_settings']['whitelisted_urls']);
+    expect($check->executionConfig())->not->toHaveKey('exclude_patterns');
+    expect($check->executionConfig()['do_not_crawl_urls'])->toBe(['*/current/*', '*/deprecated/*']);
     app()->instance(OutboundHttp::class, (new FakeOutboundHttp)->respondUsing(static fn (FetchRequest $request): FetchResult => match ($request->url) {
         'https://fixtures.test/crawl-addon/whitelist' => new FetchResult(200, '<a href="/demo">Demo</a><a href="/news/sample?edition=1">News</a><a href="/news/issue?edition=1">Issue</a><a href="/cdn-cgi/l/email-protection#hash">Protected</a><a href="/other-missing">Other</a>', ['Content-Type' => ['text/html']]),
         'https://fixtures.test/demo', 'https://fixtures.test/news/sample?edition=1', 'https://fixtures.test/news/issue?edition=1', 'https://fixtures.test/other-missing' => new FetchResult(404, failure: new FetchFailure(FetchFailureKind::HttpStatus, 404)),

@@ -96,6 +96,7 @@ function summary(
             label_key: `checks.${key}.label`,
             enabled: true,
             interval_seconds: intervalSeconds,
+            interval_presets_minutes: [],
             config_schema: { fields: schemas[key] ?? {} },
             settings,
             can_update: true,
