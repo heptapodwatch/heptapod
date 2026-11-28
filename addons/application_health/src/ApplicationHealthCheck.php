@@ -18,7 +18,6 @@ use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\HealthProbeEvaluator;
 use Heptapod\Contracts\Http\FetchFailure;
 use Heptapod\Contracts\Http\FetchFailureKind;
@@ -190,7 +189,7 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
     {
         return new CheckDefinition(
             CheckKey::ApplicationHealth, 'checks.application_health.label', 'heart-pulse',
-            'checks-fast', 30, 60, 1, ExecutionMode::Poll,
+            'checks-fast', 30, 60, 1,
             new Schema([
                 'result_url' => new Field(FieldType::String, ['required', 'url:http,https', 'max:2048'], presentation: new FieldPresentation('application_health.result_url'), targetUrl: true),
                 'secret' => new Field(FieldType::Secret, ['required', 'max:10000', 'not_regex:/[\r\n]/'], presentation: new FieldPresentation('application_health.secret')),

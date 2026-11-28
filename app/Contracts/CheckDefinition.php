@@ -23,7 +23,6 @@ final class CheckDefinition extends Data
         public readonly int $timeout,
         public readonly int $defaultInterval,
         public readonly int $defaultFailureThreshold,
-        public readonly ExecutionMode $executionMode,
         public readonly Schema $configSchema,
         public readonly Schema $metricSchema,
         public readonly array $emittedEvents = [],

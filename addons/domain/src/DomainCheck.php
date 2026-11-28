@@ -18,7 +18,6 @@ use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
 use Heptapod\Contracts\DomainRegistrationLookup;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\Http\FetchException;
 use Heptapod\Contracts\Http\FetchFailure;
 use Heptapod\Contracts\Http\FetchFailureKind;
@@ -153,7 +152,7 @@ final readonly class DomainCheck implements CheckDetailProvider, CheckRunPresent
     {
         return new CheckDefinition(
             CheckKey::Domain, 'checks.domain.label', 'globe',
-            'checks-fast', 120, 86400, 1, ExecutionMode::Poll,
+            'checks-fast', 120, 86400, 1,
             new Schema(['expires_soon_threshold_in_days' => new Field(FieldType::Integer, ['sometimes', 'min:0'], presentation: new FieldPresentation('domain.threshold'), default: 30)]),
             new Schema([
                 'expires_at' => new Field(FieldType::String, ['present', 'nullable', 'date']),

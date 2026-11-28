@@ -21,7 +21,6 @@ use Heptapod\Contracts\CheckType;
 use Heptapod\Contracts\DnsBaselineAcceptance;
 use Heptapod\Contracts\DnsLookupResult;
 use Heptapod\Contracts\DnsResolver;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\ExternalNetworkException;
 use Heptapod\Contracts\ExternalTimeoutException;
 use Heptapod\Contracts\LatestRunEvidence;
@@ -297,7 +296,7 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
         $ignoredTypes = array_values($knownTypes);
 
         return new CheckDefinition(
-            CheckKey::Dns, 'checks.dns.label', 'network', 'checks-fast', 120, 3600, 1, ExecutionMode::Poll,
+            CheckKey::Dns, 'checks.dns.label', 'network', 'checks-fast', 120, 3600, 1,
             new Schema([
                 'extra_cnames' => new Field(FieldType::List, ['sometimes', 'max:20'], items: new Field(FieldType::String, ['required', 'max:253', 'regex:/^(?=.{1,253}\\.?$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\\.)+[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\\.?$/D']), presentation: new FieldPresentation('dns.extra_cnames'), default: []),
                 'monitor_main_domain' => new Field(FieldType::Boolean, ['sometimes'], presentation: new FieldPresentation('dns.monitor_main_domain'), default: false),

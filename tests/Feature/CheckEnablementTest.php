@@ -19,7 +19,7 @@ it('rejects HTTPS-required definitions on HTTP sites without changing enablement
     $uptime = app(CheckRegistry::class)->get(CheckKey::Uptime)->definition();
     $https = new CheckDefinition($uptime->key, $uptime->labelKey, $uptime->icon,
         $uptime->queue, $uptime->timeout, $uptime->defaultInterval, $uptime->defaultFailureThreshold,
-        $uptime->executionMode, $uptime->configSchema, $uptime->metricSchema, requiresHttps: true);
+        $uptime->configSchema, $uptime->metricSchema, requiresHttps: true);
     try {
         app(CheckEnablement::class)->enable($check, $https);
         $this->fail('HTTP sites must not enable an HTTPS-required check.');

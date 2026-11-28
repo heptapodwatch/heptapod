@@ -15,7 +15,6 @@ use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\Mail\Cell;
 use Heptapod\Contracts\Mail\FactsBlock;
 use Heptapod\Contracts\Mail\MailEventFacts;
@@ -127,7 +126,7 @@ final class PerformanceCheck implements CheckRunPresenter, CheckType, MailEviden
     public function definition(): CheckDefinition
     {
         return new CheckDefinition(
-            CheckKey::Performance, 'checks.performance.label', 'timer', 'checks-fast', 10, 60, 1, ExecutionMode::Derived,
+            CheckKey::Performance, 'checks.performance.label', 'timer', 'checks-fast', 10, 60, 1,
             new Schema([
                 'threshold_in_ms' => new Field(FieldType::Integer, ['sometimes', 'min:0'], presentation: new FieldPresentation('Threshold', 'performance.threshold_help'), default: 2000),
                 'change_percentage' => new Field(FieldType::Integer, ['sometimes', 'min:0'], presentation: new FieldPresentation('performance.minimum_increase', 'performance.minimum_increase_help'), default: 50),

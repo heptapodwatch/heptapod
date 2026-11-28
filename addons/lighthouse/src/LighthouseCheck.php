@@ -21,7 +21,6 @@ use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
 use Heptapod\Contracts\ChromiumRenderer;
 use Heptapod\Contracts\DailyMetricHistoryProvider;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\LatestRunEvidence;
 use Heptapod\Contracts\ListScore;
 use Heptapod\Contracts\ListScoresProvider;
@@ -253,7 +252,7 @@ final readonly class LighthouseCheck implements CheckDetailProvider, CheckHistor
 
         return new CheckDefinition(
             CheckKey::Lighthouse, 'checks.lighthouse.label', 'gauge',
-            'checks-browser', 170, 86400, 1, ExecutionMode::Poll,
+            'checks-browser', 170, 86400, 1,
             new Schema([
                 'continent' => new Field(FieldType::String, ['sometimes', 'nullable', 'max:100'], presentation: new FieldPresentation('lighthouse.continent', hidden: true), default: null),
                 'device_emulation' => new Field(FieldType::String, ['sometimes', 'in:mobile,desktop'], presentation: new FieldPresentation('lighthouse.device', options: ['mobile' => 'Mobile', 'desktop' => 'Desktop']), default: 'mobile'),

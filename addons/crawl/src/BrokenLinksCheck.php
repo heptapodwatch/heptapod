@@ -16,7 +16,6 @@ use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\Findings\FindingsView;
 use Heptapod\Contracts\LatestRunEvidence;
 use Heptapod\Contracts\Mail\Cell;
@@ -113,7 +112,7 @@ final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetail
 
     public function definition(): CheckDefinition
     {
-        return new CheckDefinition(CheckKey::BrokenLinks, 'checks.broken_links.label', 'unlink', 'checks-crawl', Config::integer('heptapod.crawl.timeout_seconds'), Config::integer('heptapod.crawl.interval_seconds'), 1, ExecutionMode::Poll, self::configSchema(), CrawlMetrics::schema(), ['broken_links.new_broken_found'], detailDataClass: CrawlSnapshot::class, intervalPresetsMinutes: [360, 720, 1440, 10080]);
+        return new CheckDefinition(CheckKey::BrokenLinks, 'checks.broken_links.label', 'unlink', 'checks-crawl', Config::integer('heptapod.crawl.timeout_seconds'), Config::integer('heptapod.crawl.interval_seconds'), 1, self::configSchema(), CrawlMetrics::schema(), ['broken_links.new_broken_found'], detailDataClass: CrawlSnapshot::class, intervalPresetsMinutes: [360, 720, 1440, 10080]);
     }
 
     public function detail(int $checkId, ?LatestRunEvidence $latestRun = null): ?CrawlSnapshot

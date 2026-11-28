@@ -18,7 +18,6 @@ use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\LatestRunEvidence;
 use Heptapod\Contracts\Mail\Cell;
 use Heptapod\Contracts\Mail\DiffBlock;
@@ -173,7 +172,7 @@ final readonly class CertificateHealthCheck implements CheckDetailProvider, Chec
     {
         return new CheckDefinition(
             CheckKey::CertificateHealth, 'checks.certificate_health.label', 'shield-check',
-            'checks-fast', 30, 3600, 1, ExecutionMode::Poll,
+            'checks-fast', 30, 3600, 1,
             new Schema(['expires_soon_threshold_in_days' => new Field(FieldType::Integer, ['sometimes', 'min:0'], presentation: new FieldPresentation('certificate_health.threshold'), default: 14)]),
             new Schema([
                 'issuer' => new Field(FieldType::String, ['present', 'nullable']),

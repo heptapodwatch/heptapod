@@ -17,7 +17,6 @@ use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\GuardsAcceptance;
 use Heptapod\Contracts\Mail\Cell;
 use Heptapod\Contracts\Mail\FactsBlock;
@@ -166,7 +165,7 @@ final readonly class CronCheckType implements CheckHistoryProvider, CheckRunPres
     {
         return new CheckDefinition(
             CheckKey::Cron, 'checks.cron.label', 'clock', 'checks-fast', 30, 60, 1,
-            ExecutionMode::Push, new Schema([]),
+            new Schema([]),
             new Schema([
                 'succeeded' => new Field(FieldType::Integer, ['required', 'min:0']),
                 'warning' => new Field(FieldType::Integer, ['required', 'min:0']),

@@ -20,7 +20,6 @@ use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\ExternalTimeoutException;
 use Heptapod\Contracts\Findings\FindingsCoverage;
 use Heptapod\Contracts\Http\AutomatedCheckBlock;
@@ -136,7 +135,7 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
         $urlsPerRunChoices = ['0' => 'sitemap.urls_per_run.0', '100' => 'sitemap.urls_per_run.100', '500' => 'sitemap.urls_per_run.500', '1000' => 'sitemap.urls_per_run.1000', 'max' => 'sitemap.urls_per_run.max'];
 
         return new CheckDefinition(
-            CheckKey::Sitemap, 'checks.sitemap.label', 'map', 'checks-crawl', 300, 86400, 1, ExecutionMode::Poll,
+            CheckKey::Sitemap, 'checks.sitemap.label', 'map', 'checks-crawl', 300, 86400, 1,
             new Schema([
                 'path' => new Field(
                     FieldType::String,

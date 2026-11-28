@@ -19,7 +19,6 @@ use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckSummaryPresenter;
 use Heptapod\Contracts\CheckType;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\ExternalNetworkException;
 use Heptapod\Contracts\ExternalTimeoutException;
 use Heptapod\Contracts\Http\AutomatedCheckBlock;
@@ -84,7 +83,7 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
         }
 
         return new CheckDefinition(
-            CheckKey::Uptime, 'checks.uptime.label', 'activity', 'checks-fast', 60, 60, 2, ExecutionMode::Poll,
+            CheckKey::Uptime, 'checks.uptime.label', 'activity', 'checks-fast', 60, 60, 2,
             new Schema([
                 'location' => new Field(FieldType::String, ['sometimes'], presentation: new FieldPresentation('uptime.location', 'uptime.local_probe')),
                 'http_verb' => new Field(FieldType::String, ['sometimes', 'in:GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS'], presentation: new FieldPresentation('Method', group: $request), default: 'GET', uppercase: true),

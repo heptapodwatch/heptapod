@@ -16,7 +16,6 @@ use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\LatestRunEvidence;
 use Heptapod\Contracts\Mail\Cell;
 use Heptapod\Contracts\Mail\MailEventFacts;
@@ -100,7 +99,7 @@ final readonly class MixedContentCheck implements CheckDetailProvider, CheckHist
 
     public function definition(): CheckDefinition
     {
-        return new CheckDefinition(CheckKey::MixedContent, 'checks.mixed_content.label', 'shield-alert', 'checks-crawl', Config::integer('heptapod.crawl.timeout_seconds'), Config::integer('heptapod.crawl.interval_seconds'), 1, ExecutionMode::Derived, new Schema([]), CrawlMetrics::schema(), ['mixed_content.new_finding'], requiresHttps: true, detailDataClass: CrawlSnapshot::class, intervalPresetsMinutes: [360, 720, 1440, 10080]);
+        return new CheckDefinition(CheckKey::MixedContent, 'checks.mixed_content.label', 'shield-alert', 'checks-crawl', Config::integer('heptapod.crawl.timeout_seconds'), Config::integer('heptapod.crawl.interval_seconds'), 1, new Schema([]), CrawlMetrics::schema(), ['mixed_content.new_finding'], requiresHttps: true, detailDataClass: CrawlSnapshot::class, intervalPresetsMinutes: [360, 720, 1440, 10080]);
     }
 
     public function detail(int $checkId, ?LatestRunEvidence $latestRun = null): ?CrawlSnapshot

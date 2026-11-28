@@ -13,7 +13,6 @@ use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\CheckType;
 use Heptapod\Contracts\CronTaskStore;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\NoResultReason;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\RunResult;
@@ -56,7 +55,6 @@ it('accepts Spatie starting, finished and failed HTTP pings with their real payl
     $check = Check::factory()->create(['type' => CheckKey::Cron]);
     $task = cronPilotTask($check);
     $ping = route('cron.ping', ['uuid' => $task->uuid]);
-    expect(cronPilotType()->definition()->executionMode)->toBe(ExecutionMode::Push);
     expect(cronPilotType()->definition()->configSchema->validateValues([]))->toBe([]);
     expect($task->aggregate_result)->toBe(CheckResult::Pending);
 
