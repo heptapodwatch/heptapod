@@ -94,7 +94,10 @@ it('labels both calendar days and keeps seconds on both range endpoints in the v
                 end: '2026-10-25T23:01:25Z',
                 seconds: true,
             }),
-        ).toBe('Gestern · 23:59:12 – Heute · 00:01:25');
+        ).toEqual({
+            label: 'Gestern · 23:59:12',
+            end: { value: '2026-10-25T23:01:25Z', label: 'Heute · 00:01:25' },
+        });
     } finally {
         vi.useRealTimers();
     }
@@ -106,10 +109,12 @@ it('shows the year only on older calendar years and uses minute precision by def
         vi.setSystemTime(new Date('2026-11-28T12:00:00Z'));
         const london = formatter('en', 'Europe/London');
 
-        expect(london.listTime('2025-11-25T18:25:14Z')).toBe(
+        expect(london.listTime('2025-11-25T18:25:14Z').label).toBe(
             'Nov 25, 2025 · 18:25',
         );
-        expect(london.listTime('2026-11-25T18:25:14Z')).toBe('Nov 25 · 18:25');
+        expect(london.listTime('2026-11-25T18:25:14Z').label).toBe(
+            'Nov 25 · 18:25',
+        );
     } finally {
         vi.useRealTimers();
     }

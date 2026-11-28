@@ -59,7 +59,7 @@ export default function Upcoming({
     client_id: number | null;
     calendar_now: string;
 }) {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { timezone } = usePage().props;
     const format = useFormat();
     useLiveReload(
@@ -81,6 +81,11 @@ export default function Upcoming({
         section.set(day, [...(section.get(day) ?? []), item]);
         groups.set(group, section);
     }
+    const relative = (day: number) =>
+        new Intl.RelativeTimeFormat(i18n.language, { numeric: 'auto' }).format(
+            Math.round((day - today) / 86_400_000),
+            'day',
+        );
     const apply = (
         changes: Partial<{
             days: string;
@@ -217,6 +222,7 @@ export default function Upcoming({
                                             timezone={'UTC'}
                                             className="font-mono tabular-nums"
                                         />
+                                        <span>{relative(day)}</span>
                                     </ListHeader>
                                     {datedItems.map((item) => (
                                         <ListRow

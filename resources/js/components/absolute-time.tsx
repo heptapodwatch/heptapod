@@ -32,32 +32,35 @@ export function AbsoluteTime({
     timezone?: string;
 } & TimeMode) {
     const format = useFormat();
-    const text =
+    const time =
         mode === 'listTime'
             ? format.listTime(value, {
                   end,
                   seconds,
                   displayTimezone: timezone,
               })
-            : format[mode](value, timezone);
-    const isRange = end !== undefined && Date.parse(value) !== Date.parse(end);
+            : { label: format[mode](value, timezone) };
     const exact = format.exact(value, timezone);
     const styles = cn('font-mono tabular-nums', className);
 
     return (
         <TooltipHint
             content={
-                isRange ? `${exact} – ${format.exact(end, timezone)}` : exact
+                time.end
+                    ? `${exact} – ${format.exact(time.end.value, timezone)}`
+                    : exact
             }
             label={label}
         >
-            {isRange ? (
+            {time.end ? (
                 <span {...props} className={styles}>
-                    {text}
+                    <time dateTime={value}>{time.label}</time>
+                    {' – '}
+                    <time dateTime={time.end.value}>{time.end.label}</time>
                 </span>
             ) : (
                 <time {...props} dateTime={value} className={styles}>
-                    {text}
+                    {time.label}
                 </time>
             )}
         </TooltipHint>

@@ -161,8 +161,12 @@ it('uses the same absolute seconds for individual, grouped and expanded minute-f
         );
 
         expect(screen.getByText('Today · 17:00:00')).not.toBeNull();
-        expect(screen.getByText('Today · 14:00:00 – 16:00:00')).not.toBeNull();
-        fireEvent.click(screen.getByRole('button', { name: /Unchanged/ }));
+        const group = screen.getByRole('button', { name: /Unchanged/ });
+        expect(group.textContent).toContain('Today · 14:00:00 – 16:00:00');
+        expect(
+            Array.from(group.querySelectorAll('time'), (time) => time.dateTime),
+        ).toEqual(['2026-10-25T14:00:00Z', '2026-10-25T16:00:00Z']);
+        fireEvent.click(group);
         expect(screen.getByText('Today · 16:00:00')).not.toBeNull();
     } finally {
         vi.useRealTimers();

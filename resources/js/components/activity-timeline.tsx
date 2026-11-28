@@ -44,7 +44,7 @@ export function ActivityTimeline({
     expandedEvents: EventDto[];
     expandedPagination: Heptapod.Contracts.PaginationData | null;
 }) {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const format = useFormat();
     const { timezone } = usePage().props;
     const byEvent = new Map(groups.map((group) => [group.latest.id, group]));
@@ -160,6 +160,16 @@ export function ActivityTimeline({
             </div>
         );
     };
+    const today = calendarDay(new Date().toISOString(), timezone);
+    const dayLabel = (day: number) => {
+        if (day === today) return t('Today');
+        const label = new Intl.RelativeTimeFormat(i18n.language, {
+            numeric: 'auto',
+        }).format(Math.round((day - today) / 86_400_000), 'day');
+        return (
+            label.charAt(0).toLocaleUpperCase(i18n.language) + label.slice(1)
+        );
+    };
     const days: [number, Group[]][] = [];
     for (const group of groups) {
         const day = calendarDay(group.latest.time, timezone);
@@ -175,6 +185,7 @@ export function ActivityTimeline({
             {days.map(([day, items]) => (
                 <Fragment key={day}>
                     <ListHeader className="flex gap-2">
+                        <span>{dayLabel(day)}</span>
                         <AbsoluteTime
                             value={new Date(day).toISOString()}
                             mode="calendarDate"

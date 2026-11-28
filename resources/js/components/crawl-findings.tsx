@@ -266,7 +266,7 @@ export function FindingsTable({
                                 {showFindingDetails ? (
                                     <>
                                         <TableHead>{t('Link text')}</TableHead>
-                                        <TableHead className="w-24">
+                                        <TableHead className="w-44">
                                             {t('Since')}
                                         </TableHead>
                                     </>
@@ -318,7 +318,7 @@ export function FindingsTable({
                                                     row.linkText,
                                                 ) ?? t('No link text recorded')}
                                             </TableCell>
-                                            <TableCell className="text-xs whitespace-normal text-muted-foreground">
+                                            <TableCell className="text-xs text-muted-foreground">
                                                 {row.since}
                                             </TableCell>
                                         </>

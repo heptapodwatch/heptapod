@@ -64,10 +64,14 @@ export function useFormat() {
                 displayTimezone,
                 seconds ? 'eventTime' : 'time',
             );
-        const start = `${dayLabel(value)} · ${clock(value)}`;
+        const label = `${dayLabel(value)} · ${clock(value)}`;
         if (end === undefined || Date.parse(value) === Date.parse(end))
-            return start;
-        return `${start} – ${localDay(value) === localDay(end) ? clock(end) : `${dayLabel(end)} · ${clock(end)}`}`;
+            return { label };
+        const endLabel =
+            localDay(value) === localDay(end)
+                ? clock(end)
+                : `${dayLabel(end)} · ${clock(end)}`;
+        return { label, end: { value: end, label: endLabel } };
     };
     const dateRange = (
         from: string,
