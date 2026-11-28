@@ -13,6 +13,7 @@ use Heptapod\Addons\Servers\Actions\EvaluateServerIssues;
 use Heptapod\Addons\Servers\Http\AgentResponses;
 use Heptapod\Addons\Servers\Server;
 use Heptapod\Addons\Servers\ServerIssue;
+use Heptapod\Addons\Servers\ServersSettings;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
@@ -59,9 +60,7 @@ beforeEach(function (): void {
 function alertsSwitch(bool $on): void
 {
     config(['heptapod.servers.enabled_by_server' => $on]);
-    $settings = app(InstanceSettings::class);
-    $settings->servers_enabled = $on;
-    $settings->save();
+    app(ServersSettings::class)->turn($on);
 }
 
 /**

@@ -19,7 +19,7 @@ An addon is a Composer path package under `addons/*` (namespace `Heptapod\Addons
 - **Unavailable data is not a negative finding.** A failed DNS or registry lookup says nothing about the domain.
 - **Crawls are plain HTTP.** Broken links, mixed content and sitemap fetch with spatie/crawler and do not execute JavaScript; Lighthouse alone uses Chromium. One crawl addon owns broken links and mixed content; do not invent a shared core crawl contract.
 - **Security through the platform.** TLS trust, hostname matching, crypto, signatures and auth come from native platform features or maintained packages, never own code.
-- **Addons own their resources.** Translations (EN and DE), config, migrations and routes ship in the addon and load from its provider; never copy addon keys into root `lang/`. Every imported library is a direct caret dependency of the addon.
+- **Addons own their resources.** Translations (EN and DE), config, migrations, settings, routes and the OpenAPI text of their API operations (`Heptapod\Contracts\ApiDocumentPart`) ship in the addon and load from its provider; never copy addon keys into root `lang/` or `ApiContract`. Every imported library is a direct caret dependency of the addon.
 
 ## Evidence
 

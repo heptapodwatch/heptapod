@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Data\Ui;
 
 use Heptapod\Contracts\Mail\MailDesign;
+use Heptapod\Contracts\ServersSwitch;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\SystemHealth\ReadSystemHealth;
 use Heptapod\SystemHealth\SystemIssueMailer;
@@ -48,6 +49,8 @@ final class InstanceSettingsData extends Data
         $smtp = config()->array('mail.mailers.smtp');
         /** @var array{keep_all_backups_for_days: int, keep_daily_backups_for_days: int, keep_weekly_backups_for_weeks: int, keep_monthly_backups_for_months: int, keep_yearly_backups_for_years: int, delete_oldest_backups_when_using_more_megabytes_than: int|null} $retention */
         $retention = config()->array('backup.cleanup.default_strategy');
+        // Without the servers addon there is no switch to show.
+        $serversSwitch = app()->bound(ServersSwitch::class) ? app(ServersSwitch::class) : null;
 
         return new self($settings->name, $settings->mail_design, $settings->timezone, \DateTimeZone::listIdentifiers(), config()->string('app.url'),
             ['host' => $smtp['host'] ?? null, 'port' => $smtp['port'] ?? null,
@@ -56,6 +59,6 @@ final class InstanceSettingsData extends Data
             config()->string('mail.default'), ! SystemIssueMailer::canDeliver(), config()->string('mail.from.name'), config()->string('mail.from.address'),
             filled(config('instance.heartbeat_url')), ReadSystemHealth::lastExternalPing(), url('/up'),
             ['editable' => false, 'source' => 'check definitions'], false, $retention,
-            $settings->servers_enabled, config()->boolean('heptapod.servers.enabled_by_server'));
+            $serversSwitch?->isOn() === true, $serversSwitch instanceof ServersSwitch && config()->boolean('heptapod.servers.enabled_by_server'));
     }
 }

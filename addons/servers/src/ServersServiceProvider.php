@@ -7,10 +7,13 @@ namespace Heptapod\Addons\Servers;
 use Carbon\CarbonImmutable;
 use Heptapod\Addons\Servers\Actions\EvaluateServerIssues;
 use Heptapod\Addons\Servers\Http\AgentResponses;
+use Heptapod\Addons\Servers\Http\Api\ServersApiDocument;
 use Heptapod\Addons\Servers\Http\EnsureServersEnabled;
+use Heptapod\Contracts\ApiDocumentPart;
 use Heptapod\Contracts\ServerIssues;
 use Heptapod\Contracts\ServersAccess;
 use Heptapod\Contracts\ServerSearch;
+use Heptapod\Contracts\ServersSwitch;
 use Heptapod\Contracts\SiteServers;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Scheduling\Schedule;
@@ -32,6 +35,10 @@ final class ServersServiceProvider extends ServiceProvider
         $this->app->bind(SiteServers::class, DatabaseSiteServers::class);
         $this->app->bind(ServerSearch::class, DatabaseServerSearch::class);
         $this->app->scoped(ServerIssues::class, DatabaseServerIssues::class);
+        // Scoped like the settings spatie/laravel-settings discovers in app/Settings: one loaded copy per request.
+        $this->app->scoped(ServersSettings::class);
+        $this->app->bind(ServersSwitch::class, ServersSettings::class);
+        $this->app->tag([ServersApiDocument::class], ApiDocumentPart::class);
     }
 
     public function boot(): void

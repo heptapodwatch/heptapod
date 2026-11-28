@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Heptapod\Addons\Servers\Server;
+use Heptapod\Addons\Servers\ServersSettings;
 use Heptapod\Models\User;
-use Heptapod\Settings\InstanceSettings;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
@@ -17,9 +17,7 @@ require_once __DIR__.'/../Pest.php';
 beforeEach(function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-11-27T07:00:00Z'));
     config(['heptapod.servers.enabled_by_server' => true]);
-    $settings = app(InstanceSettings::class);
-    $settings->servers_enabled = true;
-    $settings->save();
+    app(ServersSettings::class)->turn(true);
 });
 
 /** Adds a server through "Add server" and returns it with the token the page shows once. */
@@ -267,14 +265,11 @@ it('answers 404 while servers are switched off, by the environment or by the Own
     reportSample($this, $token, serverSample())->assertNotFound()->assertExactJson(['error' => 'not_found']);
 
     config(['heptapod.servers.enabled_by_server' => true]);
-    $settings = app(InstanceSettings::class);
-    $settings->servers_enabled = false;
-    $settings->save();
+    app(ServersSettings::class)->turn(false);
     reportSample($this, $token, serverSample())->assertNotFound();
     expect(DB::table('server_samples')->where('server_id', $server->id)->count())->toBe(1);
 
-    $settings->servers_enabled = true;
-    $settings->save();
+    app(ServersSettings::class)->turn(true);
     reportSample($this, $token, serverSample())->assertStatus(202);
     expect(DB::table('server_samples')->where('server_id', $server->id)->count())->toBe(2);
 });

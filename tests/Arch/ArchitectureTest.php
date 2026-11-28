@@ -15,6 +15,7 @@ use Heptapod\Addons\Crawl\CrawlObserver;
 use Heptapod\Checks\CauseSummary;
 use Heptapod\Checks\CheckRunPresentations;
 use Heptapod\Checks\Recording\TransactionalResultRecorder;
+use Heptapod\Contracts\ApiDocumentPart;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Events\EventFlapGroups;
 use Heptapod\Events\EventPresenter;
@@ -24,6 +25,7 @@ use Heptapod\Http\Outbound\NativeTargetResolver;
 use Heptapod\Providers\LocalFixtureServiceProvider;
 use Heptapod\Queries\SiteDetailReader;
 use Heptapod\Queries\SitesReader;
+use Heptapod\Settings\InstanceSettings;
 use Heptapod\Support\RedactionContext;
 use Heptapod\Support\SecretMerge;
 use Illuminate\Support\Facades\Bus;
@@ -198,6 +200,42 @@ arch('core presentation contains no addon summary keys', function () use ($addon
         sort($hits);
         expect($hits)->toBe($keys, $class);
     }
+});
+
+// Covers the API an addon routes itself (addons/*/routes/api.php) and documents as an ApiDocumentPart. An API whose routes
+// and controllers still live in core, such as the cron tasks, is core text by this rule.
+test('core names no operation, schema or tag of an addon-routed API, nor an addon switch', function () use ($addonPrefixes): void {
+    $root = dirname(__DIR__, 2);
+    $names = [];
+    foreach (glob($root.'/addons/*/routes/api.php') as $routes) {
+        preg_match_all("/->name\\('([^']+)'\\)/", (string) file_get_contents($routes), $matches);
+        $names = [...$names, ...$matches[1]];
+    }
+    $tags = [];
+    foreach (glob($root.'/addons/*/src', GLOB_ONLYDIR) as $sources) {
+        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($sources, FilesystemIterator::SKIP_DOTS)) as $file) {
+            $source = (string) file_get_contents($file->getPathname());
+            if (str_contains($source, 'implements ApiDocumentPart') && preg_match('/^namespace ([^;]+);/m', $source, $namespace) === 1) {
+                /** @var ApiDocumentPart $part */
+                $part = new ($namespace[1].'\\'.$file->getBasename('.php'));
+                $names = [...$names, ...array_keys($part->components())];
+                $tags = [...$tags, ...array_keys($part->tags())];
+            }
+        }
+    }
+    expect($names)->toContain('listServers', 'ServerItem')->and($tags)->toContain('Servers');
+    $pattern = '/\b(?:'.implode('|', array_map(preg_quote(...), $names)).')\b|[\'"](?:'.implode('|', array_map(preg_quote(...), $tags)).')[\'"]/';
+    $hits = [];
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root.'/app', FilesystemIterator::SKIP_DOTS)) as $file) {
+        if (preg_match_all($pattern, (string) file_get_contents($file->getPathname()), $matches) > 0) {
+            $hits[substr($file->getPathname(), strlen($root) + 1)] = array_values(array_unique($matches[0]));
+        }
+    }
+    expect($hits)->toBe([]);
+    // An addon's on/off switch lives in the addon's own settings group.
+    $switches = array_filter(array_map(fn (ReflectionProperty $property): string => $property->getName(), new ReflectionClass(InstanceSettings::class)->getProperties()),
+        fn (string $name): bool => array_any($addonPrefixes, fn (string $prefix): bool => str_starts_with($name, Str::snake(class_basename(rtrim($prefix, '\\'))).'_')));
+    expect($switches)->toBe([]);
 });
 
 arch('new readers must materialize visibility before leaf lookups', function (): void {

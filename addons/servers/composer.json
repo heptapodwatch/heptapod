@@ -18,6 +18,7 @@
         "inertiajs/inertia-laravel": "^3.5",
         "nesbot/carbon": "^3.14",
         "spatie/laravel-data": "^4.22",
+        "spatie/laravel-settings": "^3.9",
         "spatie/typescript-transformer": "^3.3"
     },
     "autoload": {

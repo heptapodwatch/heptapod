@@ -8,13 +8,15 @@ use Heptapod\Actions\CreateApiToken;
 use Heptapod\Addons\Servers\Server;
 use Heptapod\Addons\Servers\ServerIssue;
 use Heptapod\Addons\Servers\ServerIssueKind;
+use Heptapod\Addons\Servers\ServersSettings;
 use Heptapod\Models\Client;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
-use Heptapod\Settings\InstanceSettings;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Http\Request;
+use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Spectator\Validation\ResponseValidator;
@@ -29,9 +31,7 @@ beforeEach(function (): void {
 
 function apiSwitch(bool $on): void
 {
-    $settings = app(InstanceSettings::class);
-    $settings->servers_enabled = $on;
-    $settings->save();
+    app(ServersSettings::class)->turn($on);
 }
 
 function apiUser(string $role): User
@@ -325,6 +325,24 @@ it('serves the OpenAPI document with the server operations only while servers ar
         ->and($off['paths'])->toBe(array_filter($on['paths'], static fn (string $path): bool => ! str_starts_with($path, '/servers'), ARRAY_FILTER_USE_KEY))
         ->and(array_column($off['tags'], 'name'))->toBe(array_values(array_diff(array_column($on['tags'], 'name'), ['Servers'])))
         ->and($raw)->toContain('"unrecorded_reasons": {}');
+});
+
+it('serves no server operation while the addon routes none, as without the addon installed', function (): void {
+    $routes = new RouteCollection;
+    foreach (Route::getRoutes() as $route) {
+        if (! str_starts_with($route->uri(), 'api/servers')) {
+            $routes->add($route);
+        }
+    }
+    Route::setRoutes($routes);
+
+    $served = $this->getJson('/api/openapi.json')->assertOk()->json();
+    $committed = json_decode((string) file_get_contents(base_path('docs/openapi.json')), true, flags: JSON_THROW_ON_ERROR);
+    expect(array_filter(array_keys($served['paths']), static fn (string $path): bool => str_starts_with($path, '/servers')))->toBe([])
+        ->and(array_column($served['tags'], 'name'))->not->toContain('Servers')
+        ->and(array_filter(array_keys($served['components']['schemas']), static fn (string $name): bool => str_starts_with($name, 'Server')))->toBe([])
+        ->and($served['components']['securitySchemes']['bearerAuth']['description'])->not->toContain('- `servers:')
+        ->and($served['paths'])->toBe(array_filter($committed['paths'], static fn (string $path): bool => ! str_starts_with($path, '/servers'), ARRAY_FILTER_USE_KEY));
 });
 
 it('makes caches revalidate the served OpenAPI document, which changes with the servers switch', function (): void {
