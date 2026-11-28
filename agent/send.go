@@ -121,7 +121,7 @@ func (s *schedule) decide(r reply, now time.Time) (string, decision) {
 		// The body is never logged: an instance may echo request data, including the Authorization header.
 		return "invalid", decision{wait: s.interval, logLine: fmt.Sprintf("sample rejected (HTTP %d), dropped", r.status)}
 	case r.status == http.StatusTooManyRequests:
-		wait := retryAfter(r.retryAfter, now, s.interval)
+		wait := min(retryAfter(r.retryAfter, now, s.interval), maxInterval)
 		return "rate-limited", decision{wait: wait, logLine: fmt.Sprintf("rate limited (HTTP 429); next in %s", wait)}
 	case r.status == http.StatusServiceUnavailable && r.retryAfter != "":
 		// Maintenance: the instance says when to come back, never later than the longest failure wait.
@@ -144,7 +144,7 @@ func (s *schedule) failure(message string) (string, decision) {
 }
 
 // retryAfter reads the header as delta seconds or an HTTP date, and falls back to the interval if it is neither.
-// Long delays are honoured; values beyond what a Duration holds saturate instead of overflowing.
+// Values beyond what a Duration holds saturate instead of overflowing; callers cap the result.
 func retryAfter(header string, now time.Time, fallback time.Duration) time.Duration {
 	header = strings.TrimSpace(header)
 	if header != "" && strings.Trim(header, "0123456789") == "" {

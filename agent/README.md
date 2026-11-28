@@ -25,7 +25,7 @@ Everything comes from files any user may read, plus `statfs`. The agent needs no
 
 ## What it never does
 
-- It runs no remote commands and opens no listening port. The only response it reads from the instance is the next interval.
+- It runs no remote commands and opens no listening port. The only things it reads from the instance's response are the next interval and the `Retry-After` header.
 - It does not update itself. You upgrade by re-running the install script.
 - It sends no logs, process lists, package lists, file contents or traces.
 - It runs no subprocess except `apt-check` on Ubuntu.
@@ -107,7 +107,7 @@ heptapod-agent --version
 journalctl -u heptapod-agent      # sends, rejections and back-off
 ```
 
-The agent logs the first accepted report and every change of state. A rejected token (HTTP 401) is logged once and retried every 10 minutes. A switched-off or removed server (404) is retried every 15 minutes. Instance errors are retried after 30 seconds, then every minute; a 503 with `Retry-After` (maintenance) is retried then, but never later than a minute. During an outage the agent keeps at most one unsent sample.
+The agent logs the first accepted report and every change of state. A rejected token (HTTP 401) is logged once and retried every 10 minutes. A switched-off or removed server (404) is retried every 15 minutes. Instance errors are retried after 30 seconds, then every minute. A 503 with `Retry-After` (maintenance) is retried at that time, but the agent never sleeps longer than a minute before the next try. A 429 waits for its `Retry-After`, at most one hour. During an outage the agent keeps at most one unsent sample.
 
 ## Development
 

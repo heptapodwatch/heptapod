@@ -1022,7 +1022,35 @@ it('opens no "No report" after an upgrade put the instance into maintenance, als
         ->and(alertsDeliveries('opened'))->toHaveCount(0);
 });
 
-it('opens "No report" for silence that started before the instance was down only a threshold after the resume, and for silence after the resume as always', function (): void {
+it('opens no "No report" when the first retry after the resume only resends the sample stored before the downtime', function (): void {
+    config(['app.maintenance.driver' => 'array']);
+    systemIssueRecipient('Owner');
+    [$server, $token] = alertsServer();
+    alertsUptime($this, 2, [$token]);
+    // The last sample before the upgrade is stored, but its answer never reaches the agent.
+    $this->get('/up')->assertOk();
+    $lost = alertsReport($this, $token)->baseRequest->getContent();
+    $this->travel(60)->seconds();
+
+    alertsUpgrade($this, 6, $token);
+    alertsScheduledPass();
+    $this->get('/up')->assertOk();
+    // The first retry, a minute later, is a duplicate; the fresh sample follows a minute and some latency after it.
+    $this->travel(60)->seconds();
+    $this->get('/up')->assertOk();
+    $this->call('POST', '/agent/v1/report', server: ['CONTENT_TYPE' => 'application/json', 'HTTP_AUTHORIZATION' => 'Bearer '.$token], content: $lost)
+        ->assertOk();
+    $this->travel(80)->seconds();
+    alertsScheduledPass();
+    $this->get('/up')->assertOk();
+    alertsReport($this, $token);
+    alertsScheduledPass();
+    dispatchNotifications();
+
+    expect(alertsOpen($server))->toBe([])->and(alertsDeliveries('opened'))->toHaveCount(0);
+});
+
+it('opens "No report" for silence that started before the instance was down only after the resume grace, and for silence after the resume as always', function (): void {
     config(['app.maintenance.driver' => 'array']);
     [$before, $beforeToken] = alertsServer('silent-before');
     [$after, $afterToken] = alertsServer('silent-after');
@@ -1031,7 +1059,7 @@ it('opens "No report" for silence that started before the instance was down only
     alertsUptime($this, 3, [$afterToken]);
 
     $resumed = alertsUpgrade($this, 6, $afterToken);
-    alertsUptime($this, 2, [$afterToken]);
+    alertsUptime($this, 3, [$afterToken]);
     $lastAfter = now()->subMinute()->toImmutable();
     alertsScheduledPass();
     expect(alertsOpen($before))->toBe([])->and(alertsOpen($after))->toBe([]);
@@ -1042,11 +1070,11 @@ it('opens "No report" for silence that started before the instance was down only
     alertsUptime($this, 1);
     alertsScheduledPass();
     expect(alertsOpen($after))->toBe(['no_report:'])->and(alertsOpen($long))->toBe([]);
-    alertsUptime($this, 27);
+    alertsUptime($this, 26);
     alertsScheduledPass();
 
     $openedAt = static fn (Server $server): CarbonImmutable => ServerIssue::query()->where('server_id', $server->id)->sole()->opened_at;
-    expect($openedAt($before)->equalTo($resumed->addMinutes(2)))->toBeTrue()
+    expect($openedAt($before)->equalTo($resumed->addMinutes(EvaluateServerIssues::ResumeGraceMinutes)))->toBeTrue()
         ->and($openedAt($after)->equalTo($lastAfter->addMinutes(2)))->toBeTrue()
         ->and($openedAt($long)->equalTo($resumed->addMinutes(30)))->toBeTrue();
 });
