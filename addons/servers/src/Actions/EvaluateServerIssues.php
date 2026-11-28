@@ -11,6 +11,7 @@ use Heptapod\Addons\Servers\ServerIssue;
 use Heptapod\Addons\Servers\ServerIssueKind;
 use Heptapod\Contracts\ServerIssueAlerts;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -20,7 +21,8 @@ use Illuminate\Support\Facades\DB;
  * longer than GapSeconds between two samples (a missed report) breaks a streak. Only the server's newest sample (by
  * observed_at) is evaluated, so a late sample is stored but never closes or opens an issue. "No report" is about receipt:
  * it opens on the scheduled pass once the last receipt is older than the server's "No report after" and resolves at the
- * receipt of the next sample. An issue never resolves before it opened (server_issues_resolved_after_opening).
+ * receipt of the next sample; it counts silence only while the instance could receive reports (ingestHeartbeat()).
+ * An issue never resolves before it opened (server_issues_resolved_after_opening).
  *
  * @phpstan-type Metrics array{cpu: array{cores: int}, load: array{5: int|float}, memory: array{total_bytes: int, available_bytes: int}, filesystems: list<array{mount: string, total_bytes: int, free_bytes: int}>}
  */
@@ -29,7 +31,34 @@ final readonly class EvaluateServerIssues
     /** Samples further apart than this (one and a half report intervals) have a missed report between them. */
     public const int GapSeconds = 90;
 
+    /**
+     * After the instance was down, an agent whose last report predates that may still be in its failure backoff: the
+     * agent's longest failure wait (maxFailureWait, 10 minutes) plus its report interval (defaultInterval, 1 minute) in
+     * agent/send.go. Change it together with those.
+     */
+    public const int ResumeGraceMinutes = 10 + 1;
+
+    /** Cache entry {seen_at, available_since} (ISO 8601 or null) written by ingestHeartbeat(). */
+    public const string IngestKey = 'heptapod:servers:ingest';
+
     public function __construct(private ServerIssueAlerts $alerts) {}
+
+    /**
+     * On every /up of the web (the container healthcheck): reports can be received now, unless the app is in maintenance,
+     * where /up still answers. Maintenance, or a gap longer than GapSeconds since the previous /up, starts a new period.
+     */
+    public function ingestHeartbeat(CarbonImmutable $now, bool $maintenance): void
+    {
+        if ($maintenance) {
+            Cache::forever(self::IngestKey, ['seen_at' => null, 'available_since' => null]);
+
+            return;
+        }
+        $ingest = $this->ingest();
+        $continues = $ingest !== null && $ingest['seen_at'] instanceof CarbonImmutable && $ingest['seen_at']->diffInSeconds($now) <= self::GapSeconds;
+        $since = ($continues ? $ingest['available_since'] : null) ?? $now;
+        Cache::forever(self::IngestKey, ['seen_at' => $now->utc()->toIso8601String(), 'available_since' => $since->utc()->toIso8601String()]);
+    }
 
     /**
      * After a stored sample (RecordServerReport, same transaction).
@@ -78,10 +107,17 @@ final readonly class EvaluateServerIssues
 
     /**
      * The scheduled pass: "No report" for every server whose newest report is older than its "No report after", opened
-     * at the moment it became due. Reads the servers through their row, so the servers table bounds it.
+     * at the moment it became due. Reads the servers through their row, so the servers table bounds it. Silence while
+     * the web was down or in maintenance is not the agent's: no pass then, and an agent silent since before the instance
+     * came back gets at least ResumeGraceMinutes from then. Before the first /up (no heartbeat at all) it counts as always.
      */
     public function noReports(CarbonImmutable $now): void
     {
+        $ingest = $this->ingest();
+        if ($ingest !== null && (! $ingest['seen_at'] instanceof CarbonImmutable || $ingest['seen_at']->diffInSeconds($now) > self::GapSeconds)) {
+            return;
+        }
+        $availableSince = $ingest['available_since'] ?? null;
         $default = config()->integer('servers.thresholds.no_report_minutes');
         /** @var list<int> $due */
         $due = DB::table('servers')->whereNotNull('last_report_at')
@@ -90,19 +126,21 @@ final readonly class EvaluateServerIssues
                 ->where('kind', ServerIssueKind::NoReport->value)->whereNull('resolved_at'))
             ->orderBy('id')->pluck('id')->all();
         foreach ($due as $serverId) {
-            DB::transaction(function () use ($serverId, $now): void {
+            DB::transaction(function () use ($serverId, $now, $availableSince): void {
                 $server = $this->lock($serverId);
                 $last = $server?->last_report_at;
                 if (! $server instanceof Server || $last === null) {
                     return;
                 }
                 $minutes = ServerThresholdsData::of($server->settings)->no_report_minutes;
+                $dueAt = $availableSince instanceof CarbonImmutable && $last->lessThan($availableSince)
+                    ? $availableSince->addMinutes(max($minutes, self::ResumeGraceMinutes)) : $last->addMinutes($minutes);
                 // A report that committed meanwhile wins.
-                if ($last->addMinutes($minutes)->greaterThanOrEqualTo($now)
+                if ($dueAt->greaterThanOrEqualTo($now)
                     || isset($this->openIssues($server)[ServerIssueKind::NoReport->value.':'])) {
                     return;
                 }
-                $this->open($server, ServerIssueKind::NoReport, '', $last->addMinutes($minutes), ['last_report_at' => $last->utc()->toIso8601String(), 'minutes' => $minutes]);
+                $this->open($server, ServerIssueKind::NoReport, '', $dueAt, ['last_report_at' => $last->utc()->toIso8601String(), 'minutes' => $minutes]);
             });
         }
     }
@@ -136,6 +174,16 @@ final readonly class EvaluateServerIssues
         $query->getQuery()->lockForUpdate();
 
         return $query->first();
+    }
+
+    /** @return array{seen_at: ?CarbonImmutable, available_since: ?CarbonImmutable}|null null before the first /up */
+    private function ingest(): ?array
+    {
+        /** @var array{seen_at: ?string, available_since: ?string}|null $ingest */
+        $ingest = Cache::get(self::IngestKey);
+
+        return $ingest === null ? null : ['seen_at' => $ingest['seen_at'] === null ? null : CarbonImmutable::parse($ingest['seen_at']),
+            'available_since' => $ingest['available_since'] === null ? null : CarbonImmutable::parse($ingest['available_since'])];
     }
 
     /** @return array<string, ServerIssue> keyed by kind:scope */
