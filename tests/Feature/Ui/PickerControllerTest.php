@@ -55,7 +55,7 @@ it('bounds a search, names every chosen id in one read and throttles per user', 
     $this->getJson('/pickers/clients')->assertTooManyRequests();
 });
 
-it('offers archived clients\' sites only where asked, labels No client and tells same-named sites apart', function (): void {
+it('offers archived clients\' sites only where asked, labels No client and names every site by its address', function (): void {
     $owner = User::factory()->owner()->create();
     $archived = Client::factory()->create(['name' => 'Old Co', 'archived_at' => now()]);
     $old = Site::factory()->for($archived)->create(['friendly_name' => 'Old shop']);
@@ -69,6 +69,8 @@ it('offers archived clients\' sites only where asked, labels No client and tells
     $answer = $this->getJson('/pickers/sites?q='.urlencode('no client shop'))->assertOk()->assertJsonCount(2, 'options');
     $byId = collect($answer->json('options'))->keyBy('id');
     expect($byId[$shop->id]['client_name'])->toBe('No client')->and($byId[$shop->id]['client_is_internal'])->toBeTrue()
-        ->and($byId[$shop->id]['label'])->not->toBe($byId[$twin->id]['label'])
-        ->and($byId[$shop->id]['detail'])->toContain('/de');
+        ->and($byId[$shop->id]['detail'])->toBe('No client · shop.test/de')->and($byId[$twin->id]['detail'])->toBe('No client · shop.test/en');
+    // The detail does not depend on what else an answer lists: a search that finds one twin names it the same way.
+    $this->getJson('/pickers/sites?q='.urlencode('shop.test/de'))->assertOk()->assertJsonCount(1, 'options')
+        ->assertJsonPath('options.0.detail', 'No client · shop.test/de');
 });

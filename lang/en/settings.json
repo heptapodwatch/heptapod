@@ -249,6 +249,7 @@
     "sites.client_archived": "This client is archived. Choose an active client.",
     "sites.client_alerts_pending": "Alerts for this site are still being sent; try again in a few minutes.",
     "sites.client_move_help": "Saving ends open incidents, transfers all site history and applies the new client’s access, alert rules and maintenance; existing daily digests stop, and a new incident opens if the site still fails.",
+    "sites.client_unavailable": "This client is no longer available. Choose another client.",
     "sites.client_move_help.detail": "The new rules apply on the next state change.",
     "Password, passkeys and two-factor authentication are in": "Password, passkeys and two-factor authentication are in",
     "Queue depth appears here once the environment defines queues.": "Queue depth appears here once the environment defines queues.",

@@ -40,10 +40,10 @@ final class AddSiteController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
-        $clients = $policy->visibleClients($user);
-        Validator::make($request->all(), ['client_id' => ['required', 'integer', 'min:1']])->validate();
-        $clients->getQuery()->where('id', $request->integer('client_id'));
-        $clientId = $clients->firstOrFail()->id;
+        // A client gone or out of reach is refused at the Client field alike (a restored draft, a pick made elsewhere).
+        Validator::make($request->all(), ['client_id' => ['required', 'integer', 'min:1', $policy->visibleClientRule($user)]],
+            ['client_id.exists' => __('sites.client_unavailable')])->validate();
+        $clientId = $request->integer('client_id');
         Gate::authorize('create', [Site::class, $clientId]);
         if ($request->exists('cron_task_definitions')) {
             throw ValidationException::withMessages(['cron_task_definitions' => __('sites.cron_setup_after_create')]);

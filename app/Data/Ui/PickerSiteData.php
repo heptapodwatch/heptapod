@@ -24,9 +24,7 @@ final class PickerSiteData extends Data
         public readonly string $timezone,
         public readonly ?string $icon_url,
         public readonly SiteIconBacking $icon_backing,
-        /** The name, with the detail added when another shown site reads alike (SiteLabels). */
-        public readonly string $label,
-        /** What tells it apart: client · host, then path, port or ID. */
+        /** Client · monitored address without scheme: the same for this site in every answer, and unique to it. */
         public readonly string $detail,
     ) {}
 }

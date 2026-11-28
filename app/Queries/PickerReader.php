@@ -12,7 +12,6 @@ use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
 use Heptapod\Settings\InstanceSettings;
-use Heptapod\Support\SiteLabels;
 
 /**
  * The reads behind the server-searched site and client pickers: the visible entities matching a search, at most Limit
@@ -64,18 +63,16 @@ final readonly class PickerReader
             $clientNames[$site->id] = $site->getAttribute('picker_client_internal') === true ? __('No client')
                 : (is_string($name) ? $name : throw new \LogicException('A site query must select its client name.'));
         }
-        // Same-named sites read apart within what the picker shows: client and host, then path, port or ID (as in notification settings).
-        $identities = SiteLabels::identities(array_combine(array_map(static fn (Site $site): int => $site->id, $rows),
-            array_map(static fn (Site $site): array => ['name' => $site->displayName(), 'client' => $clientNames[$site->id], 'url' => $site->url], $rows)));
 
-        return new PickerResultsData(array_map(function (Site $site) use ($clientNames, $identities): PickerSiteData {
+        return new PickerResultsData(array_map(function (Site $site) use ($clientNames): PickerSiteData {
             $host = parse_url($site->url, PHP_URL_HOST);
             $timezone = $site->getAttribute('picker_client_timezone');
 
             return new PickerSiteData($site->id, $site->displayName(), is_string($host) ? $host : $site->url, $site->client_id, $clientNames[$site->id],
                 $site->getAttribute('picker_client_internal') === true,
                 is_string($timezone) ? $timezone : $this->settings->timezone, $site->iconUrl(), $site->icon_backing,
-                $identities[$site->id]['label'], $identities[$site->id]['detail']);
+                // The monitored address without its scheme is unique per site (url_key), so the detail never depends on what else is listed.
+                $clientNames[$site->id].' · '.(preg_replace('~^https?://~i', '', $site->url) ?? throw new \LogicException('Invalid site URL pattern.')));
         }, $rows), $more);
     }
 

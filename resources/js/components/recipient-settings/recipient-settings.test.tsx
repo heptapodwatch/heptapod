@@ -17,18 +17,16 @@ import { RecipientSettings } from '@/components/recipient-settings/recipient-set
 import { stubPickerFetch } from '@/test/picker-fetch';
 
 type MutedSite = SettingsPage['muted_sites'][number];
-/** The same site as the exceptions picker finds it on the server. */
-/** The same site as the exceptions picker finds it: the server names it apart (SiteLabels) within its answer. */
+/** The same site as the exceptions picker finds it: its detail is client · address without scheme, whatever else is listed. */
 const pickerSite = ({
-    identity,
-    url: _url,
+    identity: _identity,
+    url,
     ...site
 }: MutedSite): Heptapod.Data.Ui.PickerSiteData => ({
     ...site,
     timezone: 'UTC',
     client_is_internal: false,
-    label: identity.label,
-    detail: identity.detail,
+    detail: `${site.client_name} · ${url.replace(/^https?:\/\//, '')}`,
 });
 const staging: MutedSite = {
     id: 3,
@@ -573,7 +571,7 @@ it('blocks saving a digest without a day and says so', () => {
     expect(requests).toHaveLength(0);
 });
 
-it('tells apart same-named sites of one client and host by path, then port, then ID', async () => {
+it('names same-named sites of one client and host apart by their address in chips and picker rows', async () => {
     const site = (id: number, url: string, detail: string) => ({
         identity: { label: `Website (${detail})`, detail },
         id,
@@ -594,14 +592,9 @@ it('tells apart same-named sites of one client and host by path, then port, then
             'Kestrel · example.test:8443/blog',
         ),
         site(
-            13,
-            'http://example.test/docs',
-            'Kestrel · example.test/docs · #13',
-        ),
-        site(
             14,
-            'https://example.test/docs',
-            'Kestrel · example.test/docs · #14',
+            'https://example.test/docs?lang=de',
+            'Kestrel · example.test/docs?lang=de',
         ),
     ];
     stubPickerFetch({ sites: muted.map(pickerSite) });
@@ -609,7 +602,7 @@ it('tells apart same-named sites of one client and host by path, then port, then
     render(
         <RecipientSettings
             page={{
-                ...page([channel({ muted_site_ids: [10, 11, 12, 13, 14] })]),
+                ...page([channel({ muted_site_ids: [10, 11, 12, 14] })]),
                 muted_sites: muted,
             }}
             scopeDescription="scope"
@@ -623,8 +616,7 @@ it('tells apart same-named sites of one client and host by path, then port, then
         'Website (Kestrel · example.test/shop)',
         'Website (Kestrel · example.test/blog)',
         'Website (Kestrel · example.test:8443/blog)',
-        'Website (Kestrel · example.test/docs · #13)',
-        'Website (Kestrel · example.test/docs · #14)',
+        'Website (Kestrel · example.test/docs?lang=de)',
     ]);
     expect(new Set(chips).size).toBe(chips.length);
     fireEvent.click(
@@ -632,7 +624,7 @@ it('tells apart same-named sites of one client and host by path, then port, then
             name: 'recipient_settings.mutes.picker',
         }),
     );
-    // Picker rows carry the same deciding detail under the name.
+    // Chips and rows always carry client · address without scheme (unique per site), whatever else is listed.
     const rows = (await screen.findAllByRole('option')).map(
         (option) => option.textContent,
     );
@@ -640,7 +632,7 @@ it('tells apart same-named sites of one client and host by path, then port, then
     expect(rows).toContain('WWebsiteKestrel · example.test:8443/blog');
 });
 
-it('uses server identities for mixed-stage collisions in chips and picker details', async () => {
+it("keeps chips apart by address even where a name looks like another site's detail", async () => {
     window.history.replaceState(null, '', '?channel=7');
     const sites = [
         {
@@ -688,7 +680,10 @@ it('uses server identities for mixed-stage collisions in chips and picker detail
         within(sheet)
             .getAllByRole('listitem')
             .map((chip) => chip.textContent),
-    ).toEqual(['A (Kestrel · foo.test)', 'A (foo.test) (literal.test)']);
+    ).toEqual([
+        'A (Kestrel · foo.test)',
+        'A (foo.test) (Kestrel · literal.test)',
+    ]);
     fireEvent.click(
         within(sheet).getByRole('combobox', {
             name: 'recipient_settings.mutes.picker',
@@ -708,6 +703,7 @@ it('saves channel preference and site-mute changes in a single atomic request', 
                 id: 4,
                 name: 'shop.example',
                 host: 'shop.example',
+                url: 'https://shop.example',
                 identity: {
                     label: 'shop.example',
                     detail: 'Studio · shop.example',

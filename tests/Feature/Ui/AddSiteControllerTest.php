@@ -224,8 +224,10 @@ it('does not disclose client existence on site creation and denies roleless call
     $missing = $hidden->id + 100000;
     $this->actingAs($user);
 
-    $hiddenResponse = $this->postJson('/sites', ['client_id' => $hidden->id, 'url' => 'https://example.test'])->assertNotFound();
-    $missingResponse = $this->postJson('/sites', ['client_id' => $missing, 'url' => 'https://example.test'])->assertNotFound();
+    // A stale draft's client is a field error, worded alike for a hidden and a missing client.
+    $hiddenResponse = $this->postJson('/sites', ['client_id' => $hidden->id, 'url' => 'https://example.test'])->assertUnprocessable()
+        ->assertJsonValidationErrors(['client_id' => 'This client is no longer available. Choose another client.']);
+    $missingResponse = $this->postJson('/sites', ['client_id' => $missing, 'url' => 'https://example.test'])->assertUnprocessable();
     expect($missingResponse->getContent())->toBe($hiddenResponse->getContent());
     $this->actingAs(User::factory()->create());
     $this->postJson('/sites', ['client_id' => $hidden->id, 'url' => 'https://example.test'])->assertForbidden();

@@ -94,7 +94,6 @@ const site = (
     icon_url: null,
     icon_backing: 'none',
     client_is_internal: false,
-    label: name,
     detail: `${client_name} · ${name.toLowerCase()}.example.test`,
 });
 const client = (

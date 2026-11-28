@@ -161,7 +161,7 @@ it('archives clients without deleting history and protects the Internal client',
     $sites = $this->get('/sites', ['X-Inertia-Partial-Component' => 'sites/index', 'X-Inertia-Partial-Data' => 'sites'])->assertOk()->inertiaProps()['sites'];
     expect(collect($sites)->pluck('id')->all())->not->toContain($site->id);
     $this->get('/clients/'.$client->id)->assertInertia(fn (Assert $page): Assert => $page->has('sites', 1));
-    $this->post('/sites', ['client_id' => $client->id])->assertNotFound();
+    $this->post('/sites', ['client_id' => $client->id])->assertSessionHasErrors(['client_id' => __('sites.client_unavailable')]);
     $this->post('/sites/'.$site->id.'/resume')->assertForbidden();
     expect($site->fresh()?->paused_at)->not->toBeNull();
     $this->post('/clients/'.$internal->id.'/archive')->assertForbidden();

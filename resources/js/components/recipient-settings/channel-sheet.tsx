@@ -121,22 +121,17 @@ export function ChannelSheet({
         removal.processing;
     const paused = channel.status === 'paused';
     const labels = siteIdentities(page.muted_sites);
-    // Sites picked in this sheet carry the picker's label until a save names them apart from the other muted ones;
-    // a name another muted or picked site shares also gets its deciding detail (client · host, path, port or ID).
+    // The channel sentence names a site picked in this sheet with its stable detail until a save names it among the muted ones.
     const [picked, setPicked] = useState<
         ReadonlyMap<number, Heptapod.Data.Ui.PickerSiteData>
     >(() => new Map());
-    const pickedLabel = (site: Heptapod.Data.Ui.PickerSiteData) =>
-        [...page.muted_sites, ...picked.values()].some(
-            (other) => other.id !== site.id && other.name === site.name,
-        )
-            ? `${site.name} (${site.detail})`
-            : site.label;
     const siteName = (siteId: number) => {
         const site = picked.get(siteId);
         return (
             labels.get(siteId)?.label ??
-            (site ? pickedLabel(site) : t('recipient_settings.unknown_site'))
+            (site
+                ? `${site.name} (${site.detail})`
+                : t('recipient_settings.unknown_site'))
         );
     };
     const changedCells = Object.keys(grid).filter(
@@ -680,20 +675,6 @@ export function ChannelSheet({
                                     ]),
                             );
                             setSiteIds(values.map(Number));
-                        }}
-                        // A muted site keeps the name that tells it apart from the other muted ones.
-                        decorate={(option, site) => {
-                            const identity = labels.get(site.id);
-                            return identity
-                                ? {
-                                      ...option,
-                                      secondary: identity.detail,
-                                      selectedLabel: identity.label,
-                                  }
-                                : {
-                                      ...option,
-                                      selectedLabel: pickedLabel(site),
-                                  };
                         }}
                     />
                 </div>

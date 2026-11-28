@@ -18,9 +18,7 @@ type SiteLike = {
     url?: string;
     icon_url?: string | null;
     icon_backing?: Heptapod.Enums.SiteIconBacking;
-    /** The name with its telling detail where another listed site reads alike (SiteLabels). */
-    label?: string;
-    /** Client · host, then path, port or ID: what tells it apart. */
+    /** Client · address without scheme, unique to the site: the second line and, with the name, its chip. */
     detail?: string;
 };
 
@@ -44,7 +42,9 @@ export function siteComboboxOptions(sites: SiteLike[]): ComboboxOption[] {
             value: String(site.id),
             label: site.name,
             secondary,
-            selectedLabel: site.label,
+            selectedLabel: site.detail
+                ? `${site.name} (${site.detail})`
+                : undefined,
             searchText: secondary,
             mark: (
                 <SiteAvatar

@@ -1914,7 +1914,6 @@ readonly client_is_internal: boolean,
 readonly timezone: string,
 readonly icon_url: string | null,
 readonly icon_backing: Heptapod.Enums.SiteIconBacking,
-readonly label: string,
 readonly detail: string,
 };
 export type ProfilePageData = {
