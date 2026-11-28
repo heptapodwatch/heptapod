@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Heptapod\Addons\Sitemap;
 
-use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRunPresentationPartData;

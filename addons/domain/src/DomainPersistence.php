@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Heptapod\Addons\Domain;
 
-use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\HistoryPrune;
 use Heptapod\Contracts\RunPersistence;
