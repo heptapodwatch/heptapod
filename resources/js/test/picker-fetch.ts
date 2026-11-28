@@ -12,7 +12,7 @@ type PickerEntities = {
 };
 
 /**
- * Stubs `fetch` so the server-searched pickers (`/pickers/{kind}`) answer from `entities` like PickerController: `ids[]`
+ * Stubs `fetch` so the server-searched pickers (`/pickers/{kind}`) answer from `entities` like PickerController: `ids`
  * names those ids, `q` matches the name. Every other request goes to `appFetch`, which the test mocks as before.
  */
 export function stubPickerFetch(
@@ -30,7 +30,10 @@ export function stubPickerFetch(
             )?.[1] as keyof PickerEntities | undefined;
             if (!kind) return appFetch(input, init);
             const all: { id: number; name: string }[] = entities[kind] ?? [];
-            const ids = url.searchParams.getAll('ids[]').map(Number);
+            const ids = (url.searchParams.get('ids') ?? '')
+                .split(',')
+                .filter(Boolean)
+                .map(Number);
             const query = (url.searchParams.get('q') ?? '').toLocaleLowerCase();
             const options =
                 ids.length > 0

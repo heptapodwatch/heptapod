@@ -44,9 +44,12 @@ const scopeParams = (scope: PickerScope) =>
         Object.entries(scope).filter(([, value]) => value !== undefined),
     ) as Record<string, number | boolean>;
 
+/** The most ids one read names (PickerReader::IdLimit); larger selections read in batches. */
+const idBatch = 500;
+
 async function readPicker<K extends PickerKind>(
     kind: K,
-    query: Record<string, string | number | boolean | number[]>,
+    query: Record<string, string | number | boolean>,
     signal: AbortSignal,
 ): Promise<PickerRead<K>> {
     const response = await fetch(pickers.url(kind, { query }), {
@@ -61,7 +64,8 @@ async function readPicker<K extends PickerKind>(
 
 /**
  * The chosen sites or clients by id, read from the server when first chosen and then kept, so a choice keeps its name
- * and mark across searches; an id the user cannot see stays unnamed. `remember` keeps entities read by a search.
+ * and mark across searches. `absent` holds ids the server did not return: gone, or not visible to the user (the
+ * server never tells the two apart). `remember` keeps entities read by a search.
  */
 export function usePickerEntities<K extends PickerKind>(
     kind: K,
@@ -72,6 +76,7 @@ export function usePickerEntities<K extends PickerKind>(
     const [known, setKnown] = useState<ReadonlyMap<number, PickerEntities[K]>>(
         () => new Map(),
     );
+    const [absent, setAbsent] = useState<ReadonlySet<number>>(() => new Set());
     const remember = (entities: PickerEntities[K][]) =>
         setKnown((current) =>
             entities.every((entity) => current.get(entity.id) === entity)
@@ -81,17 +86,36 @@ export function usePickerEntities<K extends PickerKind>(
                       ...entities.map((entity) => [entity.id, entity] as const),
                   ]),
         );
-    const missing = ids.filter((id) => !known.has(id));
+    const missing = ids.filter((id) => !known.has(id) && !absent.has(id));
     const missingKey = missing.join(',');
     useEffect(() => {
         if (missing.length === 0) return;
         const controller = new AbortController();
-        readPicker(
-            kind,
-            { ...scopeParams(scope), ids: missing },
-            controller.signal,
+        const batches = Array.from(
+            { length: Math.ceil(missing.length / idBatch) },
+            (_, index) => missing.slice(index * idBatch, (index + 1) * idBatch),
+        );
+        Promise.all(
+            batches.map((batch) =>
+                readPicker(
+                    kind,
+                    { ...scopeParams(scope), ids: batch.join(',') },
+                    controller.signal,
+                ),
+            ),
         ).then(
-            (read) => remember(read.options),
+            (reads) => {
+                const found = reads.flatMap((read) => read.options);
+                const named = new Set(found.map(({ id }) => id));
+                remember(found);
+                setAbsent(
+                    (current) =>
+                        new Set([
+                            ...current,
+                            ...missing.filter((id) => !named.has(id)),
+                        ]),
+                );
+            },
             (failure: unknown) => {
                 if (!controller.signal.aborted) onFailure(failure);
             },
@@ -104,13 +128,15 @@ export function usePickerEntities<K extends PickerKind>(
             .map((id) => known.get(id))
             .filter((entity) => entity !== undefined),
         known,
+        absent,
         remember,
     };
 }
 
 /**
  * The server search behind a picker: names the chosen ids, and while open reads the first matches for the query
- * (debounced). Options list the chosen entities missing from the matches first, as the "Link site…" sheet does.
+ * (debounced). Only the matches of the current query and scope are offered; an older answer never is. Options list
+ * the chosen entities missing from the matches first, as the "Link site…" sheet does.
  */
 function usePickerSearch<K extends PickerKind>(
     kind: K,
@@ -120,9 +146,14 @@ function usePickerSearch<K extends PickerKind>(
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState('');
-    const [found, setFound] = useState<PickerRead<K> | null>(null);
+    const [found, setFound] = useState<{
+        key: string;
+        read: PickerRead<K>;
+    } | null>(null);
     const [failed, setFailed] = useState(false);
     const scopeKey = JSON.stringify(scope);
+    const search = query.trim();
+    const readKey = `${kind}|${scopeKey}|${search}`;
     const fail = (failure: unknown) => {
         console.error(failure);
         setFailed(true);
@@ -131,7 +162,6 @@ function usePickerSearch<K extends PickerKind>(
     useEffect(() => {
         if (!open) return;
         const controller = new AbortController();
-        const search = query.trim();
         const params = scopeParams(scope);
         const read = () =>
             readPicker(
@@ -139,9 +169,11 @@ function usePickerSearch<K extends PickerKind>(
                 search === '' ? params : { ...params, q: search },
                 controller.signal,
             ).then(
-                (found) => {
-                    named.remember(found.options);
-                    setFound(found);
+                (answer) => {
+                    // A read for an older query or scope never replaces the current one.
+                    if (controller.signal.aborted) return;
+                    named.remember(answer.options);
+                    setFound({ key: readKey, read: answer });
                 },
                 (failure: unknown) => {
                     if (!controller.signal.aborted) fail(failure);
@@ -154,8 +186,9 @@ function usePickerSearch<K extends PickerKind>(
             controller.abort();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [kind, open, query, scopeKey]);
-    const matches = found?.options ?? [];
+    }, [open, readKey]);
+    const current = open && found?.key === readKey ? found.read : null;
+    const matches = current?.options ?? [];
     const matchIds = new Set(matches.map(({ id }) => id));
     return {
         query,
@@ -166,14 +199,13 @@ function usePickerSearch<K extends PickerKind>(
         ],
         notice: failed
             ? t('combobox.failed')
-            : found?.more
+            : current?.more
               ? t('combobox.more_matches')
               : undefined,
         onQueryChange: setQuery,
         onOpenChange: (next: boolean) => {
             setOpen(next);
             setFailed(false);
-            if (!next) setFound(null);
         },
     };
 }

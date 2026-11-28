@@ -13,7 +13,6 @@ use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Query\Builder as QueryBuilder;
 
 /** Two reads each: the projected sites (visibility first, as the search does) and their clients' names. */
 final readonly class SiteDirectoryReader implements SiteDirectory
@@ -29,16 +28,11 @@ final readonly class SiteDirectoryReader implements SiteDirectory
         return $this->rows(array_values($this->query($user, $siteIds)->get()->all()));
     }
 
-    /** The same match as the command palette's site search (SearchReader): name or URL, case-insensitive. */
+    /** The pickers' match (SiteSearch): every word in the name, the URL or the client name. */
     public function search(Authenticatable $user, string $search, array $exceptSiteIds, int $limit): array
     {
         $sites = $this->query($user, null);
-        if ($search !== '') {
-            $pattern = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search).'%';
-            $sites->getQuery()->where(static function (QueryBuilder $query) use ($pattern): void {
-                $query->where('name', 'ilike', $pattern)->orWhere('url', 'ilike', $pattern);
-            });
-        }
+        SiteSearch::whereMatches($sites->getQuery(), $search);
         if ($exceptSiteIds !== []) {
             $sites->getQuery()->whereNotIn('id', $exceptSiteIds);
         }

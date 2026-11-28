@@ -229,7 +229,7 @@ export function Combobox({
                                     <CommandItem
                                         value="__create__"
                                         onSelect={() => {
-                                            setOpen(false);
+                                            setOpened(false);
                                             create.onCreate(name);
                                         }}
                                     >
@@ -291,6 +291,12 @@ export function MultiCombobox({
         setQuery(next);
         onQueryChange?.(next);
     };
+    // The one open path for click and keyboard, so a server-searched picker always learns it opened.
+    const setOpened = (next: boolean) => {
+        setOpen(next);
+        changeQuery('');
+        onOpenChange?.(next);
+    };
     const name = query.trim();
     const matching = onQueryChange
         ? options
@@ -306,14 +312,7 @@ export function MultiCombobox({
         );
     return (
         <div className="space-y-2">
-            <Popover.Root
-                open={open}
-                onOpenChange={(next) => {
-                    setOpen(next);
-                    changeQuery('');
-                    onOpenChange?.(next);
-                }}
-            >
+            <Popover.Root open={open} onOpenChange={setOpened}>
                 <Popover.Trigger
                     id={id}
                     type="button"
@@ -330,7 +329,7 @@ export function MultiCombobox({
                     onKeyDown={(event) => {
                         if (event.key === 'ArrowDown') {
                             event.preventDefault();
-                            setOpen(true);
+                            setOpened(true);
                         }
                     }}
                 >

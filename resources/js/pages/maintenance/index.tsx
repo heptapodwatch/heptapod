@@ -70,6 +70,7 @@ import {
 import { TextLink } from '@/components/text-link';
 
 type Window = Heptapod.Data.Ui.MaintenanceWindowData;
+const targetScope = { archived: true };
 type Draft = {
     target_type: 'site' | 'client' | 'tag';
     target_id: string;
@@ -304,10 +305,12 @@ export default function MaintenanceIndex({
     const siteTargets = usePickerEntities(
         'sites',
         draft.target_type === 'site' ? targetId : [],
+        targetScope,
     );
     const clientTargets = usePickerEntities(
         'clients',
         draft.target_type === 'client' ? targetId : [],
+        targetScope,
     );
     const [targetSite] = siteTargets.entities;
     const [targetClient] = clientTargets.entities;
@@ -428,7 +431,9 @@ export default function MaintenanceIndex({
               : null) ?? null;
     const selectedClientName =
         draft.target_type === 'site'
-            ? (targetSite?.client_name ?? null)
+            ? targetSite && !targetSite.client_is_internal
+                ? targetSite.client_name
+                : null
             : targetClient && !targetClient.is_internal
               ? targetClient.name
               : null;
@@ -983,6 +988,8 @@ export default function MaintenanceIndex({
                                         ? 'sites'
                                         : 'clients'
                                 }
+                                // Managers plan windows for archived clients and their sites too, as before.
+                                scope={targetScope}
                                 onValueChange={(value, entity) => {
                                     if (entity && 'host' in entity) {
                                         siteTargets.remember([entity]);

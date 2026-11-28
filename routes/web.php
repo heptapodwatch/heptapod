@@ -91,7 +91,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('runs', RunsController::class)->name('runs.index');
     Route::get('live/changes', LiveChangesController::class)->name('live.changes');
     Route::get('search', SearchController::class)->name('search');
-    Route::get('pickers/{kind}', PickerController::class)->whereIn('kind', ['sites', 'clients'])->name('pickers');
+    Route::get('pickers/{kind}', PickerController::class)->whereIn('kind', ['sites', 'clients'])->middleware('throttle:pickers')->name('pickers');
     Route::get('clients', ClientsIndexController::class)->name('clients.index');
     Route::get('clients/create', [ClientSettingsController::class, 'create'])->name('clients.create');
     Route::post('clients', [ClientSettingsController::class, 'store'])->name('clients.store');

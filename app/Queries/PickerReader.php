@@ -11,32 +11,36 @@ use Heptapod\Models\Client;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
-use Illuminate\Database\Query\Builder;
+use Heptapod\Settings\InstanceSettings;
+use Heptapod\Support\SiteLabels;
 
 /**
  * The reads behind the server-searched site and client pickers: the visible entities matching a search, at most Limit
- * of them, or the chosen ones by id so a picker can name its value without loading every row.
+ * of them, or the chosen ones by id (every one the user can see) so a picker names its values without loading every row.
  */
 final readonly class PickerReader
 {
     public const int Limit = 20;
 
-    /** The most chosen values one read names (a multi picker's chips). */
-    public const int IdLimit = 100;
+    /** The most chosen values one read names; a channel saves at most this many site exceptions in one edit. */
+    public const int IdLimit = 500;
 
-    public function __construct(private SitePolicy $policy) {}
+    public function __construct(private SitePolicy $policy, private InstanceSettings $settings) {}
 
     /**
-     * A search leaves out sites whose deletion is pending; a chosen one still resolves by id. $withIcon keeps only sites
-     * with a fetched icon (a client's avatar choice).
+     * One query: the visibility predicate, the search and the client columns read together, so a site never shows a
+     * client the user cannot see. A search leaves out sites whose deletion is pending; a chosen one still resolves by id.
+     * $withIcon keeps only sites with a fetched icon (a client's avatar choice); $includeArchived adds archived clients'
+     * sites where a picker offered them before (maintenance, a client's own exceptions).
      *
      * @param  list<int>|null  $ids
      */
-    public function sites(User $user, string $search, ?array $ids, ?int $clientId, bool $withIcon): PickerResultsData
+    public function sites(User $user, string $search, ?array $ids, ?int $clientId, bool $withIcon, bool $includeArchived): PickerResultsData
     {
-        $sites = Site::query()->with('client');
+        $sites = $this->policy->visibleSites($user, $includeArchived);
         $query = $sites->getQuery();
-        $query->whereIntegerInRaw('sites.id', $this->policy->visibleSiteIds($user));
+        $query->join('clients', 'clients.id', '=', 'sites.client_id')
+            ->addSelect(['clients.name as picker_client_name', 'clients.is_internal as picker_client_internal', 'clients.timezone as picker_client_timezone']);
         if ($clientId !== null) {
             $query->where('sites.client_id', $clientId);
         }
@@ -47,24 +51,32 @@ final readonly class PickerReader
             $query->whereIntegerInRaw('sites.id', $ids);
         } else {
             $query->whereNull('sites.marked_for_deletion_at');
-            // Every word matches the name, the URL or the client name, as the pickers matched before they searched on the server.
-            foreach ($this->patterns($search) as $pattern) {
-                $query->where(static fn (Builder $match): Builder => $match->whereRaw(Site::displayNameSql().' ILIKE ?', [$pattern])->orWhere('sites.url', 'ilike', $pattern)
-                    ->orWhereIn('sites.client_id', static fn (Builder $clients): Builder => $clients->select('clients.id')->from('clients')
-                        ->where('clients.is_internal', false)->where('clients.name', 'ilike', $pattern)));
-            }
+            SiteSearch::whereMatches($query, $search);
             $query->limit(self::Limit + 1);
         }
         $query->orderBy(SitesReader::collated(Site::displayNameSql()))->orderBy('sites.id');
-        $rows = $sites->get();
+        $rows = array_values($sites->get()->all());
+        $more = $ids === null && count($rows) > self::Limit;
+        $rows = $ids === null ? array_slice($rows, 0, self::Limit) : $rows;
+        $clientNames = [];
+        foreach ($rows as $site) {
+            $name = $site->getAttribute('picker_client_name');
+            $clientNames[$site->id] = $site->getAttribute('picker_client_internal') === true ? __('No client')
+                : (is_string($name) ? $name : throw new \LogicException('A site query must select its client name.'));
+        }
+        // Same-named sites read apart within what the picker shows: client and host, then path, port or ID (as in notification settings).
+        $identities = SiteLabels::identities(array_combine(array_map(static fn (Site $site): int => $site->id, $rows),
+            array_map(static fn (Site $site): array => ['name' => $site->displayName(), 'client' => $clientNames[$site->id], 'url' => $site->url], $rows)));
 
-        return new PickerResultsData(array_values($rows->take(self::Limit)->map(static function (Site $site): PickerSiteData {
-            $client = $site->client ?? throw new \LogicException('Every site belongs to a client.');
+        return new PickerResultsData(array_map(function (Site $site) use ($clientNames, $identities): PickerSiteData {
             $host = parse_url($site->url, PHP_URL_HOST);
+            $timezone = $site->getAttribute('picker_client_timezone');
 
-            return new PickerSiteData($site->id, $site->displayName(), is_string($host) ? $host : $site->url, $client->id, $client->is_internal ? null : $client->name,
-                $client->resolvedTimezone(), $site->iconUrl(), $site->icon_backing);
-        })->all()), $ids === null && $rows->count() > self::Limit);
+            return new PickerSiteData($site->id, $site->displayName(), is_string($host) ? $host : $site->url, $site->client_id, $clientNames[$site->id],
+                $site->getAttribute('picker_client_internal') === true,
+                is_string($timezone) ? $timezone : $this->settings->timezone, $site->iconUrl(), $site->icon_backing,
+                $identities[$site->id]['label'], $identities[$site->id]['detail']);
+        }, $rows), $more);
     }
 
     /**
@@ -82,31 +94,14 @@ final readonly class PickerReader
         if ($ids !== null) {
             $query->whereIntegerInRaw('clients.id', $ids);
         } else {
-            foreach ($this->patterns($search) as $pattern) {
-                $query->whereRaw(Client::displayNameSql().' ILIKE ?', [__('No client'), $pattern]);
-            }
+            SiteSearch::whereClientMatches($query, $search);
             $query->limit(self::Limit + 1);
         }
         $query->orderByDesc('clients.is_internal')->orderBy(SitesReader::collated('clients.name'))->orderBy('clients.id');
-        $rows = $clients->get();
+        $rows = array_values($clients->get()->all());
+        $more = $ids === null && count($rows) > self::Limit;
 
-        return new PickerResultsData(array_values($rows->take(self::Limit)->map(static fn (Client $client): ClientData => ClientData::fromClient($client))->all()),
-            $ids === null && $rows->count() > self::Limit);
-    }
-
-    /**
-     * One case-insensitive match pattern per word of the search, at most five words.
-     *
-     * @return list<string>
-     */
-    private function patterns(string $search): array
-    {
-        $words = preg_split('/\s+/', $search, -1, PREG_SPLIT_NO_EMPTY);
-        if ($words === false) {
-            throw new \LogicException('A search splits into words.');
-        }
-        $words = array_slice($words, 0, 5);
-
-        return array_map(static fn (string $word): string => '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $word).'%', $words);
+        return new PickerResultsData(array_map(static fn (Client $client): ClientData => ClientData::fromClient($client),
+            $ids === null ? array_slice($rows, 0, self::Limit) : $rows), $more);
     }
 }

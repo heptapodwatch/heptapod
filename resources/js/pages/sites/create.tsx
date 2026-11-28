@@ -230,12 +230,19 @@ function AddSiteForm({
     );
     const address = probe?.normalised_url ?? form.data.url;
     const host = URL.canParse(address) ? new URL(address).hostname : null;
-    const [client] = usePickerEntities(
+    const chosenClient = usePickerEntities(
         'clients',
         /^[1-9][0-9]*$/.test(form.data.client_id)
             ? [Number(form.data.client_id)]
             : [],
-    ).entities;
+    );
+    const [client] = chosenClient.entities;
+    // A restored draft's client the user can no longer choose is dropped, as before: the field asks for a client again.
+    useEffect(() => {
+        if (chosenClient.absent.has(Number(form.data.client_id)))
+            form.setData('client_id', '');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chosenClient.absent]);
 
     // The probe has answered for an address the server accepts; an unreachable one only warns.
     const answered =

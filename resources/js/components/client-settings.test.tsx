@@ -65,6 +65,9 @@ const iconSite = (id: number, name: string, host: string) => ({
     timezone: 'UTC',
     icon_url: `/sites/${id}/icon/hash`,
     icon_backing: 'none' as const,
+    client_is_internal: false,
+    label: name,
+    detail: `${clients[0]!.name} · ${host}`,
 });
 
 beforeEach(() => {

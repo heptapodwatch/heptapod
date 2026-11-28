@@ -394,8 +394,8 @@ it('supplies each target the resolved client timezone and the viewers own zone o
 
     $berlinProps = $this->actingAs($berlinOwner)->get('/maintenance')->assertOk()->inertiaProps();
     // The target pickers read the zone with the chosen site or client.
-    $sitesById = collect($this->getJson('/pickers/sites?'.http_build_query(['ids' => [$newYorkSite->id, $inheritedSite->id]]))->json('options'))->keyBy('id');
-    $clientsById = collect($this->getJson('/pickers/clients?'.http_build_query(['ids' => [$newYorkClient->id, $inheritedClient->id]]))->json('options'))->keyBy('id');
+    $sitesById = collect($this->getJson('/pickers/sites?ids='.implode(',', [$newYorkSite->id, $inheritedSite->id]))->json('options'))->keyBy('id');
+    $clientsById = collect($this->getJson('/pickers/clients?ids='.implode(',', [$newYorkClient->id, $inheritedClient->id]))->json('options'))->keyBy('id');
 
     expect($berlinProps['timezone'])->toBe('Europe/Berlin')
         ->and($berlinProps['timezones'])->toContain('America/New_York')

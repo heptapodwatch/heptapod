@@ -18,6 +18,10 @@ type SiteLike = {
     url?: string;
     icon_url?: string | null;
     icon_backing?: Heptapod.Enums.SiteIconBacking;
+    /** The name with its telling detail where another listed site reads alike (SiteLabels). */
+    label?: string;
+    /** Client · host, then path, port or ID: what tells it apart. */
+    detail?: string;
 };
 
 type ClientLike = {
@@ -29,16 +33,18 @@ type ClientLike = {
     is_internal?: boolean;
 };
 
-/** Site rows are identifiable when names collide: avatar + name, then client · host (list rows and trigger tooltip). */
+/** Site rows are identifiable when names collide: avatar + name, then client · host or the deciding detail (list rows and trigger tooltip). */
 export function siteComboboxOptions(sites: SiteLike[]): ComboboxOption[] {
     return sites.map((site) => {
         const host = site.host ?? (site.url ? siteHost(site.url) : null);
         const secondary =
-            [site.client_name, host].filter(Boolean).join(' · ') || undefined;
+            site.detail ??
+            ([site.client_name, host].filter(Boolean).join(' · ') || undefined);
         return {
             value: String(site.id),
             label: site.name,
             secondary,
+            selectedLabel: site.label,
             searchText: secondary,
             mark: (
                 <SiteAvatar

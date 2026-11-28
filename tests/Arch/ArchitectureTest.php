@@ -243,6 +243,9 @@ arch('new readers must materialize visibility before leaf lookups', function ():
         'EventsReader' => 1, // TODO: migrate to visibleSiteIds()
         'HistoryReader' => 1, // TODO: migrate to visibleSiteIds()
         'IncidentsReader' => 1, // TODO: migrate the list/detail scope to visibleSiteIds()
+        // Not grandfathered: a bounded site read with no leaf lookups, joined to its client under the same visibility
+        // predicate, so a site moved meanwhile never names a client the user cannot see.
+        'PickerReader' => 1,
     ];
     $directClientReaders = ['SitesReader' => 1, 'ClientsReader' => 2, 'SiteDetailReader' => 1, 'SearchReader' => 1,
         'EventsReader' => 1, // Activity client filters must be limited to the user's visible clients.

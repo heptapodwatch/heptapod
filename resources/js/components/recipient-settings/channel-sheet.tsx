@@ -121,8 +121,8 @@ export function ChannelSheet({
         removal.processing;
     const paused = channel.status === 'paused';
     const labels = siteIdentities(page.muted_sites);
-    // Sites picked in this sheet are named by the picker until a save names them apart from the other muted ones;
-    // a name another muted site shares gets its client and host.
+    // Sites picked in this sheet carry the picker's label until a save names them apart from the other muted ones;
+    // a name another muted or picked site shares also gets its deciding detail (client · host, path, port or ID).
     const [picked, setPicked] = useState<
         ReadonlyMap<number, Heptapod.Data.Ui.PickerSiteData>
     >(() => new Map());
@@ -130,8 +130,8 @@ export function ChannelSheet({
         [...page.muted_sites, ...picked.values()].some(
             (other) => other.id !== site.id && other.name === site.name,
         )
-            ? `${site.name} (${[site.client_name, site.host].filter(Boolean).join(' · ')})`
-            : site.name;
+            ? `${site.name} (${site.detail})`
+            : site.label;
     const siteName = (siteId: number) => {
         const site = picked.get(siteId);
         return (
@@ -661,7 +661,8 @@ export function ChannelSheet({
                         scope={
                             page.recipient_kind === 'client' &&
                             page.recipient_id !== null
-                                ? { client: page.recipient_id }
+                                ? // A client's own exceptions include its sites while it is archived, as before.
+                                  { client: page.recipient_id, archived: true }
                                 : {}
                         }
                         ariaLabel={t('recipient_settings.mutes.picker')}

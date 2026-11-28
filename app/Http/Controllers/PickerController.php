@@ -17,19 +17,24 @@ final class PickerController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
-        /** @var array{q?: string|null, ids?: list<int|string>, client?: int|string, icon?: bool|string, archived?: bool|string, browse?: bool|string} $data */
+        /** @var array{q?: string|null, ids?: string, client?: int|string, icon?: bool|string, archived?: bool|string, browse?: bool|string} $data */
         $data = Validator::make($request->query(), [
-            'q' => ['sometimes', 'nullable', 'string', 'max:255'], 'ids' => ['sometimes', 'array', 'list', 'max:'.PickerReader::IdLimit], 'ids.*' => ['integer', 'min:1'],
-            ...($kind === 'sites'
-                ? ['client' => ['sometimes', 'integer', 'min:1'], 'icon' => ['sometimes', 'boolean']]
-                : ['archived' => ['sometimes', 'boolean'], 'browse' => ['sometimes', 'boolean']]),
+            'q' => ['sometimes', 'nullable', 'string', 'max:255'],
+            // Comma-separated, so a batch of IdLimit ids stays a short GET.
+            'ids' => ['sometimes', 'string', 'regex:/^[1-9][0-9]{0,18}(,[1-9][0-9]{0,18})*$/', static function (string $attribute, string $value, \Closure $fail): void {
+                if (substr_count($value, ',') >= PickerReader::IdLimit) {
+                    $fail('At most '.PickerReader::IdLimit.' ids per read.');
+                }
+            }],
+            'archived' => ['sometimes', 'boolean'],
+            ...($kind === 'sites' ? ['client' => ['sometimes', 'integer', 'min:1'], 'icon' => ['sometimes', 'boolean']] : ['browse' => ['sometimes', 'boolean']]),
         ])->validate();
         $search = trim($data['q'] ?? '');
-        $ids = isset($data['ids']) ? array_map(intval(...), $data['ids']) : null;
+        $ids = isset($data['ids']) ? array_values(array_unique(array_map(intval(...), explode(',', $data['ids'])))) : null;
         $flag = static fn (string $key): bool => filter_var($data[$key] ?? false, FILTER_VALIDATE_BOOLEAN);
 
         return response()->json(($kind === 'sites'
-            ? $reader->sites($user, $search, $ids, isset($data['client']) ? (int) $data['client'] : null, $flag('icon'))
+            ? $reader->sites($user, $search, $ids, isset($data['client']) ? (int) $data['client'] : null, $flag('icon'), $flag('archived'))
             : $reader->clients($user, $search, $ids, $flag('archived'), $flag('browse')))->toArray());
     }
 }

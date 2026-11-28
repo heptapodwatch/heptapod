@@ -18,13 +18,17 @@ import { stubPickerFetch } from '@/test/picker-fetch';
 
 type MutedSite = SettingsPage['muted_sites'][number];
 /** The same site as the exceptions picker finds it on the server. */
+/** The same site as the exceptions picker finds it: the server names it apart (SiteLabels) within its answer. */
 const pickerSite = ({
-    identity: _identity,
+    identity,
     url: _url,
     ...site
 }: MutedSite): Heptapod.Data.Ui.PickerSiteData => ({
     ...site,
     timezone: 'UTC',
+    client_is_internal: false,
+    label: identity.label,
+    detail: identity.detail,
 });
 const staging: MutedSite = {
     id: 3,
@@ -704,6 +708,10 @@ it('saves channel preference and site-mute changes in a single atomic request', 
                 id: 4,
                 name: 'shop.example',
                 host: 'shop.example',
+                identity: {
+                    label: 'shop.example',
+                    detail: 'Studio · shop.example',
+                },
             }),
         ],
     });

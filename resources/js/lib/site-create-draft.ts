@@ -145,7 +145,7 @@ export function siteCreateDraft(
             if (fieldValue(safe)) settings[key] = safe;
         }
     }
-    // The client stays an id; one the user can no longer choose is refused at the field on save.
+    // The client stays an id here; the page drops one the picker cannot name (gone or no longer visible).
     const client_id =
         typeof input.client_id === 'string' &&
         /^[1-9][0-9]*$/.test(input.client_id)
