@@ -67,6 +67,10 @@ export default function SiteShow(page: SitePage) {
                   'monthly_uptime',
                   'response_p95_hourly',
                   'performance_noise',
+                  // A deletion request takes these actions away together with the badge.
+                  'can_run',
+                  'can_move',
+                  'check_settings',
               ]
             : [
                   'site',
@@ -80,6 +84,8 @@ export default function SiteShow(page: SitePage) {
                   'lighthouse',
                   'resume_at',
                   'repositories',
+                  'can_manage',
+                  'can_move',
               ],
         (signal) =>
             signal.ids.site === page.header.id ||

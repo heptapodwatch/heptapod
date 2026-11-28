@@ -2083,6 +2083,7 @@ readonly client_id: number,
 readonly state: Heptapod.Enums.SiteStatus,
 readonly icon_url: string | null,
 readonly icon_backing: Heptapod.Enums.SiteIconBacking,
+readonly deleting: boolean,
 };
 export type SiteListSummaryData = {
 readonly total: number,
@@ -2465,7 +2466,7 @@ readonly severity: Heptapod.Enums.HealthStatus,
 readonly openedAt: string,
 readonly details: Record<string, number | string | null>,
 };
-export type SystemIssueKind = 'check_not_fresh' | 'disk_space_low' | 'maintenance_failed' | 'backup_failed' | 'backup_stale' | 'scheduler_stale' | 'checks_not_running' | 'mail_log_only' | 'mail_transport_dead' | 'notifications_stalled' | 'channel_failing' | 'monitor_outage';
+export type SystemIssueKind = 'check_not_fresh' | 'disk_space_low' | 'maintenance_failed' | 'backup_failed' | 'backup_stale' | 'scheduler_stale' | 'checks_not_running' | 'mail_log_only' | 'mail_transport_dead' | 'notifications_stalled' | 'channel_failing' | 'monitor_outage' | 'site_deletion_stuck';
 }
 }
 declare namespace Illuminate {

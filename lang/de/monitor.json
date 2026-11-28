@@ -109,6 +109,7 @@
     "sites.attention_show_all_one": "{{formattedCount}} anzeigen",
     "sites.attention_show_all_other": "Alle {{formattedCount}} anzeigen",
     "Deleting removes this site, its checks, runs and incidents.": "Beim Löschen werden die Website sowie ihre Prüfungen, Läufe und Störungen entfernt.",
+    "site.deleting": "Wird gelöscht…",
     "Notification history is kept.": "Der Benachrichtigungsverlauf bleibt erhalten.",
     "site_overview.paused": "Überwachung pausiert",
     "site_overview.response_peaks": "Spitzenwerte der letzten 24 Stunden",

@@ -9,6 +9,7 @@ use GuzzleHttp\Middleware;
 use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\Psr7\Request as GuzzleRequest;
 use GuzzleHttp\Psr7\Response;
+use Heptapod\Actions\RequestSiteDeletion;
 use Heptapod\Addons\Crawl\BrokenLinksCheck;
 use Heptapod\Addons\Crawl\CrawlArtifact;
 use Heptapod\Addons\Crawl\CrawlCollector;
@@ -45,6 +46,7 @@ use Heptapod\Contracts\RunPhase;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\RunResult;
 use Heptapod\Events\Notifications\AlertConfirmation;
+use Heptapod\Jobs\PurgeDeletedSite;
 use Heptapod\Jobs\RefreshSiteIcon;
 use Heptapod\Jobs\RunCheck;
 use Heptapod\Models\Check;
@@ -729,11 +731,13 @@ it('maps root HTTP seam failures to errored runs without caching a collection', 
 })->with([FetchFailureKind::Timeout, FetchFailureKind::TooLarge, FetchFailureKind::Tls, FetchFailureKind::Dns, FetchFailureKind::Connect, FetchFailureKind::RedirectBlocked, FetchFailureKind::InvalidRequest]);
 
 it('collects only once when two independent workers request the same site concurrently', function (): void {
-    $siteId = random_int(100000000, 200000000);
     $client = new Client;
     $client->get('http://fixtures.test/crawl-addon/reset');
-    $command = ['php', base_path('addons/crawl/tests/Fixtures/collect.php'), (string) $siteId];
     $env = ['APP_ENV' => 'testing', 'DB_DATABASE' => DB::connection()->getDatabaseName()];
+    // Both workers see the same committed site and check, outside this test's transaction.
+    $setup = new Process(['php', base_path('addons/crawl/tests/Fixtures/collect.php'), 'setup'], base_path(), $env);
+    [$siteId, $checkId] = explode(' ', trim($setup->mustRun()->getOutput()));
+    $command = ['php', base_path('addons/crawl/tests/Fixtures/collect.php'), $siteId, $checkId];
     $first = new Process($command, base_path(), $env);
     $second = new Process($command, base_path(), $env);
     try {
@@ -2461,4 +2465,35 @@ it('bounds first-seen history to the exported historical crawl snapshot', functi
         ->and($rows[0][0])->toBe('https://export.example.test/later-broken')
         ->and($rows[0][4])->toBe('Not retained')
         ->and($rows[0][5])->toBe('No');
+});
+
+it('stores no collection once its site is marked for deletion and leaves no crawl row of the deleted site', function (): void {
+    Queue::fake();
+    $check = crawlCheck();
+    recordCrawl(crawlContext($check));
+    expect(DB::table('crawl_snapshots')->where('check_id', $check->id)->count())->toBe(1)
+        ->and(DB::table('crawl_findings')->count())->toBeGreaterThan(0)
+        ->and(DB::table('crawl_collections')->where('site_id', $check->site_id)->exists())->toBeTrue();
+    $this->travel(2)->seconds();
+    $live = crawlContext($check);
+    app(RequestSiteDeletion::class)($check->site);
+    // The purge passes the crawl tables (they have no foreign key to the check) while the crawl still runs.
+    while (app(CrawlPersistence::class)->purgeCheck($check->id, 1000) > 0);
+    expect(DB::table('crawl_snapshots')->where('check_id', $check->id)->exists())->toBeFalse()
+        ->and(DB::table('crawl_collections')->where('site_id', $check->site_id)->exists())->toBeFalse();
+
+    $outcome = app(CheckRegistry::class)->get($check->type)->execute($live);
+    expect(DB::table('crawl_collections')->where('site_id', $check->site_id)->exists())->toBeFalse();
+    $recorded = app(TransactionalResultRecorder::class)->record(new RecordableRun($check->id, $live->claimToken, $live->startedAt, $live->startedAt->addSecond(), $outcome));
+    app()->call(Queue::pushed(PurgeDeletedSite::class)->sole()->handle(...));
+
+    expect($recorded->accepted)->toBeFalse()
+        ->and(Site::query()->find($check->site_id))->toBeNull()
+        ->and(DB::table('crawl_collections')->where('site_id', $check->site_id)->exists())->toBeFalse()
+        ->and(DB::table('crawl_snapshots')->where('check_id', $check->id)->exists())->toBeFalse()
+        ->and(DB::table('crawl_findings')->count())->toBe(0);
+
+    // A worker still crawling after the deletion stores no cache for the gone check and site either.
+    app(CheckRegistry::class)->get(CheckKey::BrokenLinks)->execute($live);
+    expect(DB::table('crawl_collections')->where('site_id', $check->site_id)->exists())->toBeFalse();
 });

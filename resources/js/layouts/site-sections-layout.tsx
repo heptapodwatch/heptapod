@@ -8,6 +8,7 @@ import {
 import { useEffect, useState, type PropsWithChildren } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StatusBadge, StatusDot } from '@/components/monitoring';
+import { siteStateLabel } from '@/lib/status';
 import { PageContainer } from '@/components/page-container';
 import { SiteAvatar } from '@/components/site-avatar';
 import { siteCheckOrder } from '@/components/site-checks-list';
@@ -253,7 +254,12 @@ function SiteIdentity({
             </div>
             {(paused || maintenanceActive) && (
                 <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                    {paused && <StatusBadge state="paused" />}
+                    {paused && (
+                        <StatusBadge
+                            state="paused"
+                            label={siteStateLabel(site)}
+                        />
+                    )}
                     {maintenanceActive && <StatusBadge state="maintenance" />}
                 </div>
             )}

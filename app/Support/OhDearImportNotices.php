@@ -27,6 +27,7 @@ final class OhDearImportNotices
         'channel:plan_changed' => 'import.notice.channel_plan_changed',
         'site:unmatched' => 'import.notice.site_unmatched',
         'site:exists' => 'import.notice.site_exists',
+        'site:deleting' => 'import.notice.site_deleting',
         'plan:missing' => 'import.notice.plan_missing',
         'plan:changed' => 'import.notice.plan_changed',
         'monitor:unsupported' => 'import.notice.monitor_unsupported',

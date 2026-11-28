@@ -231,6 +231,8 @@
     "Alerts have waited more than ten minutes to be sent. Check that the Horizon worker service is running and read its log for errors.": "Alerts have waited more than ten minutes to be sent. Check that the Horizon worker service is running and read its log for errors.",
     "A notification channel has failed for 24 hours": "A notification channel has failed for 24 hours",
     "Every send to this channel has failed for a day. Check its settings and use Send test. Alerts that fail for 24 hours are given up.": "Every send to this channel has failed for a day. Check its settings and use Send test. Alerts that fail for 24 hours are given up.",
+    "A site deletion is not finishing": "A site deletion is not finishing",
+    "A deleted site stays paused until its history is removed. Check that the Horizon worker service is running and read its log for PurgeDeletedSite.": "A deleted site stays paused until its history is removed. Check that the Horizon worker service is running and read its log for PurgeDeletedSite.",
     "Disk space is low or cannot be measured": "Disk space is low or cannot be measured",
     "Check the path and its free space. Warning below 20%; critical below 10%.": "Check the path and its free space. Warning below 20%; critical below 10%.",
     "Critical": "Critical",

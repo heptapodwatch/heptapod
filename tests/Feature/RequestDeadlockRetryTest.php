@@ -7,6 +7,7 @@ use Heptapod\Actions\CreateApiToken;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Enums\IncidentCause;
+use Heptapod\Jobs\PurgeDeletedSite;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRunAttempt;
 use Heptapod\Models\Client;
@@ -117,29 +118,31 @@ function requestDeadlockSite(): array
         }];
 }
 
-it('deletes a site whose first attempt deadlocks exactly once on the retry, and rolls back a second deadlock completely', function (int $deadlocks): void {
+it('requests a site deletion whose first attempt deadlocks exactly once on the retry, and rolls back a second deadlock completely', function (int $deadlocks): void {
     Queue::fake();
     $setup = requestDeadlockSite();
-    // The cascade into the outage is the deletion's last write, after the resolution event, the suppression and the redaction.
-    requestDeadlockTrigger('incidents', 'BEFORE DELETE', 'OLD.site_id = '.$setup['site']->id, $deadlocks);
+    // Resolving the outage comes after marking and pausing the site and before the resolution event and the suppression.
+    requestDeadlockTrigger('incidents', 'BEFORE UPDATE', 'NEW.resolved_at IS NOT NULL AND OLD.site_id = '.$setup['site']->id, $deadlocks);
     $cleanup = requestDeadlockCommitted($setup['cleanup']);
     try {
         $response = $this->actingAs($setup['owner'])->delete('/sites/'.$setup['site']->id, ['name' => $setup['site']->displayName()]);
         if ($deadlocks === 1) {
             $response->assertRedirect(route('sites.index'));
             expect(requestDeadlockCount())->toBe(1)
-                ->and(Site::query()->find($setup['site']->id))->toBeNull()
-                ->and(Event::query()->where('type', 'incident.resolved')->where('incident_id', null)->where('client_id', $setup['site']->client_id)->count())->toBe(1)
+                ->and(Site::query()->findOrFail($setup['site']->id)->only(['paused_at', 'marked_for_deletion_at']))->each->not->toBeNull()
+                ->and(Event::query()->where('type', 'incident.resolved')->where('incident_id', $setup['incident']->id)->count())->toBe(1)
                 ->and(DB::table('activity_log')->where('event', 'incident.resolved')->where('subject_id', $setup['incident']->id)->count())->toBe(1)
                 ->and($setup['delivery']->refresh()->suppression_reason)->toBe('monitoring_stopped');
+            Queue::assertPushed(PurgeDeletedSite::class, 1);
         } else {
             $response->assertServerError();
             expect(requestDeadlockCount())->toBe(2)
-                ->and(Site::query()->find($setup['site']->id))->not->toBeNull()
+                ->and(Site::query()->findOrFail($setup['site']->id)->only(['paused_at', 'marked_for_deletion_at']))->each->toBeNull()
                 ->and(Incident::query()->whereKey($setup['incident']->id)->whereNull('resolved_at')->exists())->toBeTrue()
                 ->and(Event::query()->where('type', 'incident.resolved')->where('site_id', $setup['site']->id)->exists())->toBeFalse()
                 ->and(DB::table('activity_log')->where('event', 'incident.resolved')->where('subject_id', $setup['incident']->id)->exists())->toBeFalse()
                 ->and($setup['delivery']->refresh()->suppressed)->toBeFalse();
+            Queue::assertNotPushed(PurgeDeletedSite::class);
         }
     } finally {
         $cleanup();

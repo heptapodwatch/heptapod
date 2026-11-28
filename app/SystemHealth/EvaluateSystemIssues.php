@@ -58,6 +58,9 @@ final readonly class EvaluateSystemIssues
      */
     public const int EvaluationStaleAfterSeconds = 900;
 
+    /** A site deletion purges a site's history in minutes (PurgeDeletedSite); one still pending after an hour keeps failing. */
+    public const int SiteDeletionStuckAfterSeconds = 3600;
+
     public function __construct(private CheckDataMaintenanceRecord $maintenance, private MailTransportRecord $transport, private SystemIssueMailer $mailer, private SystemTransportProbe $probe, private SendNotificationDelivery $send, private FinishedCheckAge $finishedChecks, private DiskSpaceIssues $diskSpace, private CheckFreshnessIssues $freshness, private MonitorOutageDetector $monitorOutage) {}
 
     public function __invoke(CarbonImmutable $now): void
@@ -213,7 +216,7 @@ final readonly class EvaluateSystemIssues
                 }
             });
             Log::warning('System issue opened.', ['kind' => $kind->value, 'details' => $details]);
-        } elseif (in_array($kind, [SystemIssueKind::DiskSpaceLow, SystemIssueKind::MailLogOnly, SystemIssueKind::MonitorOutage], true) && $details !== null && $previousDetails !== $details) {
+        } elseif (in_array($kind, [SystemIssueKind::DiskSpaceLow, SystemIssueKind::MailLogOnly, SystemIssueKind::MonitorOutage, SystemIssueKind::SiteDeletionStuck], true) && $details !== null && $previousDetails !== $details) {
             $open->update(['details' => $details]);
             Log::warning('System issue updated.', ['kind' => $kind->value, 'issue_id' => $open->id, 'details' => $details]);
         } elseif ($details === null && $open instanceof SystemIssue) {
@@ -248,7 +251,21 @@ final readonly class EvaluateSystemIssues
             SystemIssueKind::MailTransportDead => $this->mailTransportDead($now, $open instanceof SystemIssue),
             SystemIssueKind::NotificationsStalled => $this->notificationsStalled($now),
             SystemIssueKind::MonitorOutage => $this->monitorOutage->evaluateSystemIssue($now, $open?->details),
+            SystemIssueKind::SiteDeletionStuck => $this->siteDeletionStuck($now),
         };
+    }
+
+    /** @return array<string, int|string|null>|null */
+    private function siteDeletionStuck(CarbonImmutable $now): ?array
+    {
+        // One aggregate, so the count and the oldest request come from the same snapshot.
+        $stuck = DB::table('sites')->where('marked_for_deletion_at', '<', $now->subSeconds(self::SiteDeletionStuckAfterSeconds)->format('Y-m-d H:i:s.uP'))
+            ->selectRaw('count(*) AS sites, min(marked_for_deletion_at) AS pending_since')->first();
+        if (! is_object($stuck) || ! is_int($stuck->sites) || ($stuck->pending_since !== null && ! is_string($stuck->pending_since))) {
+            throw new \UnexpectedValueException('The pending site deletions must count as an integer and a time.');
+        }
+
+        return $stuck->pending_since === null ? null : ['sites' => $stuck->sites, 'pending_since' => CarbonImmutable::parse($stuck->pending_since, 'UTC')->toIso8601String()];
     }
 
     /**

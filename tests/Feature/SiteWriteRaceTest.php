@@ -449,7 +449,8 @@ it('completes a site deletion and a membership change for its actor without a de
     $admin->assignRole('Admin');
     $token = $admin->createToken('admin', ['*'])->plainTextToken;
     DB::commit();
-    $delete = siteWriteRaceRequest('DELETE', '/api/monitors/'.$fixture['site']->id, token: $token, pauseAfter: 'pg_advisory_xact_lock(7341');
+    // The deletion itself (DeleteSite, the exclusive access lock) runs in the purge job, here in the request process.
+    $delete = siteWriteRaceRequest('DELETE', '/api/monitors/'.$fixture['site']->id, token: $token, pauseAfter: 'pg_advisory_xact_lock(7341', runJobs: true);
     $change = siteWriteRaceAction('site_write_race_queued_0', <<<'PHP'
         app(Heptapod\Actions\ChangeMemberAccess::class)(Heptapod\Models\User::findOrFail((int) getenv('RACE_OWNER')),
             Heptapod\Models\User::findOrFail((int) getenv('RACE_MEMBER')), ['role' => 'Member', 'client_ids' => [(int) getenv('RACE_CLIENT')]]);
@@ -483,7 +484,8 @@ it('completes a site deletion, an invitation acceptance and the inviter\'s profi
     Invitation::factory()->create(['email' => 'invited-'.$fixture['site']->id.'@example.test', 'token_hash' => hash('sha256', $invite), 'role' => 'Member',
         'inviter_id' => $inviter->id, 'client_scope' => ClientScope::Restricted, 'client_ids' => [$fixture['from']->id]]);
     DB::commit();
-    $delete = siteWriteRaceRequest('DELETE', '/api/monitors/'.$fixture['site']->id, token: $token, pauseAfter: 'pg_advisory_xact_lock(7341');
+    // The deletion itself (DeleteSite, the exclusive access lock) runs in the purge job, here in the request process.
+    $delete = siteWriteRaceRequest('DELETE', '/api/monitors/'.$fixture['site']->id, token: $token, pauseAfter: 'pg_advisory_xact_lock(7341', runJobs: true);
     $accept = siteWriteRaceAction('site_write_race_queued_0', <<<'PHP'
         app(Heptapod\Actions\AcceptInvitation::class)((string) getenv('RACE_INVITE'), ['name' => 'Invited', 'password' => 'invited-password-1', 'password_confirmation' => 'invited-password-1']);
         PHP, ['RACE_INVITE' => $invite]);

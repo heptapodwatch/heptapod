@@ -31,6 +31,7 @@ use Heptapod\Contracts\RunResult;
 use Heptapod\Events\LiveSignal;
 use Heptapod\Events\Notifications\NotificationEventTypes;
 use Heptapod\Jobs\DispatchNotifications;
+use Heptapod\Jobs\PurgeDeletedSite;
 use Heptapod\Jobs\RunCheck;
 use Heptapod\Jobs\SendNotification;
 use Heptapod\Models\Check;
@@ -638,6 +639,9 @@ it('removes the pending recheck with the deleted site', function (): void {
     $check = acceptDnsPendingRecheck();
     $this->delete('/sites/'.$check->site_id, ['name' => $check->site->displayName()])->assertRedirect('/sites');
 
+    // Paused at once, so its recheck no longer counts as pending; the purge job then deletes it.
+    $this->get('/sites')->assertInertia(fn (Assert $page): Assert => $page->where('tiles.pending', 0)->where('summary.paused', 1));
+    app()->call(Queue::pushed(PurgeDeletedSite::class)->sole()->handle(...));
     expect(DB::table('checks')->where('id', $check->id)->exists())->toBeFalse();
     $this->get('/sites')->assertInertia(fn (Assert $page): Assert => $page->where('tiles.pending', 0)->where('summary.total', 0));
 });

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Heptapod\Actions\DeleteSite;
 use Heptapod\Addons\Sitemap\SitemapMetrics;
 use Heptapod\Checks\Recording\RecordableRun;
 use Heptapod\Checks\Recording\ResultRecorder;
@@ -20,6 +21,7 @@ use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
 use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\NotificationDestination;
+use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\Testing\ClaimedRun;
@@ -203,4 +205,34 @@ it('masks the site URL query secret in a maintenance catch-up alert', function (
     expect($sent)->not->toBeNull()
         ->and($sent['site_url'])->toStartWith('https://fixtures.test/?')->toContain('[redacted]')
         ->and(json_encode($sent, JSON_THROW_ON_ERROR))->not->toContain('site-key-5678');
+});
+
+it('redacts every retained payload on site deletion exactly as one event at a time does', function (): void {
+    $site = Site::factory()->create(['url' => 'https://deploy:url-pass-1@shop.example/start?token=url-token-2',
+        'crawler_headers' => [['name' => 'Authorization', 'value' => 'Bearer crawler-secret-3']]]);
+    $uptime = Check::factory()->for($site)->create(['type' => CheckKey::Uptime,
+        'config_secrets' => ['http_client_headers' => [['name' => 'X-Api-Key', 'value' => 'uptime-secret-4']]]]);
+    $sitemap = Check::factory()->for($site)->create(['type' => CheckKey::Sitemap,
+        'config_secrets' => ['http_client_headers' => [['name' => 'X-Api-Key', 'value' => 'sitemap-secret-5']]]]);
+    // Every secret in every payload: a context built for the wrong check or for none misses some of them.
+    $leaks = 'url-pass-1 url-token-2 Bearer crawler-secret-3 uptime-secret-4 sitemap-secret-5 https://deploy:url-pass-1@shop.example/start?token=url-token-2';
+    $payload = ['summary' => 'checks.uptime.failed', 'run_id' => 7, 'message' => $leaks, 'summary_params' => ['url' => 'https://shop.example/a?token=url-token-2', 'note' => $leaks],
+        'items' => [['url' => 'https://deploy:url-pass-1@shop.example/b', 'header' => 'Bearer crawler-secret-3']]];
+    $ids = [];
+    foreach ([[$uptime, 'incident.opened'], [$sitemap, 'check.result_changed'], [null, 'incident.resolved'], [$uptime, 'incident.still_down'], [$sitemap, 'check.findings_changed']] as [$check, $type]) {
+        $ids[] = Event::factory()->create(['site_id' => $site->id, 'check_id' => $check?->id, 'type' => $type, 'payload' => $payload])->id;
+    }
+    // The expectation: each event redacted on its own, as before the context was shared.
+    $expected = [];
+    foreach (Event::query()->with('check')->whereKey($ids)->get() as $event) {
+        $event->redactPayload(Site::query()->findOrFail($site->id));
+        expect($event->payload)->not->toBe($payload)
+            ->and($event->payload['summary'])->toBe('checks.uptime.failed')
+            ->and(json_encode($event->payload, JSON_THROW_ON_ERROR))->not->toContain('url-pass-1')->not->toContain('crawler-secret-3');
+        $expected[$event->id] = $event->payload;
+    }
+
+    app(DeleteSite::class)($site);
+
+    expect(Event::query()->whereKey($ids)->pluck('payload', 'id')->all())->toEqual($expected);
 });

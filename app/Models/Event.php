@@ -57,9 +57,10 @@ final class Event extends Model
     private const array PayloadProtocolFacts = ['result', 'from_result', 'from_cause', 'to_cause', 'from_reason_key', 'to_reason_key', 'run_id', 'run_ended_at', 'summary',
         'failure_started_at', 'recovered_at', 'since', 'summary_params.presentation', 'summary_params.resolution_key'];
 
-    public function redactPayload(Site $site): void
+    /** $context, when given, must be RedactionContext::forSite($site, $this->check): a caller redacting many events builds it once per check. */
+    public function redactPayload(Site $site, ?RedactionContext $context = null): void
     {
-        $context = RedactionContext::forSite($site, $this->check);
+        $context ??= RedactionContext::forSite($site, $this->check);
         $display = Arr::except($this->payload, self::PayloadProtocolFacts);
         $display = SecretRedactor::redactStringValues($display, $context);
         /** @var array<string, mixed> $payload String-value redaction preserves payload keys. */

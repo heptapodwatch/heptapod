@@ -377,7 +377,7 @@ show.form = showForm
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:105
+* @see app/Http/Controllers/MaintenanceController.php:106
 * @route '/sites/{site}/maintenance'
 */
 export const maintenance = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -392,7 +392,7 @@ maintenance.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:105
+* @see app/Http/Controllers/MaintenanceController.php:106
 * @route '/sites/{site}/maintenance'
 */
 maintenance.url = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -425,7 +425,7 @@ maintenance.url = (args: { site: number | { id: number } } | [site: number | { i
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:105
+* @see app/Http/Controllers/MaintenanceController.php:106
 * @route '/sites/{site}/maintenance'
 */
 maintenance.get = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -435,7 +435,7 @@ maintenance.get = (args: { site: number | { id: number } } | [site: number | { i
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:105
+* @see app/Http/Controllers/MaintenanceController.php:106
 * @route '/sites/{site}/maintenance'
 */
 maintenance.head = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -445,7 +445,7 @@ maintenance.head = (args: { site: number | { id: number } } | [site: number | { 
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:105
+* @see app/Http/Controllers/MaintenanceController.php:106
 * @route '/sites/{site}/maintenance'
 */
 const maintenanceForm = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -455,7 +455,7 @@ const maintenanceForm = (args: { site: number | { id: number } } | [site: number
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:105
+* @see app/Http/Controllers/MaintenanceController.php:106
 * @route '/sites/{site}/maintenance'
 */
 maintenanceForm.get = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -465,7 +465,7 @@ maintenanceForm.get = (args: { site: number | { id: number } } | [site: number |
 
 /**
 * @see \Heptapod\Http\Controllers\MaintenanceController::maintenance
-* @see app/Http/Controllers/MaintenanceController.php:105
+* @see app/Http/Controllers/MaintenanceController.php:106
 * @route '/sites/{site}/maintenance'
 */
 maintenanceForm.head = (args: { site: number | { id: number } } | [site: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

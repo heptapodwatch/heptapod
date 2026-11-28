@@ -109,6 +109,7 @@
     "sites.attention_show_all_one": "Show {{formattedCount}}",
     "sites.attention_show_all_other": "Show all {{formattedCount}}",
     "Deleting removes this site, its checks, runs and incidents.": "Deleting removes this site, its checks, runs and incidents.",
+    "site.deleting": "Deleting…",
     "Notification history is kept.": "Notification history is kept.",
     "site_overview.paused": "Monitoring is paused",
     "site_overview.response_peaks": "Peaks over the last 24 hours",

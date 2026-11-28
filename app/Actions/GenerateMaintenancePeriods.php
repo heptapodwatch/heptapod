@@ -33,6 +33,12 @@ final readonly class GenerateMaintenancePeriods
                 throw new \InvalidArgumentException('Maintenance generation must cover at most 400 days.');
             }
             $site = $period->site_id === null ? null : Site::query()->findOrFail($period->site_id);
+            // A site whose deletion is pending gets no new windows; DeleteSite removes this recurrence with it. A deletion
+            // that starts after this read is accepted: the windows written here belong to the marked site, and the final
+            // DeleteSite deletes them with it.
+            if ($site?->marked_for_deletion_at !== null) {
+                return 0;
+            }
             $count = 0;
             foreach (($this->occurrences)($period, $from, $through) as [$start, $end]) {
                 if (($futureOnly && $start <= CarbonImmutable::now()) || MaintenancePeriod::query()->getQuery()->where('recurring_maintenance_period_id', $period->id)->where('starts_at', $start->format('Y-m-d H:i:s.uP'))->exists()) {

@@ -985,3 +985,19 @@ test('plan and CLI reject unknown and empty section choices instead of importing
         ->and(Artisan::output())->toContain('Use --only with a comma-separated list of sections')
         ->and(Site::query()->count())->toBe(0);
 })->with(['unknown' => [['nothing'], 'nothing'], 'empty' => [[], ''], 'bare option' => [[], null]]);
+
+test('a re-import skips a site whose deletion is pending, without writing to it or importing it again', function (): void {
+    $account = realOhDearAccount();
+    importOhDearThroughSettings($account);
+    $site = Site::query()->where('oh_dear_id', 502)->sole();
+    DB::table('sites')->where('id', $site->id)->update(['friendly_name' => 'Going away', 'paused_at' => now(), 'marked_for_deletion_at' => now()]);
+    $account['monitors'][1]['label'] = 'Renamed in Oh Dear';
+
+    ['plan' => $plan, 'results' => $rows] = importOhDearThroughSettings($account);
+
+    $row = collect($rows)->firstWhere('source_id', '502');
+    expect(collect($plan)->firstWhere('source_id', '502'))->toMatchArray(['operation' => 'skipped', 'notices' => ['import.notice.site_deleting']])
+        ->and($row)->toMatchArray(['operation' => 'skipped', 'notices' => ['import.notice.site_deleting']])
+        ->and($site->refresh()->friendly_name)->toBe('Going away')
+        ->and(Site::query()->where('url', $site->url)->count())->toBe(1);
+});

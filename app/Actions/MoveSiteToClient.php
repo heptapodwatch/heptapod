@@ -21,9 +21,13 @@ final readonly class MoveSiteToClient
 {
     public function __construct(private SitePolicy $policy, private ResolveInactiveCheckIncidents $resolve, private AuthorizeSiteWrite $authorize) {}
 
-    public function __invoke(User $user, Site $site, int $clientId): Site
+    /**
+     * With $leaveDeleting a site marked for deletion by the time its lock is held stays where it is and is returned
+     * unchanged (archiving a client moves its other sites); otherwise the move policy refuses it.
+     */
+    public function __invoke(User $user, Site $site, int $clientId, bool $leaveDeleting = false): Site
     {
-        return NotificationLocks::transaction(function () use ($user, $site, $clientId): Site {
+        return NotificationLocks::transaction(function () use ($user, $site, $clientId, $leaveDeleting): Site {
             // NotificationLocks level 0: a change of who may write what holds the access-structure lock exclusive, first.
             NotificationLocks::accessExclusive();
             // The actor's roles and access as they are under the lock, not as the request loaded them.
@@ -41,6 +45,9 @@ final readonly class MoveSiteToClient
             $locked = Site::query()->findOrFail($site->id);
             if ($locked->client_id !== $site->client_id) {
                 throw ValidationException::withMessages(['client_id' => __('sites.client_changed')]);
+            }
+            if ($leaveDeleting && $locked->marked_for_deletion_at !== null) {
+                return $locked;
             }
             Gate::forUser($user)->authorize('move', $locked);
             $target = $lockedClients->get($clientId);

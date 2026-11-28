@@ -19,7 +19,7 @@ final readonly class CheckPolicy
 
     public function snooze(User $user, Check $check): Response
     {
-        return $this->view($user, $check);
+        return $this->sites->unlessDeleting($user, $check->site()->getQuery()->firstOrFail()) ?? Response::allow();
     }
 
     public function update(User $user, Check $check): Response

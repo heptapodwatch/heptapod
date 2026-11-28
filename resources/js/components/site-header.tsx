@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/tooltip';
 import { ConfirmDialog, confirmVisit } from '@/components/confirm-dialog';
 import { useFormat } from '@/hooks/use-format';
-import { checkState, stateCountOrder } from '@/lib/status';
+import { checkState, siteStateLabel, stateCountOrder } from '@/lib/status';
 import { pause, resume } from '@/routes/sites';
 import { index as maintenanceIndex } from '@/routes/maintenance';
 
@@ -155,11 +155,12 @@ export function SiteOverviewHeader({
             return count ? [t(`site.checks.${state}`, { count })] : [];
         })
         .join(', ');
-    const title =
-        site.identity.state === 'paused'
-            ? t('site_overview.paused')
-            : attentionSummary ||
-              t(enabledChecks.length ? 'All checks OK' : 'No checks enabled');
+    const title = site.identity.deleting
+        ? t('site.deleting')
+        : site.identity.state === 'paused'
+          ? t('site_overview.paused')
+          : attentionSummary ||
+            t(enabledChecks.length ? 'All checks OK' : 'No checks enabled');
     const incidentStartedAt = enabledChecks
         .flatMap((check) =>
             check.open_incident_started_at
@@ -207,7 +208,8 @@ export function SiteOverviewHeader({
               )
             : null;
     const secondaryActionCount =
-        Number(Boolean(canManage || maintenance)) + Number(canManage);
+        Number(Boolean(canManage || maintenance)) +
+        Number(canManage && !site.identity.deleting);
     return (
         <PageHeader
             title={title}
@@ -217,7 +219,10 @@ export function SiteOverviewHeader({
                     <span className="text-xs font-medium text-muted-foreground">
                         {t('Overview')}
                     </span>
-                    <StatusBadge state={site.identity.state} />
+                    <StatusBadge
+                        state={site.identity.state}
+                        label={siteStateLabel(site)}
+                    />
                     {incidentStartedAt && (
                         <span className="text-xs text-foreground-faint">
                             {t('Since')}{' '}
@@ -293,7 +298,7 @@ export function SiteOverviewHeader({
                             ) : (
                                 maintenanceLink
                             ))}
-                        {canManage && (
+                        {canManage && !site.identity.deleting && (
                             <SitePauseAction site={site} resumeAt={resumeAt} />
                         )}
                     </>

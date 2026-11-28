@@ -41,6 +41,7 @@
     "import.sections_invalid": "Select valid import sections.",
     "import.cli_sections_invalid": "Use --only with a comma-separated list of sections: sites, maintenance, cron, channels.",
     "import.notice.site_unmatched": "No site matches this Oh Dear monitor.",
+    "import.notice.site_deleting": "The matching site is being deleted. Import it again once the deletion has finished.",
     "import.update_sections": "Import into existing site",
     "import.details.cron": "Cron definitions: :cron",
     "import.details.maintenance": "Maintenance periods: :one_off; recurring periods: :recurring",

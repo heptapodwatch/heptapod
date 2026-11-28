@@ -10,6 +10,7 @@ use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Models\Check;
 use Heptapod\Models\Event;
 use Heptapod\Models\Site;
+use Heptapod\Support\RedactionContext;
 use Illuminate\Support\Facades\DB;
 
 final readonly class DeleteSite
@@ -57,8 +58,11 @@ final readonly class DeleteSite
             }
             // Older addon events relied on presentation-time redaction. Scrub them before their secrets disappear.
             $events = Event::query()->with('check')->where('site_id', $lockedSite->id);
+            // One context per check (0: none): building it decrypts the site's and the check's secrets.
+            $contexts = [];
             foreach ($events->lazyById(100) as $event) {
-                $event->redactPayload($lockedSite);
+                $contexts[$event->check_id ?? 0] ??= RedactionContext::forSite($lockedSite, $event->check);
+                $event->redactPayload($lockedSite, $contexts[$event->check_id ?? 0]);
                 if ($event->isDirty('payload')) {
                     $event->save();
                 }

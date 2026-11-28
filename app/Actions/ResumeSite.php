@@ -24,7 +24,8 @@ final class ResumeSite
             $query = Site::query()->whereKey($site->id);
             NotificationLocks::forUpdate($query->getQuery());
             $locked = $query->firstOrFail();
-            if ($locked->paused_at === null || ($onlyIfDue && ($locked->resume_at === null || $locked->resume_at->isFuture()))) {
+            // A site whose deletion is pending stays paused until PurgeDeletedSite has deleted it.
+            if ($locked->paused_at === null || $locked->marked_for_deletion_at !== null || ($onlyIfDue && ($locked->resume_at === null || $locked->resume_at->isFuture()))) {
                 return;
             }
             $locked->update(['paused_at' => null, 'resume_at' => null]);

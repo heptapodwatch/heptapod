@@ -24,22 +24,31 @@ final class SitePolicy
 
     public function update(User $user, Site $site): Response
     {
-        return $this->writable($user, $site->client_id);
+        return $this->unlessDeleting($user, $site) ?? $this->manages($user, $site->client_id);
     }
 
     public function move(User $user, Site $site): Response
+    {
+        return $this->unlessDeleting($user, $site) ?? ($user->hasAnyRole(['Owner', 'Admin']) ? Response::allow() : Response::deny());
+    }
+
+    public function delete(User $user, Site $site): Response
+    {
+        return $this->unlessDeleting($user, $site) ?? $this->manages($user, $site->client_id);
+    }
+
+    /**
+     * A site whose deletion is pending (RequestSiteDeletion) takes no change and starts no work until PurgeDeletedSite
+     * deletes it; it stays readable. Visibility comes first, so a site out of the actor's reach stays a 404.
+     */
+    public function unlessDeleting(User $user, Site $site): ?Response
     {
         $access = $this->accessible($user, $site->client_id);
         if ($access->denied()) {
             return $access;
         }
 
-        return $user->hasAnyRole(['Owner', 'Admin']) ? Response::allow() : Response::deny();
-    }
-
-    public function delete(User $user, Site $site): Response
-    {
-        return $this->writable($user, $site->client_id);
+        return $site->marked_for_deletion_at !== null ? Response::deny() : null;
     }
 
     public function create(User $user, int $clientId): Response
@@ -50,10 +59,13 @@ final class SitePolicy
     private function writable(User $user, int $clientId): Response
     {
         $access = $this->accessible($user, $clientId);
-        if ($access->denied()) {
-            return $access;
-        }
 
+        return $access->denied() ? $access : $this->manages($user, $clientId);
+    }
+
+    /** Whether a user who can see the client may change its sites: a manager, and the client not archived. */
+    private function manages(User $user, int $clientId): Response
+    {
         if (! $user->hasAnyRole(['Owner', 'Admin'])) {
             return Response::deny();
         }

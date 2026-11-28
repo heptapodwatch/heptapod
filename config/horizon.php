@@ -248,7 +248,7 @@ return [
             'tries' => 1,
             'timeout' => ExecutionBudget::HorizonTimeout,
         ],
-        // Backups and imports run here, never on delivery, so a long one cannot hold up alerts; icon jobs keep their own 60 s timeout.
+        // Backups, imports and site purges run here, never on delivery, so a long one cannot hold up alerts; icon jobs keep their own 60 s timeout.
         'icons-reports' => ['connection' => 'redis', 'queue' => ['icons', 'reports'], 'balance' => false, 'maxProcesses' => 1, 'memory' => 256, 'tries' => 1, 'timeout' => ExecutionBudget::HorizonTimeout, 'nice' => 10],
         'broadcasts' => [
             'connection' => 'redis-broadcasts',

@@ -59,7 +59,8 @@ final class MaintenanceController extends Controller
         $siteName = $result['site_name'];
         $canManage = $user->hasAnyRole(['Owner', 'Admin']);
         $siteOptions = Site::query();
-        $siteOptions->getQuery()->orderBy('id');
+        // A site whose deletion is pending takes no new maintenance (SitePolicy::unlessDeleting).
+        $siteOptions->getQuery()->whereNull('marked_for_deletion_at')->orderBy('id');
         $sites = $canManage ? $siteOptions->with('client:id,name,is_internal,timezone')->get(['id', 'url', 'friendly_name', 'client_id', 'icon_hash', 'icon_backing'])
             ->map(static fn (Site $site): MaintenanceTargetOptionData => new MaintenanceTargetOptionData($site->id, $site->displayName(), is_internal: $site->client !== null && $site->client->is_internal, client_name: $site->client?->displayName(), host: is_string(parse_url($site->url, PHP_URL_HOST)) ? parse_url($site->url, PHP_URL_HOST) : $site->url, icon_url: $site->iconUrl(), icon_backing: $site->icon_backing, timezone: $site->client?->resolvedTimezone()))->all() : [];
         $clientOptions = ($canManage ? Client::query() : $policy->visibleClients($user, includeArchived: true))->with(Client::AvatarRelations);

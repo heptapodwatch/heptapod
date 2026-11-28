@@ -89,6 +89,12 @@ final class DomainPersistence implements RunPersistence
         return ['run_id' => $row->run_id, 'snapshot' => $snapshot];
     }
 
+    public function purgeCheck(int $checkId, int $limit): int
+    {
+        return DB::delete('DELETE FROM domain_snapshots WHERE ctid = ANY(ARRAY(SELECT ctid FROM domain_snapshots
+            WHERE check_id = ? AND run_ended_at IS NOT NULL ORDER BY run_ended_at, run_id LIMIT ?))', [$checkId, $limit]);
+    }
+
     public function prunedTables(): array
     {
         return ['domain_snapshots'];

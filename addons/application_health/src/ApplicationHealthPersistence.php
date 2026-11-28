@@ -226,6 +226,23 @@ final readonly class ApplicationHealthPersistence implements RunPersistence, Sec
         DB::table('application_health_snapshots')->where('run_id', $runId)->where('claim_token', $claimToken)->whereNull('run_ended_at')->delete();
     }
 
+    public function purgeCheck(int $checkId, int $limit): int
+    {
+        // Accepted snapshots through their partial check index.
+        $statements = [
+            'DELETE FROM application_health_snapshots WHERE ctid = ANY(ARRAY(SELECT ctid FROM application_health_snapshots
+                WHERE check_id = ? AND run_ended_at IS NOT NULL ORDER BY run_ended_at DESC, run_id DESC LIMIT ?))',
+        ];
+        foreach ($statements as $statement) {
+            $deleted = DB::delete($statement, [$checkId, $limit]);
+            if ($deleted > 0) {
+                return $deleted;
+            }
+        }
+
+        return 0;
+    }
+
     public function prunedTables(): array
     {
         return ['application_health_snapshots'];
