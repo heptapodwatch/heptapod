@@ -21,7 +21,7 @@ The [agent README](https://github.com/heptapodwatch/heptapod/blob/main/agent/REA
 
 Two switches must both be on.
 
-1. The instance Owner sets `HEPTAPOD_SERVERS_ENABLED=true` in `.env.prod` and recreates the app and scheduler containers. The default is `false`, a hard off.
+1. The instance Owner sets `HEPTAPOD_SERVERS_ENABLED=true` in `.env.prod` and recreates the containers that read it: `docker compose --env-file .env.prod up -d --force-recreate app horizon scheduler`. The default is `false`, a hard off.
 2. An Owner opens **Settings → General** and checks **Servers (experimental)** under **Experimental**, then saves.
 
 Result: Owners and Admins see **Servers** in the sidebar. Members never see servers, server alerts or the server card on a site.
@@ -126,7 +126,7 @@ curl -X POST https://heptapod.example.com/api/servers/3/unsnooze \
 
 ## Turn it off
 
-Clear **Servers (experimental)** in **Settings → General**, or set `HEPTAPOD_SERVERS_ENABLED=false`.
+Clear **Servers (experimental)** in **Settings → General**, or set `HEPTAPOD_SERVERS_ENABLED=false` in `.env.prod` and recreate the containers: `docker compose --env-file .env.prod up -d --force-recreate app horizon scheduler`.
 
 - **Servers**, the server pages, the server card on sites and the **Servers** notification category disappear.
 - The server endpoints of the API and the agent endpoint return 404. Agents retry every 15 minutes.

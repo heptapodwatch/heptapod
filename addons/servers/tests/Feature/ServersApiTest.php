@@ -266,14 +266,22 @@ it('answers every server operation while switched off exactly like an unknown AP
     };
 
     foreach ([$token, null] as $bearer) {
+        // OPTIONS and a method no server route takes too: switched on, the router would answer them with 200/405 and Allow.
         $operations = [['GET', '/api/servers'], ['GET', "/api/servers/{$web->id}"], ['GET', "/api/servers/{$web->id}/issues"],
-            ['POST', "/api/servers/{$web->id}/snooze"], ['POST', "/api/servers/{$web->id}/unsnooze"]];
+            ['POST', "/api/servers/{$web->id}/snooze"], ['POST', "/api/servers/{$web->id}/unsnooze"], ['OPTIONS', '/api/servers'],
+            ['PUT', "/api/servers/{$web->id}"], ['DELETE', "/api/servers/{$web->id}/snooze"]];
         foreach ($operations as [$method, $uri]) {
             expect($seen($method, $uri, $bearer))->toBe($seen($method, '/api/no-such-route', $bearer))
                 ->and($seen($method, $uri, $bearer)[0])->toBe(404);
         }
     }
     expect($web->refresh()->snoozed_until)->toBeNull();
+
+    // Switched on, the same requests reach the routes: the router's method handling, then authentication.
+    apiSwitch(true);
+    config(['heptapod.servers.enabled_by_server' => true]);
+    expect(serversApi('PUT', "/api/servers/{$web->id}", null)->status())->toBe(405)
+        ->and(serversApi('GET', '/api/servers', null)->status())->toBe(401);
 })->with(['environment', 'Owner toggle']);
 
 it('never grants the servers abilities to a token limited to one client, and offers them only without a limit', function (): void {

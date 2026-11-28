@@ -44,6 +44,9 @@ final class ServersServiceProvider extends ServiceProvider
         // Switched off, a guest gets the same 404 as an Owner: the switch runs before authentication's login redirect.
         $kernel->addToMiddlewarePriorityBefore(AuthenticatesRequests::class, EnsureServersEnabled::class);
         $kernel->prependMiddleware(AgentResponses::class);
+        // Switched off, api/servers answers every method like an unknown API path: gated before routing, after the other
+        // global middleware (CORS, the API entry throttle), exactly where the router raises its own 404.
+        $kernel->pushMiddleware(EnsureServersEnabled::class);
 
         $this->callAfterResolving(Schedule::class, static function (Schedule $schedule): void {
             $schedule->call(new PruneServerSamples)->name('servers:prune-samples')->hourly()->withoutOverlapping(120)
