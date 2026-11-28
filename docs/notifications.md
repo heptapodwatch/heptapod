@@ -51,6 +51,7 @@ To connect a chat service, see [channel setup](./channels.md). To receive webhoo
 | **Recovery**    | An outage is over or a check is fine again.                                        | No             |
 | **Changes**     | New broken links, DNS or certificate changes, lower scores, faster response times. | Yes            |
 | **System**      | Heptapod itself needs attention: backups, mail, the scheduler.                     | No             |
+| **Servers**     | A [server](./servers.md#alerts) needs attention: disk, memory, load or no report.  | Yes            |
 
 ## Defaults
 

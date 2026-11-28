@@ -25,6 +25,9 @@ use Heptapod\Actions\CreateApiToken;
  */
 final class DocumentApi implements DocumentTransformer
 {
+    /** Starts the bearer description's line on the servers abilities, which the served document drops while servers are off. */
+    public const string ServersLinePrefix = 'Servers (experimental): ';
+
     public function handle(OpenApi $document, OpenApiContext $context): void
     {
         $document->servers = [new Server('/api')];
@@ -82,6 +85,7 @@ final class DocumentApi implements DocumentTransformer
 
         return 'Personal access token from **Settings → API tokens**, sent as `Authorization: Bearer <token>`. Abilities are independent: write does not imply read. '
             .'New tokens name their abilities: `*` is no longer issued. Existing `*` tokens still match every ability, limited by the current role and client access. '.$this->quoted(CreateApiToken::AdminAbilities).' are for Owners and Admins only.'
+            ."\n".self::ServersLinePrefix.$this->quoted(CreateApiToken::ServerAbilities).' belong to the experimental servers addon: Owners and Admins only, never on a token limited to a client, and only while servers are switched on.'
             ."\n\nFrozen presets of the settings endpoint:\n- `read`: ".$this->quoted(CreateApiToken::ReadPreset)."\n- `write` and `manage`: ".$this->quoted(CreateApiToken::HistoricalAbilities)
             ."\n- `agent-read`: ".$this->quoted(CreateApiToken::AgentReadPreset)
             ."\n\nStarting points of the token form (they fill the checklist; the checked abilities are the grant):\n- Read everything: every `:read` ability\n- Deploy automation (Owners and Admins): ".$this->quoted(CreateApiToken::DeployAutomation)

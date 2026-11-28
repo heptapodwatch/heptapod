@@ -6,11 +6,11 @@ namespace Heptapod\Http\Controllers\Api;
 
 use Carbon\CarbonImmutable;
 use Dedoc\Scramble\Attributes\Group;
+use Heptapod\Contracts\Http\PaginatedCollection;
+use Heptapod\Contracts\Http\PaginationRequest;
 use Heptapod\Contracts\RunResult;
 use Heptapod\Http\Controllers\Controller;
-use Heptapod\Http\Requests\Api\PaginationRequest;
 use Heptapod\Http\Resources\OhDear\CheckRunResource;
-use Heptapod\Http\Resources\OhDear\PaginatedCollection;
 use Heptapod\Models\Site;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
@@ -36,7 +36,7 @@ final class CheckRunController extends Controller
             $runs->getQuery()->whereIn('result', $data['filter']['result'] === 'failed' ? [RunResult::Failed, RunResult::Errored] : [$data['filter']['result']]);
         }
         $runs->getQuery()->orderByDesc('ended_at')->orderByDesc('id');
-        $paginator = $runs->paginate($request->pageSize(), ['*'], $request->pageParameter(), $request->pageNumber())->appends($request->except($request->pageParameter() === 'page' ? 'page' : 'page.number'));
+        $paginator = $request->paginate($runs);
 
         return new PaginatedCollection($paginator, CheckRunResource::class)->additional(['links' => ['documentation_url' => url('/docs/api')]]);
     }

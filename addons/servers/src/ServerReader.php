@@ -11,6 +11,7 @@ use Heptapod\Addons\Servers\Data\ServerThresholdsData;
 use Heptapod\Addons\Servers\Data\ServerValuesData;
 use Heptapod\Contracts\ListPaging;
 use Heptapod\Contracts\PaginationData;
+use Heptapod\Contracts\ServerSearchData;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -33,6 +34,11 @@ final readonly class ServerReader
         'last_report' => 'last_report_at',
     ];
 
+    /** The server's state from its own row: "No report" once the newest report is older than its "No report after" (stateBindings). */
+    private const string StateSql = "CASE WHEN servers.last_report_at IS NULL THEN 'awaiting'
+        WHEN servers.last_report_at < ?::timestamptz - make_interval(mins => coalesce((servers.settings->>'no_report_minutes')::int, ?)) THEN 'no_report'
+        ELSE 'reporting' END";
+
     /** The list filter for servers with an open issue ("Needs attention"). */
     public const string NeedsAttention = 'attention';
 
@@ -46,18 +52,7 @@ final readonly class ServerReader
      */
     public function page(CarbonImmutable $now, array $filters, string $sort): array
     {
-        $query = DB::query()->fromSub($this->query($now), 'servers');
-        $search = $filters['search'] ?? null;
-        if ($search !== null && $search !== '') {
-            $pattern = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search).'%';
-            $query->where(static fn (Builder $where): Builder => $where->where('name', 'ilike', $pattern)->orWhere('hostname', 'ilike', $pattern));
-        }
-        $state = $filters['state'] ?? null;
-        if ($state === self::NeedsAttention) {
-            $query->where('needs_attention', true);
-        } elseif ($state !== null) {
-            $query->where('state', $state);
-        }
+        $query = $this->filtered($now, $filters);
         $descending = str_starts_with($sort, '-');
         // A leading minus on a numeric expression puts the highest first in the ascending order.
         $query->orderByRaw(self::SortKeys[ltrim($sort, '-')].($descending ? ' DESC' : ' ASC').' NULLS LAST')->orderByRaw('lower(name)')->orderBy('id');
@@ -67,10 +62,101 @@ final readonly class ServerReader
             $page = $this->paging->paginate($query, 'servers', $page->lastPage());
         }
 
-        /** @var list<object{id: int}> $items */
-        $items = array_values($page->items());
+        return ['servers' => $this->rows($page->items()), 'pagination' => PaginationData::fromPaginator($page)];
+    }
 
-        return ['servers' => array_map($this->row(...), $items), 'pagination' => PaginationData::fromPaginator($page)];
+    /**
+     * Every server with its newest sample, filtered: the search matches the name, the host name or an IP address. The
+     * list, the API and the command palette read through it; the caller orders and bounds it.
+     *
+     * @param  array{search?: string|null, state?: string|null}  $filters  state: a ServerState, or `attention` for an open issue
+     */
+    public function filtered(CarbonImmutable $now, array $filters): Builder
+    {
+        $query = DB::query()->fromSub($this->query($now), 'servers');
+        $search = $filters['search'] ?? null;
+        if ($search !== null && $search !== '') {
+            $this->search($query, $search);
+        }
+        $state = $filters['state'] ?? null;
+        if ($state === self::NeedsAttention) {
+            $query->where('needs_attention', true);
+        } elseif ($state !== null) {
+            $query->where('state', $state);
+        }
+
+        return $query;
+    }
+
+    /**
+     * The servers the command palette shows for a search, what needs attention first: one query over the servers table
+     * and the open issues (server_issues_one_open), limited before the open issues of each shown server are read; no
+     * samples.
+     *
+     * @return list<ServerSearchData>
+     */
+    public function matching(CarbonImmutable $now, string $search, int $limit): array
+    {
+        $open = DB::table('server_issues')->whereNull('resolved_at')->distinct()->select('server_id');
+        $matches = DB::table('servers')->leftJoinSub($open, 'open', 'open.server_id', '=', 'servers.id')
+            ->select(['servers.id', 'servers.name', 'servers.hostname', 'servers.ips', 'servers.snoozed_until'])
+            ->selectRaw('open.server_id IS NOT NULL AS needs_attention')->selectRaw(self::StateSql.' AS state', $this->stateBindings($now));
+        $this->search($matches, $search);
+        $order = static fn (Builder $query): Builder => $query->orderByRaw(self::SortKeys['status'])->orderByRaw('lower(name)')->orderBy('id');
+        $shown = $order(DB::query()->fromSub($matches, 'matches'))->limit($limit);
+        $rows = $order(DB::query()->fromSub($shown, 'shown')->select('shown.*')
+            ->selectRaw("(SELECT coalesce(jsonb_agg(jsonb_build_object('kind', i.kind) ORDER BY array_position(?::text[], i.kind::text), i.scope), '[]')
+                FROM server_issues i WHERE i.server_id = shown.id AND i.resolved_at IS NULL) AS issues", [$this->kindOrder()]))->get();
+
+        return array_values($rows->map($this->searchRow(...))->all());
+    }
+
+    private function searchRow(object $row): ServerSearchData
+    {
+        /** @var object{id: int, name: string, hostname: string|null, ips: string|null, snoozed_until: string|null, state: string, issues: string} $row */
+        /** @var list<string> $ips */
+        $ips = $row->ips === null ? [] : json_decode($row->ips, true, flags: JSON_THROW_ON_ERROR);
+        /** @var list<array{kind: string}> $issues */
+        $issues = json_decode($row->issues, true, flags: JSON_THROW_ON_ERROR);
+
+        return new ServerSearchData($row->id, $row->name, $row->hostname, $ips, $row->state, $issues,
+            $row->snoozed_until === null ? null : CarbonImmutable::parse($row->snoozed_until)->toIso8601String());
+    }
+
+    /** Name, host name or an IP address contains $search, case-insensitive; on a query whose servers are `servers`. */
+    private function search(Builder $query, string $search): void
+    {
+        $pattern = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search).'%';
+        $query->where(static fn (Builder $where): Builder => $where->where('servers.name', 'ilike', $pattern)->orWhere('servers.hostname', 'ilike', $pattern)
+            ->orWhereRaw('servers.ips::text ILIKE ?', [$pattern]));
+    }
+
+    /**
+     * The bindings of StateSql: now, and the default "No report after".
+     *
+     * @return list<string|int>
+     */
+    private function stateBindings(CarbonImmutable $now): array
+    {
+        return [$now->utc()->format('Y-m-d H:i:s.uP'), config()->integer('servers.thresholds.no_report_minutes')];
+    }
+
+    /** ServerIssueKind order as a Postgres array, for array_position. */
+    private function kindOrder(): string
+    {
+        return '{'.implode(',', array_column(ServerIssueKind::cases(), 'value')).'}';
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $items  rows of filtered()
+     * @return list<ServerRowData>
+     */
+    public function rows(array $items): array
+    {
+        /** @var list<object{id: int}> $items */
+        $items = array_values($items);
+
+        return array_map($this->row(...), $items);
     }
 
     /** The one server, with its newest sample. */
@@ -85,6 +171,13 @@ final readonly class ServerReader
         $row = $this->query($now)->whereRaw('servers.id = (SELECT server_id FROM server_sites WHERE site_id = ?)', [$siteId])->first();
 
         return $row === null ? null : $this->row($row);
+    }
+
+    /** The server's issues, open and resolved, newest opening first, through the server_issues_history index; the caller pages it. */
+    public function issues(int $serverId): Builder
+    {
+        return DB::table('server_issues')->where('server_id', $serverId)->orderByDesc('opened_at')->orderByDesc('id')
+            ->select(['id', 'kind', 'scope', 'opened_at', 'resolved_at', 'opened_values', 'resolved_values']);
     }
 
     /**
@@ -116,10 +209,8 @@ final readonly class ServerReader
             ->selectRaw('EXISTS (SELECT 1 FROM server_issues WHERE server_id = servers.id AND resolved_at IS NULL) AS needs_attention')
             ->selectRaw("(SELECT coalesce(jsonb_agg(jsonb_build_object('id', i.id, 'kind', i.kind, 'scope', i.scope, 'opened_at', i.opened_at, 'values', i.opened_values)
                 ORDER BY array_position(?::text[], i.kind::text), i.scope), '[]') FROM server_issues i WHERE i.server_id = servers.id AND i.resolved_at IS NULL) AS issues",
-                ['{'.implode(',', array_column(ServerIssueKind::cases(), 'value')).'}'])
-            ->selectRaw("CASE WHEN servers.last_report_at IS NULL THEN 'awaiting'
-                WHEN servers.last_report_at < ?::timestamptz - make_interval(mins => coalesce((servers.settings->>'no_report_minutes')::int, ?)) THEN 'no_report'
-                ELSE 'reporting' END AS state", [$now->utc()->format('Y-m-d H:i:s.uP'), config()->integer('servers.thresholds.no_report_minutes')])
+                [$this->kindOrder()])
+            ->selectRaw(self::StateSql.' AS state', $this->stateBindings($now))
             ->selectRaw("(SELECT max(100 - 100 * (f->>'free_bytes')::float8 / nullif((f->>'total_bytes')::float8, 0))
                 FROM jsonb_array_elements(latest.metrics->'filesystems') f
                 WHERE NOT jsonb_exists(coalesce(servers.settings->'ignored_mounts', '[]'::jsonb), f->>'mount')) AS disk_used")

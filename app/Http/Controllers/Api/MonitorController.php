@@ -13,10 +13,10 @@ use Heptapod\Actions\UpdateSite;
 use Heptapod\Actions\UpdateSiteSettings;
 use Heptapod\Checks\NoResultFreshness;
 use Heptapod\Concerns\ResolvesApiPrincipal;
+use Heptapod\Contracts\Http\PaginatedCollection;
+use Heptapod\Contracts\Http\PaginationRequest;
 use Heptapod\Http\Controllers\Controller;
-use Heptapod\Http\Requests\Api\PaginationRequest;
 use Heptapod\Http\Resources\OhDear\MonitorResource;
-use Heptapod\Http\Resources\OhDear\PaginatedCollection;
 use Heptapod\Models\Client;
 use Heptapod\Models\Site;
 use Heptapod\Models\SiteRepository;
@@ -50,12 +50,13 @@ final class MonitorController extends Controller
             $query->getQuery()->whereIn('sites.id', $linked);
         }
         $query->getQuery()->orderBy('id');
-        $paginator = $query->paginate($request->pageSize(), ['*'], $request->pageParameter(), $request->pageNumber())->appends($request->except($request->pageParameter() === 'page' ? 'page' : 'page.number'));
+        $paginator = $request->paginate($query);
 
         $checks = new Collection($paginator->getCollection()->flatMap(static fn (Site $site) => $site->checks)->all());
         $times = MonitorResource::responseTimes($paginator->getCollection());
         $freshness = $noResultFreshness->snapshot($checks, CarbonImmutable::now('UTC'));
-        $paginator->setCollection($paginator->getCollection()->map(fn (Site $site): MonitorResource => new MonitorResource($site, $times, $freshness)));
+        $servers = MonitorResource::servers($request, $paginator->getCollection());
+        $paginator->setCollection($paginator->getCollection()->map(fn (Site $site): MonitorResource => new MonitorResource($site, $times, $freshness, $servers)));
 
         return new PaginatedCollection($paginator, MonitorResource::class)->response($request);
     }

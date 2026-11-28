@@ -24,8 +24,12 @@ vi.mock('@inertiajs/react', async (importOriginal) => ({
             data,
             errors: {},
             processing: false,
-            setData: (key: keyof T, value: unknown) =>
-                setFormData((current) => ({ ...current, [key]: value })),
+            setData: (key: keyof T | T, value?: unknown) =>
+                setFormData((current) =>
+                    typeof key === 'object'
+                        ? key
+                        : { ...current, [key]: value },
+                ),
             transform: (callback: typeof transform) => {
                 transform = callback;
             },
@@ -75,6 +79,15 @@ const page: Heptapod.Data.Ui.ApiTokenSettingsData = {
         },
     ],
     abilities: [
+        'identity:read',
+        'monitors:read',
+        'checks:read',
+        'checks:run',
+        'checks:write',
+        'maintenance:read',
+        'maintenance:write',
+    ],
+    client_abilities: [
         'identity:read',
         'monitors:read',
         'checks:read',
@@ -221,6 +234,72 @@ it('issues exactly the edited checklist with the chosen client access and a 30-d
             expires_in_days: 30,
         },
     ]);
+});
+
+it('offers no server abilities for a token limited to one client and drops the checked ones', () => {
+    const servers: Heptapod.Data.Ui.ApiTokenSettingsData = {
+        ...page,
+        abilities: [...page.abilities, 'servers:read', 'servers:snooze'],
+        starting_points: {
+            ...page.starting_points,
+            'full-access': [
+                ...page.starting_points['full-access'],
+                'servers:read',
+                'servers:snooze',
+            ],
+        },
+        clients: [
+            {
+                id: 7,
+                name: 'Acme',
+                short_name: null,
+                accent_color: null,
+                avatar: {
+                    url: null,
+                    backing: 'none',
+                    source: 'initials',
+                    site_id: null,
+                    site_host: null,
+                },
+                is_internal: false,
+            },
+        ],
+    };
+    render(
+        <TooltipProvider>
+            <ApiTokens tokensPage={servers} />
+        </TooltipProvider>,
+    );
+    fireEvent.click(
+        screen.getAllByRole('button', { name: /Create token/ })[0]!,
+    );
+    fireEvent.click(screen.getByLabelText('Full access'));
+    const serverArea = () =>
+        screen.queryByRole('group', { name: 'api_tokens.area.servers' });
+    expect(
+        within(serverArea()!)
+            .getAllByRole('checkbox')
+            .map((box) => box.getAttribute('aria-checked')),
+    ).toEqual(['true', 'true']);
+
+    fireEvent.click(screen.getByLabelText('One client'));
+    expect(serverArea()).toBeNull();
+    // The starting point still reads as chosen: Full access for a client-limited token.
+    expect(
+        screen.getByLabelText('Full access').getAttribute('aria-checked'),
+    ).toBe('true');
+
+    // Back to all clients: the row returns, the dropped abilities stay unchecked.
+    fireEvent.click(
+        screen.getByLabelText(
+            'All clients you can access, including future clients',
+        ),
+    );
+    expect(
+        within(serverArea()!)
+            .getAllByRole('checkbox')
+            .map((box) => box.getAttribute('aria-checked')),
+    ).toEqual(['false', 'false']);
 });
 
 it('lists stored grants as area pills that expand inline, with Full access and the legacy wildcard labelled', () => {

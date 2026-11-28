@@ -30,7 +30,7 @@ function siteWriteRaceFixture(): array
     $site = Site::factory()->create(['client_id' => $from->id]);
 
     return ['owner' => $owner, 'site' => $site, 'from' => $from, 'to' => $to,
-        'token' => app(CreateApiToken::class)($owner, 'scoped-to-source', CreateApiToken::Abilities, $from->id)];
+        'token' => app(CreateApiToken::class)($owner, 'scoped-to-source', app(CreateApiToken::class)->allowedAbilities($owner), $from->id)];
 }
 
 /**

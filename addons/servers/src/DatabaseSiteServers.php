@@ -24,6 +24,22 @@ final readonly class DatabaseSiteServers implements SiteServers
         return $this->access->enabled() ? $this->reader->ofSite(CarbonImmutable::now(), $siteId) : null;
     }
 
+    public function serversOfSites(array $siteIds): array
+    {
+        if (! $this->access->enabled() || $siteIds === []) {
+            return [];
+        }
+        /** @var list<object{site_id: int, id: int, name: string}> $rows */
+        $rows = DB::select('SELECT server_sites.site_id, servers.id, servers.name FROM server_sites JOIN servers ON servers.id = server_sites.server_id
+            WHERE server_sites.site_id = ANY(?::bigint[])', ['{'.implode(',', $siteIds).'}']);
+        $servers = [];
+        foreach ($rows as $row) {
+            $servers[$row->site_id] = ['id' => $row->id, 'name' => $row->name];
+        }
+
+        return $servers;
+    }
+
     public function choices(int $siteId): ?SiteServerChoicesData
     {
         if (! $this->access->enabled()) {

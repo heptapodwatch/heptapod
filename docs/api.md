@@ -211,6 +211,10 @@ These endpoints list and manage clients. There is no client delete; archive a cl
 - `PUT /api/monitors/{id}` with `client_id` moves the site, like **Client** in the site settings. Open incidents end without a recovery alert. A site of an archived client can only be moved, with `client_id` alone.
 - A missing, hidden or archived client, alerts still being sent, or a site changed meanwhile return 422 on `client_id`. Alert timing fields are not part of the API (422). While sites, clients or access are being changed for more than 5 seconds, a move returns 409 `busy_try_again`. A failed archive move returns 422 on `move_to_client_id`; sites moved before it stay moved.
 
+## Servers
+
+The experimental server endpoints use `servers:read` and `servers:snooze`; see [servers](./servers.md#api).
+
 ## Scheduled tasks
 
 Scheduled tasks are created, changed and deleted only through the API.

@@ -190,5 +190,8 @@
     "servers.issue_notice.since": "Seit",
     "servers.issue_notice.snoozed": "Benachrichtigungen sind stummgeschaltet bis",
     "servers.snooze.title": "Server stummschalten",
-    "servers.snooze.description": "Der Server meldet weiter und seine Probleme werden weiter erkannt; bis zum gewählten Zeitpunkt sendet er keine Benachrichtigungen."
+    "servers.snooze.description": "Der Server meldet weiter und seine Probleme werden weiter erkannt; bis zum gewählten Zeitpunkt sendet er keine Benachrichtigungen.",
+    "api_tokens.area.servers": "Server",
+    "api_tokens.ability.servers_read": "Server und ihre Probleme lesen",
+    "api_tokens.ability.servers_snooze": "Server-Benachrichtigungen stummschalten"
 }

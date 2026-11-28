@@ -88,7 +88,7 @@ it('validates search input and returns no results for an empty query', function 
     $this->get('/search')->assertRedirect('/login');
     $user = User::factory()->create();
     $user->assignRole('Owner');
-    $this->actingAs($user)->getJson('/search?q=')->assertOk()->assertExactJson(['sites' => [], 'clients' => [], 'incidents' => []]);
+    $this->actingAs($user)->getJson('/search?q=')->assertOk()->assertExactJson(['sites' => [], 'clients' => [], 'incidents' => [], 'servers' => []]);
     $this->getJson('/search?q[]=%25')->assertUnprocessable()->assertJsonValidationErrors('q');
 });
 

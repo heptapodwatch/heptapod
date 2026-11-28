@@ -18,6 +18,7 @@ use Heptapod\Addons\Servers\ServerState;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\ServersAccess;
 use Heptapod\Contracts\SiteDirectory;
+use Heptapod\Contracts\SnoozeEnd;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -126,12 +127,7 @@ final class ServersController
     public function snooze(Request $request, Server $server, SnoozeServer $snooze): RedirectResponse
     {
         Gate::authorize('update', $server);
-        $absolute = $request->has('snooze_until');
-        Validator::make($request->all(), $absolute
-            ? ['snooze_until' => ['required', 'string', 'date', 'regex:/(Z|[+-]\d{2}:\d{2})$/', 'after:now', 'before_or_equal:'.now()->addMinutes(525600)->toIso8601String()]]
-            : ['minutes' => ['required', 'integer', 'between:1,525600']], ['snooze_until' => __('check_snooze.until_invalid')])->validate();
-        $snooze($server, $absolute ? CarbonImmutable::parse($request->string('snooze_until')->toString())->utc()
-            : CarbonImmutable::now('UTC')->addMinutes($request->integer('minutes')));
+        $snooze($server, SnoozeEnd::from($request->all()));
 
         return back();
     }

@@ -190,5 +190,8 @@
     "servers.issue_notice.since": "Since",
     "servers.issue_notice.snoozed": "Alerts are snoozed until",
     "servers.snooze.title": "Snooze server",
-    "servers.snooze.description": "The server keeps reporting and its issues keep opening; it sends no alerts until the time you pick."
+    "servers.snooze.description": "The server keeps reporting and its issues keep opening; it sends no alerts until the time you pick.",
+    "api_tokens.area.servers": "Servers",
+    "api_tokens.ability.servers_read": "Read servers and their issues",
+    "api_tokens.ability.servers_snooze": "Snooze server alerts"
 }

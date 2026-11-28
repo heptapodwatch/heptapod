@@ -60,7 +60,7 @@ final class ApiTokensController extends Controller
                 'last_used_at' => $token->last_used_at?->toIso8601String(), 'expires_at' => $token->expires_at?->toIso8601String()];
         })->all();
 
-        return new ApiTokenSettingsData(array_values($tokens), $create->allowedAbilities($user), $create->presets($user), $create->startingPoints($user),
+        return new ApiTokenSettingsData(array_values($tokens), $create->allowedAbilities($user), $create->allowedAbilities($user, limitedToClient: true), $create->presets($user), $create->startingPoints($user),
             array_values($clients->map(static fn (Client $client): array => ['id' => $client->id, 'name' => $client->displayName(), 'short_name' => $client->short_name, 'accent_color' => $client->accent_color, 'avatar' => app(ResolveClientAvatar::class)($client), 'is_internal' => $client->is_internal])->all()), $user->resolvedTimezone());
     }
 

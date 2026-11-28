@@ -13,9 +13,9 @@ final readonly class SnoozeServer
     public function __construct(private EvaluateServerIssues $issues) {}
 
     /**
-     * Snoozes the server's alerts until $until, or ends the snooze (null). The server keeps reporting and its issues keep
-     * opening and resolving; an opening waits for the snooze's end and is sent then if its issue is still open. An absolute
-     * end makes retries converge on the same snooze.
+     * Snoozes the server's alerts until $until (Contracts\SnoozeEnd parses it from the page or the API), or ends the
+     * snooze (null). The server keeps reporting and its issues keep opening and resolving; an opening waits for the
+     * snooze's end and is sent then if its issue is still open. An absolute end makes retries converge on the same snooze.
      */
     public function __invoke(Server $server, ?CarbonImmutable $until): void
     {

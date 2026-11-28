@@ -765,6 +765,15 @@ readonly package: string,
 readonly sites: number,
 readonly severity: string | null,
 };
+export type ServerSearchData = {
+readonly id: number,
+readonly name: string,
+readonly hostname: string | null,
+readonly ips: string[],
+readonly state: Heptapod.Addons.Servers.ServerState,
+readonly issues: { kind: Heptapod.Addons.Servers.ServerIssueKind }[],
+readonly snoozed_until: string | null,
+};
 export type SuppressionComponent = 'cron' | 'application_health';
 export type SuppressionDecision = {
 readonly suppressed: boolean,
@@ -1109,6 +1118,7 @@ last_used_at: string | null,
 expires_at: string | null,
 }[],
 readonly abilities: string[],
+readonly client_abilities: string[],
 readonly presets: {
 read: string[],
 write: string[],
@@ -2007,6 +2017,7 @@ export type SearchResultsData = {
 readonly sites: Heptapod.Data.Ui.SearchSiteData[],
 readonly clients: Heptapod.Data.Ui.ClientData[],
 readonly incidents: Heptapod.Data.Ui.IncidentData[],
+readonly servers: Heptapod.Contracts.ServerSearchData[],
 };
 export type SearchSiteData = {
 readonly id: number,
