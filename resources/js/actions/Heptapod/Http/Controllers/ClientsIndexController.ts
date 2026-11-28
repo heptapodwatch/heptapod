@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:21
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 const ClientsIndexController = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ ClientsIndexController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:21
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 ClientsIndexController.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ ClientsIndexController.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:21
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 ClientsIndexController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ ClientsIndexController.get = (options?: RouteQueryOptions): RouteDefinition<'get
 
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:21
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 ClientsIndexController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ ClientsIndexController.head = (options?: RouteQueryOptions): RouteDefinition<'he
 
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:21
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 const ClientsIndexControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const ClientsIndexControllerForm = (options?: RouteQueryOptions): RouteFormDefin
 
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:21
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 ClientsIndexControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ ClientsIndexControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinit
 
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:21
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 ClientsIndexControllerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

@@ -9,6 +9,7 @@ use Heptapod\Addons\Servers\Data\ServerIssueData;
 use Heptapod\Addons\Servers\Data\ServerRowData;
 use Heptapod\Addons\Servers\Data\ServerThresholdsData;
 use Heptapod\Addons\Servers\Data\ServerValuesData;
+use Heptapod\Contracts\ListFilters;
 use Heptapod\Contracts\ListPaging;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\ServerSearchData;
@@ -48,12 +49,13 @@ final readonly class ServerReader
     /**
      * One page of the list, filtered and sorted in SQL over every server with its newest sample (one index probe each).
      *
-     * @param  array{search?: string|null, state?: string|null}  $filters  state: a ServerState, or `attention` for an open issue
      * @return array{servers: list<ServerRowData>, pagination: PaginationData}
      */
-    public function page(CarbonImmutable $now, array $filters, string $sort): array
+    public function page(CarbonImmutable $now, ListFilters $filters, string $sort): array
     {
-        $query = $this->filtered($now, $filters);
+        $servers = Server::query();
+        $servers->getQuery()->fromSub($this->query($now), 'servers');
+        $query = $filters->query($servers)->getEloquentBuilder()->toBase();
         $descending = str_starts_with($sort, '-');
         // A leading minus on a numeric expression puts the highest first in the ascending order.
         $query->orderByRaw(self::SortKeys[ltrim($sort, '-')].($descending ? ' DESC' : ' ASC').' NULLS LAST')->orderByRaw('lower(name)')->orderBy('id');
@@ -79,14 +81,20 @@ final readonly class ServerReader
         if ($search !== null && $search !== '') {
             $this->search($query, $search);
         }
-        $state = $filters['state'] ?? null;
-        if ($state === self::NeedsAttention) {
-            $query->where('needs_attention', true);
-        } elseif ($state !== null) {
-            $query->where('state', $state);
+        if (isset($filters['state'])) {
+            $this->filterState($query, $filters['state']);
         }
 
         return $query;
+    }
+
+    public function filterState(Builder $query, string $state): void
+    {
+        if ($state === self::NeedsAttention) {
+            $query->where('needs_attention', true);
+        } else {
+            $query->where('state', $state);
+        }
     }
 
     /**
@@ -125,7 +133,7 @@ final readonly class ServerReader
     }
 
     /** Name, host name or an IP address contains $search, case-insensitive; on a query whose servers are `servers`. */
-    private function search(Builder $query, string $search): void
+    public function search(Builder $query, string $search): void
     {
         $pattern = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search).'%';
         $query->where(static fn (Builder $where): Builder => $where->where('servers.name', 'ilike', $pattern)->orWhere('servers.hostname', 'ilike', $pattern)

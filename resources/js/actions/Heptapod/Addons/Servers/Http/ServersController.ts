@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::index
-* @see addons/servers/src/Http/ServersController.php:33
+* @see addons/servers/src/Http/ServersController.php:35
 * @route '/servers'
 */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::index
-* @see addons/servers/src/Http/ServersController.php:33
+* @see addons/servers/src/Http/ServersController.php:35
 * @route '/servers'
 */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::index
-* @see addons/servers/src/Http/ServersController.php:33
+* @see addons/servers/src/Http/ServersController.php:35
 * @route '/servers'
 */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::index
-* @see addons/servers/src/Http/ServersController.php:33
+* @see addons/servers/src/Http/ServersController.php:35
 * @route '/servers'
 */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::index
-* @see addons/servers/src/Http/ServersController.php:33
+* @see addons/servers/src/Http/ServersController.php:35
 * @route '/servers'
 */
 const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::index
-* @see addons/servers/src/Http/ServersController.php:33
+* @see addons/servers/src/Http/ServersController.php:35
 * @route '/servers'
 */
 indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Addons\Servers\Http\ServersController::index
-* @see addons/servers/src/Http/ServersController.php:33
+* @see addons/servers/src/Http/ServersController.php:35
 * @route '/servers'
 */
 indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

@@ -495,10 +495,7 @@ export type ServersPageData = {
 readonly servers: Heptapod.Addons.Servers.Data.ServerRowData[],
 readonly pagination: Heptapod.Contracts.PaginationData,
 readonly defaults: Heptapod.Addons.Servers.Data.ServerThresholdsData,
-readonly filters: {
-search: string | null,
-state: string | null,
-},
+readonly filters: Record<string, Heptapod.Contracts.ListFilterData>,
 readonly sort: string,
 };
 export type SiteServerChoicesData = {
@@ -732,6 +729,30 @@ readonly client_name: string | null,
 };
 export type DomainRegistrationSource = 'rdap' | 'whois';
 export type ExecutionMode = 'poll' | 'push' | 'derived';
+export type FilterKind = 'select' | 'combobox' | 'segmented' | 'chip' | 'boolean' | 'search' | 'date';
+export type FilterSlot = 'bar' | 'history-range' | 'history';
+export type ListFilterData = {
+readonly kind: Heptapod.Contracts.FilterKind,
+readonly label: string,
+readonly value: string | null,
+readonly default: string | null,
+readonly options: {
+value: string,
+label: string,
+}[],
+readonly empty_label: string | null,
+readonly option_source: string | null,
+readonly slot: Heptapod.Contracts.FilterSlot,
+readonly widens: boolean,
+readonly disabled_by: string | null,
+readonly display: string | null,
+readonly clear_url: string | null,
+readonly detail_url: string | null,
+readonly group: string | null,
+readonly prefix: string | null,
+readonly counted_option: string | null,
+readonly counted_label: string | null,
+};
 export type ListScore = {
 readonly label_key: string,
 readonly score: number,
@@ -1052,12 +1073,6 @@ namespace Ui {
 export type ActivityBatchData = {
 readonly data: Heptapod.Data.Ui.ActivityGroupData[],
 };
-export type ActivityFilterData = {
-readonly q: string,
-readonly client: number | null,
-readonly check: Heptapod.Contracts.CheckKey | null,
-readonly period: string,
-};
 export type ActivityGroupData = {
 readonly id: number,
 readonly latest: Heptapod.Data.Ui.EventData,
@@ -1074,7 +1089,7 @@ readonly events: Heptapod.Data.Ui.ActivityBatchData,
 readonly head: Heptapod.Data.Ui.ActivityBatchData | undefined,
 readonly retention_days: number,
 readonly clients: Heptapod.Data.Ui.ClientData[],
-readonly filters: Heptapod.Data.Ui.ActivityFilterData,
+readonly filters: Record<string, Heptapod.Contracts.ListFilterData>,
 readonly expanded_id: number | null,
 readonly expanded_events: Heptapod.Data.Ui.EventData[],
 readonly expanded_pagination: Heptapod.Contracts.PaginationData | null,
@@ -1345,8 +1360,7 @@ readonly archive_paused_site_count: number,
 export type ClientsIndexPageData = {
 readonly clients: Heptapod.Data.Ui.ClientRowData[],
 readonly pagination: Heptapod.Contracts.PaginationData,
-readonly search: string | null,
-readonly state: string,
+readonly filters: Record<string, Heptapod.Contracts.ListFilterData>,
 readonly can_manage: boolean,
 };
 export type CurrentRunData = {
@@ -1575,15 +1589,6 @@ readonly recovery_summary_params: Record<string, string | number | boolean | nul
 readonly retained_good_results_since_recovery: number | null,
 readonly good_results_capped: boolean,
 };
-export type IncidentFilterData = {
-readonly status: string,
-readonly cause: Heptapod.Enums.IncidentCause | null,
-readonly check: Heptapod.Contracts.CheckKey | null,
-readonly client_id: number | null,
-readonly started_after: string | null,
-readonly started_before: string | null,
-readonly period: string,
-};
 export type IncidentNotificationGroupData = {
 readonly id: string,
 readonly event_type: string,
@@ -1624,34 +1629,12 @@ readonly note: string | null,
 readonly note_author: string | null,
 readonly notification_group: Heptapod.Data.Ui.IncidentNotificationGroupData | null,
 };
-export type IncidentsIndexData = {
-readonly incidents: Heptapod.Data.Ui.IncidentData[],
-readonly pagination: Heptapod.Contracts.PaginationData,
-readonly filters: Heptapod.Data.Ui.IncidentFilterData,
-readonly clients: Heptapod.Data.Ui.ClientData[],
-};
 export type IncidentsIndexPageData = {
 readonly incidents: Heptapod.Data.Ui.IncidentData[],
 readonly pagination: Heptapod.Contracts.PaginationData,
-readonly filters: Heptapod.Data.Ui.IncidentFilterData,
+readonly filters: Record<string, Heptapod.Contracts.ListFilterData>,
 readonly clients: Heptapod.Data.Ui.ClientData[],
 readonly summary: Heptapod.Data.Ui.IncidentSummaryData,
-readonly filter_chips: {
-cause: {
-value: Heptapod.Enums.IncidentCause,
-clear_url: string,
-} | null,
-started_after: {
-timestamp: string,
-whole_day: boolean,
-clear_url: string,
-} | null,
-started_before: {
-timestamp: string,
-whole_day: boolean,
-clear_url: string,
-} | null,
-},
 };
 export type InstancePageData = {
 readonly instancePage: Heptapod.Data.Ui.InstanceSettingsData,
@@ -1734,10 +1717,7 @@ readonly clients: Heptapod.Data.Ui.MaintenanceTargetOptionData[],
 readonly tags: Heptapod.Data.Ui.MaintenanceTargetOptionData[],
 readonly timezones: string[],
 readonly filter_clients: Heptapod.Data.Ui.MaintenanceTargetOptionData[],
-readonly client_id: number | null,
-readonly site_id: number | null,
-readonly site_name: string | null,
-readonly state: string,
+readonly filters: Record<string, Heptapod.Contracts.ListFilterData>,
 readonly previous_page: number | null,
 readonly total: number,
 readonly per_page: number,
@@ -2017,17 +1997,6 @@ readonly current: Heptapod.Data.Ui.CurrentRunData[],
 readonly queued_more: number,
 readonly finished: Heptapod.Data.Ui.FinishedRunData[],
 };
-export type RunsFilterData = {
-readonly client: number | null,
-readonly check: number | null,
-readonly type: Heptapod.Contracts.CheckKey | null,
-readonly state: Heptapod.Contracts.RunPhase | null,
-readonly before: number | null,
-readonly show_same_result: boolean,
-readonly period: '24h' | '7d',
-readonly per_page: number,
-readonly started_manually: boolean,
-};
 export type RunsHistoryData = {
 readonly runs: Heptapod.Data.Ui.RunRowData[],
 readonly next_cursor: string | null,
@@ -2039,15 +2008,9 @@ readonly finished: Heptapod.Data.Ui.FinishedRunData[],
 readonly runs: Heptapod.Data.Ui.RunRowData[],
 readonly next_cursor: string | null,
 readonly clients: Heptapod.Data.Ui.ClientData[],
-readonly filters: Heptapod.Data.Ui.RunsFilterData,
-readonly check_filter: {
-clear_url: string,
-check: {
-type: Heptapod.Contracts.CheckKey,
-site_name: string,
-history_url: string,
-} | null,
-} | null,
+readonly filters: Record<string, Heptapod.Contracts.ListFilterData>,
+readonly before: number | null,
+readonly per_page: number,
 readonly attempt_retention_days: number,
 };
 export type SearchResultsData = {
@@ -2216,23 +2179,12 @@ readonly check_options: Heptapod.Data.Ui.CheckOptionData[],
 readonly repositories: Heptapod.Data.Ui.SiteRepositoryData[],
 readonly server: Heptapod.Addons.Servers.Data.SiteServerChoicesData | null,
 };
-export type SitesFilterData = {
-readonly search: string | null,
-readonly client_id: number | null,
-readonly state: Heptapod.Enums.SiteStatus | null,
-readonly tag: string | null,
-readonly sort: string,
-readonly check: Heptapod.Contracts.CheckKey | null,
-readonly attention: boolean,
-readonly advisories: boolean,
-readonly package: string | null,
-readonly advisory: string | null,
-};
 export type SitesIndexPageData = {
 readonly sites?: Heptapod.Data.Ui.SiteRowData[],
 readonly sites_history?: Heptapod.Data.Ui.SiteHistoryData[],
 readonly pagination: Heptapod.Contracts.PaginationData,
-readonly filters: Heptapod.Data.Ui.SitesFilterData,
+readonly filters: Record<string, Heptapod.Contracts.ListFilterData>,
+readonly sort: string,
 readonly clients: Heptapod.Data.Ui.ClientData[],
 readonly tags: Heptapod.Data.Ui.TagData[],
 readonly summary: Heptapod.Data.Ui.SiteListSummaryData,
@@ -2265,9 +2217,7 @@ readonly items: Heptapod.Data.Ui.UpcomingItemData[],
 readonly next_page_url: string | null,
 readonly previous_page_url: string | null,
 readonly per_page: number,
-readonly days: string,
-readonly type: string,
-readonly client_id: number | null,
+readonly filters: Record<string, Heptapod.Contracts.ListFilterData>,
 readonly calendar_now: string,
 readonly clients: Heptapod.Data.Ui.ClientData[],
 };

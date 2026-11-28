@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Data\Ui;
 
-use Heptapod\Contracts\CheckKey;
+use Heptapod\Contracts\ListFilterData;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Support\Lazy\ClosureLazy;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
@@ -17,7 +17,7 @@ final class RunsIndexPageData extends Data
      * @param  ClosureLazy|list<FinishedRunData>  $finished
      * @param  ClosureLazy|list<RunRowData>  $runs
      * @param  ClosureLazy|list<ClientData>  $clients
-     * @param  array{clear_url: string, check: array{type: CheckKey, site_name: string, history_url: string}|null}|null  $check_filter
+     * @param  ClosureLazy|array<string, ListFilterData>  $filters
      */
     public function __construct(
         public readonly ClosureLazy|array $current,
@@ -26,8 +26,9 @@ final class RunsIndexPageData extends Data
         public readonly ClosureLazy|array $runs,
         public readonly ClosureLazy|string|null $next_cursor,
         public readonly ClosureLazy|array $clients,
-        public readonly RunsFilterData $filters,
-        public readonly ?array $check_filter,
+        public readonly ClosureLazy|array $filters,
+        public readonly ?int $before,
+        public readonly int $per_page,
         public readonly int $attempt_retention_days,
     ) {}
 }

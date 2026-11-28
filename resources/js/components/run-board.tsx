@@ -325,22 +325,15 @@ function BoardColumn({
 
 export function RunBoard({
     data,
-    filters,
+    scope,
 }: {
     data: LiveRunBoardData;
-    filters: Heptapod.Data.Ui.RunsFilterData;
+    scope: string;
 }) {
     const { t } = useTranslation();
     const format = useFormat();
     const [tab, setTab] = useState<Column>('running');
     const { ref, flip } = useFlip<HTMLDivElement>();
-    const scope = [
-        filters.client,
-        filters.check,
-        filters.type,
-        filters.state,
-        filters.started_manually,
-    ].join(':');
     const board = useLiveRunBoard(data, scope, flip);
 
     // A finished run keeps the card of the attempt that recorded it, so the card travels from Running.

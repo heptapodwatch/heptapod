@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Data\Ui;
 
+use Heptapod\Contracts\ListFilterData;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\SecurityAdvisoryPackageData;
 use Spatie\LaravelData\Data;
@@ -16,6 +17,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 final class SitesIndexPageData extends Data
 {
     /**
+     * @param  ClosureLazy|array<string, ListFilterData>  $filters
      * @param  InertiaDeferred|list<SiteRowData>  $sites  Rows without uptime and response; those arrive in $sites_history.
      * @param  InertiaDeferred|list<SiteHistoryData>  $sites_history
      * @param  ClosureLazy|list<ClientData>  $clients
@@ -27,7 +29,8 @@ final class SitesIndexPageData extends Data
         public readonly InertiaDeferred|array $sites,
         public readonly InertiaDeferred|array $sites_history,
         public readonly ClosureLazy|PaginationData $pagination,
-        public readonly ClosureLazy|SitesFilterData $filters,
+        public readonly ClosureLazy|array $filters,
+        public readonly string $sort,
         public readonly ClosureLazy|array $clients,
         public readonly ClosureLazy|array $tags,
         public readonly ClosureLazy|SiteListSummaryData $summary,

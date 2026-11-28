@@ -42,7 +42,7 @@ final class IncidentExportController extends Controller
         $number = ['ID', 'Duration (seconds)'];
 
         return ExportResponse::make(static function () use ($request, $format, $reader, $user, $present, $number): Table {
-            $query = $reader->filtered($user, $request);
+            $query = $reader->filtered($user, $request->listFilters());
             if ($request->filled('page') || $request->filled('per_page')) {
                 $perPage = $request->filled('per_page') ? $request->integer('per_page') : ListPageSize::Default;
                 $page = max(1, $request->integer('page', 1));

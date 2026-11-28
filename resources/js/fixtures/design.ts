@@ -1,3 +1,4 @@
+import { listFilter } from '@/fixtures/list-filter';
 import type {
     DesignPageProps,
     ClientDto,
@@ -1049,17 +1050,27 @@ export function sitesPageFixture(
         },
         can_create: true,
         pagination: pagination(data.length),
+        sort: 'status',
         filters: {
-            search: null,
-            client_id: null,
-            state: null,
-            tag: null,
-            check: null,
-            attention: false,
-            advisories: false,
-            package: null,
-            advisory: null,
-            sort: 'status',
+            search: listFilter('search', 'Search sites'),
+            client_id: listFilter('combobox', 'Client', {
+                empty_label: 'All clients',
+                option_source: 'clients',
+            }),
+            state: listFilter('select', 'Status', {
+                empty_label: 'All statuses',
+            }),
+            check: listFilter('select', 'Check', { empty_label: 'All checks' }),
+            tag: listFilter('combobox', 'Tag', {
+                empty_label: 'All tags',
+                option_source: 'tags',
+                prefix: 'tag:',
+            }),
+            advisories: listFilter('combobox', 'Security advisories', {
+                empty_label: 'All advisories',
+                option_source: 'advisories',
+            }),
+            attention: listFilter('chip', 'Needs attention'),
         },
         tiles: {
             sites: data.length,

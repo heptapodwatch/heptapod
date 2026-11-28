@@ -1,3 +1,4 @@
+import { listFilter } from '@/fixtures/list-filter';
 import {
     act,
     cleanup,
@@ -84,13 +85,13 @@ function renderIncidents(
                     incidents={incidents}
                     clients={[]}
                     filters={{
-                        status: 'all',
-                        cause: null,
-                        check: null,
-                        client_id: null,
-                        started_after: null,
-                        started_before: null,
-                        period: '30d',
+                        status: listFilter('segmented', 'Status', {
+                            default: 'open',
+                            value: 'all',
+                        }),
+                        period: listFilter('select', 'Time range', {
+                            default: '30d',
+                        }),
                     }}
                     pagination={{
                         current_page: 1,
@@ -100,11 +101,6 @@ function renderIncidents(
                         previous_page_url: null,
                         next_page_url: null,
                         page_name: 'page',
-                    }}
-                    filter_chips={{
-                        cause: null,
-                        started_after: null,
-                        started_before: null,
                     }}
                     summary={{
                         count: 2,

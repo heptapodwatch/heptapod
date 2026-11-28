@@ -122,7 +122,7 @@ it('preserves Maintenance client and site filters on the next page without chang
     MaintenancePeriod::factory()->create(['reason' => 'Other client deployment']);
     $this->actingAs($owner);
 
-    $page = visit('/maintenance?site_id='.$site->id)->click('#maintenance-client-filter')
+    $page = visit('/maintenance?site_id='.$site->id)->click('[role="combobox"][aria-label="Client"]')
         ->click('[role=option]:has-text("Paged maintenance client")')->assertSee('Paged deployment')
         ->assertDontSee('Other client deployment')->click('a:text-is("Next page")')->assertCount('button[aria-label^="More actions for"]', 1);
     expect($page->script('new URL(location.href).searchParams.get("client_id")'))->toBe((string) $client->id)

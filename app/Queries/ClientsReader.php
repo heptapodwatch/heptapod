@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Heptapod\Queries;
 
+use Heptapod\Contracts\ListFilters;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\ClientData;
 use Heptapod\Data\Ui\ClientRowData;
-use Heptapod\Data\Ui\ClientsIndexPageData;
 use Heptapod\Data\Ui\DashboardTilesData;
 use Heptapod\Data\Ui\IncidentData;
 use Heptapod\Data\Ui\SiteRowData;
@@ -16,18 +16,16 @@ use Heptapod\Models\Client;
 use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Spatie\QueryBuilder\AllowedFilter;
-use Spatie\QueryBuilder\QueryBuilder;
 
 final readonly class ClientsReader
 {
     public function __construct(private SitesReader $sites, private DashboardSummaryReader $summaries, private IncidentsReader $incidents, private SitePolicy $policy) {}
 
-    public function index(User $user, Request $request, int $perPage): ClientsIndexPageData
+    /** @return array{list<ClientRowData>, PaginationData} */
+    public function index(User $user, ListFilters $filters, int $perPage): array
     {
-        $archived = $request->input('filter.state') === 'archived';
+        $archived = $filters->value('state') === 'archived';
         $clients = Client::forBrowsing($this->policy->visibleClients($user, $archived));
         if (! $archived) {
             $ranked = DB::query()->fromSub($this->sites->projected($user), 'scoped_sites')
@@ -36,27 +34,7 @@ final readonly class ClientsReader
                 ->groupBy('client_id');
             $clients->getQuery()->leftJoinSub($ranked, 'attention', 'attention.client_id', '=', 'clients.id');
         }
-        $query = QueryBuilder::for($clients, $request)->allowedFilters(AllowedFilter::callback('search', static function (Builder $query, mixed $value): void {
-            $query->where(static function (Builder $matches) use ($value): void {
-                foreach ((array) $value as $term) {
-                    if (! is_string($term)) {
-                        throw new \LogicException('Client search must be validated.');
-                    }
-                    $pattern = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term).'%';
-                    $matches->getQuery()->orWhereRaw(Client::displayNameSql().' ILIKE ?', [__('No client'), $pattern]);
-                }
-            });
-        }), AllowedFilter::callback('state', static function (Builder $query, mixed $value): void {
-            if ($value === 'archived') {
-                $query->getQuery()->whereNotNull('clients.archived_at');
-            } elseif ($value === 'attention') {
-                $query->getQuery()->where('attention.attention_rank', '<=', SiteStatus::quietRank() - 1);
-            } elseif ($value === 'all') {
-                $query->getQuery()->whereNull('clients.archived_at');
-            } else {
-                throw new \LogicException('Client state filter must be validated.');
-            }
-        }));
+        $query = $filters->query($clients);
         $query->getEloquentBuilder()->with(Client::AvatarRelations);
         $collation = SitesReader::collation();
         if (! $archived) {
@@ -72,8 +50,7 @@ final readonly class ClientsReader
             $rows[] = new ClientRowData(ClientData::fromClient($client), $summaries[$client->id]);
         }
 
-        return new ClientsIndexPageData($rows, PaginationData::fromPaginator($page),
-            $request->filled('filter.search') ? $request->string('filter.search')->toString() : null, $request->string('filter.state', 'all')->toString(), $user->hasAnyRole(['Owner', 'Admin']));
+        return [$rows, PaginationData::fromPaginator($page)];
     }
 
     public function client(User $user, int $id): ClientData

@@ -149,9 +149,9 @@ it('sorts clients with failures first and filters attention across all pages', f
     Check::factory()->for(Site::factory()->for($affected)->create())->create(['latest_run_result' => CheckResult::Warning]);
 
     $this->actingAs($owner)->get('/clients')->assertInertia(fn (Assert $page): Assert => $page
-        ->where('clients.0.client.id', $affected->id)->where('state', 'all'));
+        ->where('clients.0.client.id', $affected->id)->where('filters.state.value', 'all'));
     $this->get('/clients?filter[state]=attention')->assertInertia(fn (Assert $page): Assert => $page
-        ->has('clients', 1)->where('clients.0.client.id', $affected->id)->where('state', 'attention'));
+        ->has('clients', 1)->where('clients.0.client.id', $affected->id)->where('filters.state.value', 'attention'));
     $this->get('/clients?filter[state]=invalid')->assertSessionHasErrors('filter.state');
 });
 

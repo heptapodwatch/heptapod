@@ -6,16 +6,15 @@ namespace Heptapod\Http\Controllers;
 
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckKey;
+use Heptapod\Contracts\FilterKind;
+use Heptapod\Contracts\ListFilters;
 use Heptapod\Data\Ui\ActivityBatchData;
-use Heptapod\Data\Ui\ActivityFilterData;
 use Heptapod\Data\Ui\ActivityPageData;
 use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Models\User;
 use Heptapod\Queries\EventsReader;
 use Heptapod\Queries\SitesReader;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Inertia\ScrollMetadata;
@@ -29,15 +28,13 @@ final class ActivityController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 401);
         $reader = $reader->withServerIssues();
-        Validator::make($request->all(), [
-            'q' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'client' => ['sometimes', 'integer', 'min:1'],
-            'check' => ['sometimes', Rule::enum(CheckKey::class)],
-            'period' => ['sometimes', Rule::in(['24h', '7d', '30d', 'all'])],
-            'before' => ['sometimes', 'integer', 'min:1'],
-            'group' => ['sometimes', 'integer', 'min:1'],
-        ])->validate();
-        $period = $request->string('period', '24h')->toString();
+        $filters = ListFilters::read($request, [
+            'q' => ['kind' => FilterKind::Search, 'label' => 'Filter by site or client', 'rules' => ['nullable', 'string', 'max:255']],
+            'client' => ['kind' => FilterKind::Combobox, 'label' => 'Client', 'empty_label' => 'All clients', 'source' => 'clients', 'rules' => ['integer', 'min:1']],
+            'check' => ['kind' => FilterKind::Select, 'label' => 'Check type', 'empty_label' => 'All checks', 'enum' => CheckKey::class, 'options' => ListFilters::checkOptions()],
+            'period' => ['kind' => FilterKind::Select, 'label' => 'Time range', 'default' => '24h', 'options' => ['24h' => 'Last 24 hours', '7d' => 'Last 7 days', '30d' => 'Last 30 days', 'all' => 'All']],
+        ], ['before' => ['sometimes', 'integer', 'min:1'], 'group' => ['sometimes', 'integer', 'min:1']]);
+        $period = $filters->value('period');
         $retentionDays = config()->integer('monitoring.raw_retention_days');
         if ($retentionDays < 1) {
             throw new \LogicException('Activity retention must be positive.');
@@ -47,18 +44,20 @@ final class ActivityController extends Controller
             default => throw new \LogicException('Invalid activity period.')
         };
         $since = CarbonImmutable::now('UTC')->subHours(min($hours, $retentionDays * 24));
-        $search = $request->filled('q') ? $request->string('q')->toString() : null;
-        $client = $request->filled('client') ? $request->integer('client') : null;
-        $check = $request->filled('check') ? CheckKey::from($request->string('check')->toString()) : null;
-        $before = $request->filled('before') ? $request->integer('before') : null;
+        $search = $filters->value('q');
+        $client = $filters->integer('client');
+        $check = $filters->value('check');
+        $cursorId = $filters->parameter('before');
+        $before = is_numeric($cursorId) ? (int) $cursorId : null;
         $loaded = null;
         $batch = static function (?int $before) use ($reader, $user, $since, $search, $client, $check): array {
-            $cursor = $before === null ? null : $reader->activityCursor($user, $before, $since, $search, $client, $check?->value);
+            $cursor = $before === null ? null : $reader->activityCursor($user, $before, $since, $search, $client, $check);
 
-            return $reader->activityBatch($user, $reader->activityGroups($user, $since, $search, $client, $check?->value, cursor: $cursor, limit: self::BatchSize + 2), $cursor, self::BatchSize);
+            return $reader->activityBatch($user, $reader->activityGroups($user, $since, $search, $client, $check, cursor: $cursor, limit: self::BatchSize + 2), $cursor, self::BatchSize);
         };
-        $groupId = $request->filled('group') ? $request->integer('group') : null;
-        $expanded = $groupId === null ? null : $reader->activityDetails($user, $groupId, $since, $search, $client, $check?->value);
+        $expandedGroup = $filters->parameter('group');
+        $groupId = is_numeric($expandedGroup) ? (int) $expandedGroup : null;
+        $expanded = $groupId === null ? null : $reader->activityDetails($user, $groupId, $since, $search, $client, $check);
 
         if ($expanded !== null && $expanded['events'] === []) {
             throw new ExpectedRefusal(
@@ -80,7 +79,7 @@ final class ActivityController extends Controller
             head: Inertia::optional(static fn (): ActivityBatchData => new ActivityBatchData($batch(null)['groups'])),
             retention_days: $retentionDays,
             clients: $sites->clients($user),
-            filters: new ActivityFilterData($search ?? '', $client, $check, $period),
+            filters: $filters->data(),
             expanded_id: $groupId,
             expanded_events: $expanded['events'] ?? [],
             expanded_pagination: $expanded['pagination'] ?? null,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Addons\Servers\Data;
 
+use Heptapod\Contracts\ListFilterData;
 use Heptapod\Contracts\PaginationData;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Support\Lazy\ClosureLazy;
@@ -16,7 +17,7 @@ final class ServersPageData extends Data
     /**
      * @param  ClosureLazy|list<ServerRowData>  $servers  one page, filtered and sorted
      * @param  ServerThresholdsData  $defaults  the instance defaults; each row carries its server's own
-     * @param  array{search: string|null, state: string|null}  $filters  state: a ServerState value, or ServerReader::NeedsAttention
+     * @param  array<string, ListFilterData>  $filters
      */
     public function __construct(
         public readonly ClosureLazy|array $servers,

@@ -3,7 +3,7 @@ import messages from './messages'
 import notifications1ce82a from './notifications'
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:21
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -18,7 +18,7 @@ index.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:21
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 index.url = (options?: RouteQueryOptions) => {
@@ -27,7 +27,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:21
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -37,7 +37,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:21
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -47,7 +47,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:21
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -57,7 +57,7 @@ const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:21
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -67,7 +67,7 @@ indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\ClientsIndexController::__invoke
-* @see app/Http/Controllers/ClientsIndexController.php:21
+* @see app/Http/Controllers/ClientsIndexController.php:25
 * @route '/clients'
 */
 indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

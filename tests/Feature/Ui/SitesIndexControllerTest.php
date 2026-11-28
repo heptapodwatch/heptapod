@@ -55,7 +55,7 @@ it('orders sites by severity then locale-aware name and permits explicit sorting
 
     $this->actingAs($user)->get('/sites')->assertOk()->assertInertia(fn (Assert $page): Assert => $page
         ->component('sites/index')->missing('sites')
-        ->where('pagination.per_page', 50)->where('pagination.total', 6)->where('filters.sort', 'status')
+        ->where('pagination.per_page', 50)->where('pagination.total', 6)->where('sort', 'status')
         ->where('summary.total', 6)->where('summary.attention', 3)->where('summary.paused', 0)
         ->loadDeferredProps(['list'], fn (Assert $list): Assert => $list
             ->has('sites', 6)->missing('summary')->missing('pagination')
@@ -68,7 +68,7 @@ it('orders sites by severity then locale-aware name and permits explicit sorting
     $this->get('/sites?filter[search]=Down&filter[client_id]='.$client->id)->assertInertia(fn (Assert $page): Assert => $page
         ->loadDeferredProps(['list'], fn (Assert $list): Assert => $list->has('sites', 1)->where('sites.0.name', 'Down')));
     $this->get('/sites?filter[attention]=1')->assertInertia(fn (Assert $page): Assert => $page
-        ->where('summary.total', 6)->where('summary.attention', 3)->where('summary.paused', 0)->where('filters.attention', true)
+        ->where('summary.total', 6)->where('summary.attention', 3)->where('summary.paused', 0)->where('filters.attention.value', '1')
         ->loadDeferredProps(['list'], fn (Assert $list): Assert => $list->has('sites', 3)));
     $down = Site::query()->where('friendly_name', 'Down')->sole();
     $down->attachTag(Tag::findOrCreate('production', 'sites', 'en'));
@@ -77,7 +77,7 @@ it('orders sites by severity then locale-aware name and permits explicit sorting
         ->loadDeferredProps(['list'], fn (Assert $list): Assert => $list->has('sites', 1)->where('sites.0.name', 'Down')));
     Check::factory()->for($down)->create(['type' => CheckKey::Performance]);
     $this->get('/sites?filter[check]=performance')->assertInertia(fn (Assert $page): Assert => $page
-        ->where('filters.check', 'performance')
+        ->where('filters.check.value', 'performance')
         ->loadDeferredProps(['list'], fn (Assert $list): Assert => $list->has('sites', 1)->where('sites.0.name', 'Down')));
     $this->get('/sites?filter[check]=cron')->assertInertia(fn (Assert $page): Assert => $page
         ->loadDeferredProps(['list'], fn (Assert $list): Assert => $list->has('sites', 0)));

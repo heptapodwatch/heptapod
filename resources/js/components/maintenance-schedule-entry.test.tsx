@@ -1,3 +1,4 @@
+import { listFilter } from '@/fixtures/list-filter';
 import {
     cleanup,
     fireEvent,
@@ -128,8 +129,15 @@ function page(
             previous_page={null}
             total={windows.length}
             per_page={50}
-            state="all"
-            site_name="API"
+            filters={{
+                state: listFilter('segmented', 'Window state', {
+                    default: 'all',
+                }),
+                site_id: listFilter('chip', 'Site', {
+                    value: '8',
+                    display: 'API',
+                }),
+            }}
             can_manage={canManage}
             timezones={[
                 'UTC',
@@ -150,8 +158,6 @@ function page(
             ]}
             tags={[target(10, 'Release', null)]}
             filter_clients={[]}
-            client_id={null}
-            site_id={8}
             {...overrides}
         />
     );
@@ -287,7 +293,7 @@ it('displays the same maintenance windows in each viewers timezone with source w
 
     // Berlin viewer: NY window shows Berlin time + (09:00–10:00 New York); Berlin window has no duplicate zone hint.
     pageContext.timezone = 'Europe/Berlin';
-    render(page(true, windows, { site_id: null, site_name: null }));
+    render(page(true, windows, { filters: {} }));
     expect(screen.getByText('Nov 21, 2026, 15:00')).toBeTruthy();
     expect(screen.getByText('Nov 21, 2026, 16:00')).toBeTruthy();
     expect(screen.getByText('(09:00–10:00 New York)')).toBeTruthy();
@@ -298,7 +304,7 @@ it('displays the same maintenance windows in each viewers timezone with source w
 
     // New York viewer: NY window has no duplicate zone hint; Berlin window shows NY time + (17:00–18:00 Berlin).
     pageContext.timezone = 'America/New_York';
-    render(page(true, windows, { site_id: null, site_name: null }));
+    render(page(true, windows, { filters: {} }));
     expect(screen.getByText('Nov 21, 2026, 09:00')).toBeTruthy();
     expect(screen.getByText('Nov 21, 2026, 10:00')).toBeTruthy();
     expect(screen.queryByText(/New York\)/)).toBeNull();
@@ -314,7 +320,7 @@ it('keeps untouched default times strictly ordered when following a target into 
         vi.setSystemTime(new Date('2026-11-01T04:45:00Z'));
         pageContext.timezone = 'Europe/Berlin';
         window.history.replaceState(null, '', '/maintenance');
-        render(page(true, [], { site_id: null, site_name: null }));
+        render(page(true, [], { filters: {} }));
 
         fireEvent.click(
             screen.getAllByRole('button', { name: 'New window' })[0]!,

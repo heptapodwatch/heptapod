@@ -1,3 +1,8 @@
+import {
+    filterValues,
+    filtersActive,
+    ListFilterBar,
+} from '@/components/list-filter-bar';
 import { ListFooter } from '@/components/list-footer';
 import { TooltipHint, TruncatedText } from '@/components/truncated-text';
 import { AbsoluteTime } from '@/components/absolute-time';
@@ -10,12 +15,6 @@ import { cn } from '@/lib/utils';
 import { SiteAvatar } from '@/components/site-avatar';
 import { CircleAlert } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
-import {
-    FilterBar,
-    FilterChip,
-    FilterCombobox,
-    FilterSelectTrigger,
-} from '@/components/filter-bar';
 import { clientComboboxOptions } from '@/components/entity-combobox';
 import {
     listCardPadding,
@@ -28,19 +27,12 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { PageHeader } from '@/components/page-header';
-import { SegmentedControl } from '@/components/segmented-control';
 import { PageContainer } from '@/components/page-container';
 import { ExportButton, type ExportScope } from '@/components/export-sheet';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
 import { StatusBadge } from '@/components/monitoring';
 import { PendingChanges } from '@/components/pending-changes';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectValue,
-} from '@/components/ui/select';
 import { useBufferedChanges } from '@/hooks/use-buffered-changes';
 import { useFormat } from '@/hooks/use-format';
 import { useLiveReload } from '@/hooks/use-live';
@@ -53,56 +45,43 @@ import {
 } from '@/routes/incidents';
 
 type Incident = Heptapod.Data.Ui.IncidentData;
-type Filter = Heptapod.Data.Ui.IncidentFilterData;
-/** The server's default status (IncidentsReader::DefaultStatus): the URL omits it. */
-const defaultStatus = 'open';
 const causeLabels = {
     errored: 'Check could not run',
     failed: 'Check failed',
 } satisfies Record<Heptapod.Enums.IncidentCause, string>;
-
 export default function IncidentsIndex({
     incidents,
     clients,
     filters,
     pagination,
     summary,
-    filter_chips,
 }: Heptapod.Data.Ui.IncidentsIndexPageData) {
     const { t } = useTranslation();
     const format = useFormat();
     const openCount = usePage().props.overallHealth?.open_incident_count;
     useLiveReload(['state.changed'], ['incidents', 'pagination', 'summary']);
     const buffered = useBufferedChanges(incidents, (incident) => incident.id);
-    const apply = (changes: Partial<Filter>) =>
+    const values = filterValues(filters);
+    const apply = (changes: Record<string, string | null>) =>
         router.get(
             incidentsIndex.url(),
             {
                 filter: Object.fromEntries(
-                    Object.entries({ ...filters, ...changes }).filter(
+                    Object.entries({ ...values, ...changes }).filter(
                         ([key, value]) =>
-                            value !== null &&
-                            value !== '' &&
-                            !(key === 'status' && value === defaultStatus),
+                            value &&
+                            !(
+                                key === 'status' &&
+                                value === filters.status?.default
+                            ),
                     ),
                 ),
             },
             { preserveState: true, preserveScroll: true },
         );
     const activeFilter = Object.fromEntries(
-        Object.entries(filters).filter(
-            ([, value]) => value !== null && value !== '',
-        ),
+        Object.entries(values).filter(([, value]) => value),
     );
-    const activeFilterCount = [
-        filters.status !== defaultStatus,
-        filters.cause,
-        filters.check,
-        filters.client_id,
-        filters.started_after,
-        filters.started_before,
-        filters.period !== '30d',
-    ].filter(Boolean).length;
     const unfiltered = { status: 'all', period: 'all' };
     const exportScopes: ExportScope[] = [
         ...(pagination.last_page > 1
@@ -261,140 +240,13 @@ export default function IncidentsIndex({
                     />
                 }
             />
-            <FilterBar
-                activeCount={activeFilterCount}
-                filtersActive={activeFilterCount > 0}
+            <ListFilterBar
+                filters={filters}
+                sources={{ clients: clientComboboxOptions(clients) }}
+                count={openCount}
+                onChange={apply}
                 onClearFilters={() => router.get(incidentsIndex.url())}
-                segmented={
-                    <SegmentedControl
-                        label={t('Status')}
-                        value={filters.status}
-                        onValueChange={(status) => apply({ status })}
-                        options={(['open', 'resolved', 'all'] as const).map(
-                            (value) => ({
-                                value,
-                                label:
-                                    value === 'open' && openCount !== undefined
-                                        ? t('Open {{count}}', {
-                                              count: openCount,
-                                          })
-                                        : t(
-                                              value === 'open'
-                                                  ? 'incidents.state.open'
-                                                  : value === 'resolved'
-                                                    ? 'Resolved'
-                                                    : 'All',
-                                          ),
-                            }),
-                        )}
-                    />
-                }
-            >
-                <FilterCombobox
-                    ariaLabel={t('Client')}
-                    options={[
-                        { value: 'all', label: t('All clients') },
-                        ...clientComboboxOptions(clients),
-                    ]}
-                    value={filters.client_id?.toString() ?? 'all'}
-                    onValueChange={(value) =>
-                        apply({
-                            client_id: value === 'all' ? null : Number(value),
-                        })
-                    }
-                    onClear={
-                        filters.client_id !== null
-                            ? () => apply({ client_id: null })
-                            : null
-                    }
-                />
-                <Select
-                    value={filters.check ?? 'all'}
-                    onValueChange={(value) =>
-                        apply({
-                            check:
-                                value === 'all'
-                                    ? null
-                                    : (value as Filter['check']),
-                        })
-                    }
-                >
-                    <FilterSelectTrigger
-                        aria-label={t('Check')}
-                        onClear={
-                            filters.check !== null
-                                ? () => apply({ check: null })
-                                : null
-                        }
-                    >
-                        <SelectValue />
-                    </FilterSelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">{t('All checks')}</SelectItem>
-                        {Object.entries(checkTypes).map(([key, check]) => (
-                            <SelectItem key={key} value={key}>
-                                {t(check.label)}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                <Select
-                    value={filters.period}
-                    onValueChange={(value) => apply({ period: value })}
-                >
-                    <FilterSelectTrigger
-                        aria-label={t('Time range')}
-                        onClear={
-                            filters.period !== '30d'
-                                ? () => apply({ period: '30d' })
-                                : null
-                        }
-                    >
-                        <SelectValue />
-                    </FilterSelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="30d">{t('Last 30 days')}</SelectItem>
-                        <SelectItem value="all">{t('All time')}</SelectItem>
-                    </SelectContent>
-                </Select>
-                {filter_chips.cause && (
-                    <FilterChip
-                        label={t('Cause')}
-                        value={t(causeLabels[filter_chips.cause.value])}
-                        clearHref={filter_chips.cause.clear_url}
-                    />
-                )}
-                {(
-                    [
-                        ['started_after', 'Started on or after'],
-                        ['started_before', 'Started on or before'],
-                    ] as const
-                ).map(([key, label]) => {
-                    const date = filter_chips[key];
-                    return (
-                        date && (
-                            <FilterChip
-                                key={key}
-                                label={t(label)}
-                                value={
-                                    <span>
-                                        {t(label)}:{' '}
-                                        <AbsoluteTime
-                                            value={date.timestamp}
-                                            mode={
-                                                date.whole_day
-                                                    ? 'calendarDate'
-                                                    : 'timestamp'
-                                            }
-                                        />
-                                    </span>
-                                }
-                                clearHref={date.clear_url}
-                            />
-                        )
-                    );
-                })}
-            </FilterBar>
+            />
             <PendingChanges
                 count={buffered.pendingCount}
                 apply={buffered.apply}
@@ -407,7 +259,7 @@ export default function IncidentsIndex({
                         'An incident opens here when a site is down or a check fails.',
                     )}
                     filtered={{
-                        active: activeFilterCount > 0,
+                        active: filtersActive(filters),
                         title: t('No matching incidents'),
                         description: t('Clear filters to see open incidents.'),
                     }}

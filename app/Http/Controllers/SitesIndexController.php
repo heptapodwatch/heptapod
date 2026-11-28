@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Heptapod\Http\Controllers;
 
 use Heptapod\Contracts\CheckKey;
+use Heptapod\Contracts\FilterKind;
+use Heptapod\Contracts\ListFilters;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\DashboardTilesData;
 use Heptapod\Data\Ui\SiteListSummaryData;
-use Heptapod\Data\Ui\SitesFilterData;
 use Heptapod\Data\Ui\SitesIndexPageData;
 use Heptapod\Enums\SiteStatus;
 use Heptapod\Http\ListPageSize;
@@ -16,13 +17,13 @@ use Heptapod\Models\User;
 use Heptapod\Queries\DashboardSummaryReader;
 use Heptapod\Queries\SitesReader;
 use Heptapod\Queries\TagsReader;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\LaravelData\Lazy;
+use Spatie\QueryBuilder\AllowedFilter;
 
 final class SitesIndexController extends Controller
 {
@@ -31,30 +32,64 @@ final class SitesIndexController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 401);
         abort_unless($user->hasAnyRole(['Owner', 'Admin', 'Member']), 403);
-        Validator::make($request->all(), [
-            'filter' => ['sometimes', 'array:search,client_id,state,tag,check,attention,advisories,package,advisory'],
-            'filter.search' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'filter.client_id' => ['sometimes', 'nullable', 'integer', 'min:1'],
-            'filter.state' => ['sometimes', 'nullable', Rule::enum(SiteStatus::class)],
-            'filter.tag' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'filter.check' => ['sometimes', 'nullable', Rule::enum(CheckKey::class)],
-            'filter.attention' => ['sometimes', 'boolean'],
-            'filter.advisories' => ['sometimes', 'boolean'],
-            'filter.package' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'filter.advisory' => ['sometimes', 'nullable', 'string', 'max:2048'],
-            'sort' => ['sometimes', 'string', 'max:100'],
-            'page' => ['sometimes', 'integer', 'min:1'],
-        ])->validate();
+        $filters = ListFilters::read($request, [
+            'search' => ['predicate' => static fn (string $key): AllowedFilter => AllowedFilter::partial($key, 'name'),
+                'kind' => FilterKind::Search, 'label' => 'Search sites', 'rules' => ['nullable', 'string', 'max:255']],
+            'client_id' => ['predicate' => AllowedFilter::exact(...),
+                'kind' => FilterKind::Combobox, 'label' => 'Client', 'empty_label' => 'All clients', 'source' => 'clients', 'rules' => ['nullable', 'integer', 'min:1']],
+            'state' => ['predicate' => AllowedFilter::exact(...),
+                'kind' => FilterKind::Select, 'label' => 'Status', 'empty_label' => 'All statuses', 'rules' => ['nullable'], 'enum' => SiteStatus::class,
+                'options' => ['ok' => 'OK', 'warning' => 'Warning', 'down' => 'Down', 'paused' => 'Paused', 'pending' => 'Pending', 'disabled' => 'Off', 'unavailable' => 'Unavailable', 'maintenance' => 'Maintenance', 'failed' => 'Failed', 'check-error' => 'Check error']],
+            'check' => ['predicate' => static fn (string $key): AllowedFilter => AllowedFilter::callback($key, static function (Builder $query, mixed $value): void {
+                if (! is_string($value)) {
+                    throw new \LogicException('Check filter must be validated as a string.');
+                }
+                $query->whereHas('checks', static function (Builder $checks) use ($value): void {
+                    $checks->where('type', $value)->where('enabled', true);
+                });
+            }),
+                'kind' => FilterKind::Select, 'label' => 'Check', 'empty_label' => 'All checks', 'rules' => ['nullable'], 'enum' => CheckKey::class, 'options' => ListFilters::checkOptions()],
+            'tag' => ['predicate' => static fn (string $key): AllowedFilter => AllowedFilter::callback($key, static function (Builder $query, mixed $value): void {
+                if (! is_string($value)) {
+                    throw new \LogicException('Tag filter must be validated as a string.');
+                }
+                $query->whereHas('tags', static function (Builder $tags) use ($value): void {
+                    $tags->getQuery()->where('name->en', $value);
+                });
+            }),
+                'kind' => FilterKind::Combobox, 'label' => 'Tag', 'empty_label' => 'All tags', 'source' => 'tags', 'prefix' => 'tag:', 'rules' => ['nullable', 'string', 'max:255']],
+            'advisory' => ['predicate' => static fn (string $key): AllowedFilter => AllowedFilter::callback($key, static function (Builder $query, mixed $value) use ($reader): void {
+                $reader->advisoryFilter($query, advisoryId: is_string($value) ? $value : throw new \LogicException('Advisory filter must be validated as a string.'));
+            })->delimiter(''),
+                'kind' => FilterKind::Combobox, 'label' => 'Security advisories', 'empty_label' => 'All advisories', 'source' => 'advisories', 'group' => 'advisories', 'prefix' => 'advisory:', 'rules' => ['nullable', 'string', 'max:2048']],
+            'package' => ['predicate' => static fn (string $key): AllowedFilter => AllowedFilter::callback($key, static function (Builder $query, mixed $value) use ($reader): void {
+                $reader->advisoryFilter($query, package: is_string($value) ? $value : throw new \LogicException('Package filter must be validated as a string.'));
+            })->delimiter(''),
+                'kind' => FilterKind::Combobox, 'label' => 'Security advisories', 'group' => 'advisories', 'prefix' => 'package:', 'rules' => ['nullable', 'string', 'max:255']],
+            'advisories' => ['predicate' => static fn (string $key): AllowedFilter => AllowedFilter::callback($key, static function (Builder $query, mixed $value) use ($reader): void {
+                if (filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+                    $reader->advisoryFilter($query);
+                }
+            }),
+                'kind' => FilterKind::Combobox, 'label' => 'Security advisories', 'group' => 'advisories', 'prefix' => 'any:', 'rules' => ['boolean']],
+            'attention' => ['predicate' => static fn (string $key): AllowedFilter => AllowedFilter::callback($key, static function (Builder $query, mixed $value): void {
+                if (filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+                    $query->getQuery()->whereIn('state', SiteStatus::attention());
+                }
+            }),
+                'kind' => FilterKind::Chip, 'label' => 'Needs attention', 'rules' => ['boolean']],
+        ], ['sort' => ['sometimes', 'string', 'max:100'], 'page' => ['sometimes', 'integer', 'min:1']], nested: 'filter');
+        $sort = $filters->parameter('sort');
 
         $perPage = ListPageSize::resolve($request, 'sites');
         $partial = $request->header('X-Inertia-Partial-Component') === 'sites/index';
         $index = null;
-        $readIndex = static function () use ($reader, $user, $request, $perPage, &$index): array {
-            return $index ??= $reader->index($user, $request, $perPage);
+        $readIndex = static function () use ($reader, $user, $filters, $perPage, &$index): array {
+            return $index ??= $reader->index($user, $filters, $perPage);
         };
         $page = null;
-        $read = static function () use ($reader, $user, $request, $perPage, $partial, $readIndex, &$page): LengthAwarePaginator {
-            return $page ??= $partial ? $reader->page($user, $request, $perPage) : $readIndex()['page'];
+        $read = static function () use ($reader, $user, $filters, $perPage, $partial, $readIndex, &$page): LengthAwarePaginator {
+            return $page ??= $partial ? $reader->page($user, $filters, $perPage) : $readIndex()['page'];
         };
         $attention = null;
         $readAttention = static function () use ($reader, $user, $partial, $readIndex, &$attention): array {
@@ -77,7 +112,8 @@ final class SitesIndexController extends Controller
 
                 return PaginationData::fromPaginator($page);
             }),
-            filters: Lazy::closure(static fn (): SitesFilterData => $reader->filters($request)),
+            filters: Lazy::closure(static fn (): array => $filters->data()),
+            sort: is_string($sort) ? $sort : 'status',
             clients: Lazy::closure(static fn (): array => $reader->clients($user)),
             tags: Lazy::closure(static fn (): array => $tags->read($user)),
             summary: Lazy::closure(static fn (): SiteListSummaryData => $partial ? $reader->summary($user) : $readIndex()['summary']),

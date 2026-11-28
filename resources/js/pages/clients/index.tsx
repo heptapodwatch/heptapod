@@ -1,6 +1,11 @@
+import {
+    filterDefaults,
+    filterValues,
+    filtersActive,
+    ListFilterBar,
+    withFilterValues,
+} from '@/components/list-filter-bar';
 import { ListFooter } from '@/components/list-footer';
-import { FilterBar } from '@/components/filter-bar';
-import { SegmentedControl } from '@/components/segmented-control';
 import {
     useLiveSearch,
     type LiveSearchVisitOptions,
@@ -24,7 +29,6 @@ import { TextLink } from '@/components/text-link';
 import { cn } from '@/lib/utils';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
     Table,
     listCardPadding,
@@ -47,33 +51,38 @@ import {
 export default function ClientsIndex({
     clients,
     pagination,
-    search: initialSearch,
-    state,
+    filters,
     can_manage,
 }: Heptapod.Data.Ui.ClientsIndexPageData) {
     const { t } = useTranslation();
     const format = useFormat();
+    const state = filters.state?.value;
     const { search, changeSearch, cancelPendingSearch } = useLiveSearch(
-        initialSearch ?? '',
-        (search, options) => visit(search, state, options),
+        filters.search?.value ?? '',
+        (search, options) => visit({ search }, options),
     );
+    const draftFilters = withFilterValues(filters, { search: search || null });
     const visit = (
-        search: string,
-        nextState = state,
+        changes: Record<string, string | null>,
         searchOptions: LiveSearchVisitOptions = {},
     ) => {
         cancelPendingSearch();
         router.get(
             clientsIndex.url(),
             {
-                filter: {
-                    ...(search ? { search } : {}),
-                    ...(nextState !== 'all' ? { state: nextState } : {}),
-                },
+                filter: Object.fromEntries(
+                    Object.entries({
+                        ...filterValues(draftFilters),
+                        ...changes,
+                    }).filter(
+                        ([key, value]) =>
+                            value && value !== filters[key]?.default,
+                    ),
+                ),
             },
             {
                 ...searchOptions,
-                only: ['clients', 'pagination', 'search', 'state'],
+                only: ['clients', 'pagination', 'filters'],
                 preserveState: true,
                 preserveScroll: true,
             },
@@ -163,36 +172,14 @@ export default function ClientsIndex({
                         )
                     }
                 />
-                <FilterBar
-                    activeCount={state !== 'all' ? 1 : 0}
-                    filtersActive={Boolean(search) || state !== 'all'}
-                    onClearFilters={() => visit('', 'all')}
-                    search={
-                        <Input
-                            type="search"
-                            className="w-full"
-                            aria-label={t('Search clients')}
-                            placeholder={t('Search clients')}
-                            value={search}
-                            onChange={(event) =>
-                                changeSearch(event.target.value)
-                            }
-                        />
+                <ListFilterBar
+                    filters={draftFilters}
+                    onChange={(changes) =>
+                        Object.hasOwn(changes, 'search')
+                            ? changeSearch(changes.search ?? '')
+                            : visit(changes)
                     }
-                    segmented={
-                        <SegmentedControl
-                            label={t('Client state')}
-                            value={state}
-                            onValueChange={(state) => visit(search, state)}
-                            options={[
-                                {
-                                    value: 'attention',
-                                    label: t('Needs attention'),
-                                },
-                                { value: 'all', label: t('All clients') },
-                            ]}
-                        />
-                    }
+                    onClearFilters={() => visit(filterDefaults(filters))}
                 />
                 <PendingChanges
                     count={buffered.pendingCount}
@@ -338,7 +325,7 @@ export default function ClientsIndex({
                             )
                         }
                         filtered={{
-                            active: Boolean(search) || state !== 'all',
+                            active: filtersActive(draftFilters),
                             title: t('No matching clients'),
                             description: t('Clear filters to see all clients.'),
                         }}

@@ -6,24 +6,19 @@ namespace Heptapod\Data\Ui;
 
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\RunPhase;
-use Spatie\LaravelData\Data;
-use Spatie\TypeScriptTransformer\Attributes\LiteralTypeScriptType;
-use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
-#[TypeScript]
-final class RunsFilterData extends Data
+final readonly class RunsFilterData
 {
     public function __construct(
-        public readonly ?int $client,
-        public readonly ?int $check,
-        public readonly ?CheckKey $type,
-        public readonly ?RunPhase $state,
-        public readonly ?int $before,
-        public readonly bool $show_same_result,
-        #[LiteralTypeScriptType("'24h' | '7d'")]
-        public readonly string $period,
-        public readonly int $per_page = 50,
+        public ?int $client,
+        public ?int $check,
+        public ?CheckKey $type,
+        public ?RunPhase $state,
+        public ?int $before,
+        public bool $show_same_result,
+        public string $period,
+        public int $per_page = 50,
         /** Only runs a person started (Runs "Started manually", `?started=manual`). */
-        public readonly bool $started_manually = false,
+        public bool $started_manually = false,
     ) {}
 }

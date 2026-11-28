@@ -399,7 +399,7 @@ it('shows open issues and the snooze on the server page and filters the list to 
         ->where('server.issues.1.kind', 'load_high')->has('server.issues', 2)
         ->where('server.snoozed_until', now()->addHour()->toIso8601String()));
     $this->actingAs($owner)->get('/servers?filter[state]=attention')->assertInertia(fn (Assert $page): AssertableInertia => $page
-        ->where('filters.state', 'attention')->has('servers', 1)->where('servers.0.name', 'busy'));
+        ->where('filters.state.value', 'attention')->has('servers', 1)->where('servers.0.name', 'busy'));
     $this->actingAs($owner)->get('/servers')->assertInertia(fn (Assert $page): AssertableInertia => $page->where('servers.0.name', 'busy')->where('servers.1.name', 'calm'));
 });
 
