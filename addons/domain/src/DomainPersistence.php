@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunReference;
+use Heptapod\Contracts\StagedSnapshots;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
@@ -41,37 +42,16 @@ final class DomainPersistence implements RunPersistence
         if (strlen($json) > 270336) {
             throw new \InvalidArgumentException('Domain snapshot exceeds its storage bound.');
         }
-        DB::transaction(function () use ($context, $json): void {
-            $existing = DB::table('domain_snapshots')->where('run_id', $context->runId)->where('claim_token', $context->claimToken)->lockForUpdate()->first();
-            if ($existing !== null && $existing->run_ended_at !== null) {
-                throw new \LogicException('Cannot stage an accepted domain snapshot.');
-            }
-            DB::table('domain_snapshots')->updateOrInsert(['run_id' => $context->runId, 'claim_token' => $context->claimToken], [
-                'site_id' => $context->siteId, 'check_id' => $context->checkId,
-                'snapshot' => $json, 'created_at' => now()->format('Y-m-d H:i:s.uP'),
-            ]);
-        });
+        StagedSnapshots::stage('domain_snapshots', $context, [
+            'site_id' => $context->siteId, 'check_id' => $context->checkId,
+            'snapshot' => $json, 'created_at' => now()->format('Y-m-d H:i:s.uP'),
+        ]);
     }
 
     public function finalize(RunReference $run, string $claimToken): void
     {
-        DB::transaction(function () use ($run, $claimToken): void {
-            $query = DB::table('domain_snapshots')->where('run_id', $run->id)->where('claim_token', $claimToken);
-            $row = $query->lockForUpdate()->first();
-            // Lookup errors have no staged observation and must not replace the baseline.
-            if ($row === null) {
-                return;
-            }
-            /** @var \stdClass&object{run_ended_at: string|null} $row */
-            if ($row->run_ended_at !== null) {
-                if (! CarbonImmutable::parse($row->run_ended_at)->eq($run->endedAt)) {
-                    throw new \LogicException('Domain attempt finalized for a different timestamp.');
-                }
-
-                return;
-            }
-            $query->update(['run_ended_at' => $run->endedAt->format('Y-m-d H:i:s.uP')]);
-        });
+        // Lookup errors have no staged observation and must not replace the baseline.
+        StagedSnapshots::finalize('domain_snapshots', $run, $claimToken);
     }
 
     /** @return array{run_id: int, snapshot: array<string, mixed>}|null */
@@ -91,8 +71,7 @@ final class DomainPersistence implements RunPersistence
 
     public function purgeCheck(int $checkId, int $limit): int
     {
-        return DB::delete('DELETE FROM domain_snapshots WHERE ctid = ANY(ARRAY(SELECT ctid FROM domain_snapshots
-            WHERE check_id = ? AND run_ended_at IS NOT NULL ORDER BY run_ended_at, run_id LIMIT ?))', [$checkId, $limit]);
+        return StagedSnapshots::purge('domain_snapshots', $checkId, $limit);
     }
 
     public function prunedTables(): array
@@ -110,6 +89,6 @@ final class DomainPersistence implements RunPersistence
 
     public function discard(int $runId, string $claimToken): void
     {
-        DB::table('domain_snapshots')->where('run_id', $runId)->where('claim_token', $claimToken)->whereNull('run_ended_at')->delete();
+        StagedSnapshots::discard('domain_snapshots', $runId, $claimToken);
     }
 }
