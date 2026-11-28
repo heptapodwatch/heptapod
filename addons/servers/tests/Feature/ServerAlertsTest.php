@@ -32,6 +32,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
@@ -206,7 +207,7 @@ it('never opens an issue for an ignored mount, and ends a disk issue without a r
     expect(alertsOpen($server))->toBe([]);
 });
 
-it('opens "No report" once the newest report is older than "No report after", never before the first report, and resolves it with the next sample', function (): void {
+it('opens "No report" once the newest report is older than "No report after", also before any /up heartbeat, never before the first report, and resolves it with the next sample', function (): void {
     [$server, $token] = alertsServer(settings: ['no_report_minutes' => 5]);
     [$awaiting] = alertsServer('new-server');
     alertsReport($this, $token);
@@ -950,4 +951,145 @@ it('puts a recurring server digest line back in the next digest when its snooze 
     dispatchNotifications();
 
     expect($digestCount())->toBe(2)->and(alertsWebhookBodies())->toHaveCount(2);
+});
+
+/**
+ * Minute by minute: the web's healthcheck calls /up and each agent token reports; the clock ends one minute later.
+ *
+ * @param  list<string>  $tokens
+ */
+function alertsUptime(TestCase $test, int $minutes, array $tokens = []): void
+{
+    for ($i = 0; $i < $minutes; $i++) {
+        $test->get('/up')->assertOk();
+        foreach ($tokens as $token) {
+            alertsReport($test, $token);
+        }
+        $test->travel(60)->seconds();
+    }
+}
+
+/** The upgrade as scripts/upgrade.sh runs it: artisan down, the old stack stops, the new one starts in maintenance, artisan up. */
+function alertsUpgrade(TestCase $test, int $minutes, string $token): CarbonImmutable
+{
+    $test->artisan('down')->assertSuccessful();
+    for ($i = 0; $i < $minutes; $i++) {
+        // The healthcheck still reaches /up; the agent's report is refused.
+        $test->get('/up')->assertOk();
+        $test->call('POST', '/agent/v1/report', server: ['CONTENT_TYPE' => 'application/json', 'HTTP_AUTHORIZATION' => 'Bearer '.$token], content: '{}')
+            ->assertStatus(503);
+        $test->travel(60)->seconds();
+    }
+    $test->artisan('up')->assertSuccessful();
+
+    return now()->toImmutable();
+}
+
+it('opens no "No report" after an upgrade put the instance into maintenance, also while agents are still in their failure backoff', function (): void {
+    config(['app.maintenance.driver' => 'array']);
+    systemIssueRecipient('Owner');
+    [$quick, $quickToken] = alertsServer('web-1');
+    [$slow, $slowToken] = alertsServer('web-2');
+    alertsUptime($this, 3, [$quickToken, $slowToken]);
+
+    $resumed = alertsUpgrade($this, 6, $quickToken);
+    // The scheduler starts before artisan up and passes right after it, before the next /up and any report.
+    alertsScheduledPass();
+    alertsUptime($this, 1, [$quickToken]);
+    alertsScheduledPass();
+    // A long outage left web-2's agent in its longest failure wait: it reports ten minutes after the resume.
+    alertsUptime($this, 9, [$quickToken]);
+    alertsScheduledPass();
+    expect(now()->equalTo($resumed->addMinutes(10)))->toBeTrue();
+    alertsUptime($this, 1, [$quickToken, $slowToken]);
+    alertsScheduledPass();
+    dispatchNotifications();
+
+    expect(ServerIssue::query()->count())->toBe(0)
+        ->and(alertsOpen($quick))->toBe([])->and(alertsOpen($slow))->toBe([])
+        ->and(alertsDeliveries('opened'))->toHaveCount(0);
+});
+
+it('opens "No report" for silence that started before the instance was down only after the resume grace, and for silence after the resume as always', function (): void {
+    config(['app.maintenance.driver' => 'array']);
+    [$before, $beforeToken] = alertsServer('silent-before');
+    [$after, $afterToken] = alertsServer('silent-after');
+    [$long, $longToken] = alertsServer('long-threshold', ['no_report_minutes' => 30]);
+    alertsUptime($this, 2, [$beforeToken, $afterToken, $longToken]);
+    alertsUptime($this, 3, [$afterToken]);
+
+    $resumed = alertsUpgrade($this, 6, $afterToken);
+    alertsUptime($this, 1, [$afterToken]);
+    $lastAfter = now()->subMinute()->toImmutable();
+    alertsUptime($this, 10);
+    alertsScheduledPass();
+    expect(alertsOpen($before))->toBe([])->and(alertsOpen($after))->toBe(['no_report:']);
+
+    alertsUptime($this, 1);
+    alertsScheduledPass();
+    expect(alertsOpen($before))->toBe(['no_report:'])->and(alertsOpen($long))->toBe([]);
+    alertsUptime($this, 19);
+    alertsScheduledPass();
+
+    $openedAt = static fn (Server $server): CarbonImmutable => ServerIssue::query()->where('server_id', $server->id)->sole()->opened_at;
+    expect($openedAt($before)->equalTo($resumed->addMinutes(11)))->toBeTrue()
+        ->and($openedAt($after)->equalTo($lastAfter->addMinutes(2)))->toBeTrue()
+        ->and($openedAt($long)->equalTo($resumed->addMinutes(30)))->toBeTrue();
+});
+
+it('opens no "No report" while the web does not answer, but still opens on time when only the scheduler was down', function (): void {
+    [$server, $token] = alertsServer();
+    alertsUptime($this, 2, [$token]);
+
+    // The web is down: no /up, no reports, while the scheduler keeps passing.
+    $this->travel(10)->minutes();
+    alertsScheduledPass();
+    expect(alertsOpen($server))->toBe([]);
+    $this->get('/up')->assertOk();
+    alertsScheduledPass();
+    expect(alertsOpen($server))->toBe([]);
+    alertsUptime($this, 1, [$token]);
+
+    // The scheduler is down while the web runs: the silence counts from the last report.
+    $reported = now()->subMinute()->toImmutable();
+    alertsUptime($this, 10);
+    alertsScheduledPass();
+    expect(ServerIssue::query()->where('server_id', $server->id)->sole()->opened_at->equalTo($reported->addMinutes(2)))->toBeTrue();
+});
+
+/** One run of the scheduled "No report" pass, as the scheduler runs it. */
+function alertsScheduledPass(): void
+{
+    $event = collect(app(Schedule::class)->events())->first(fn ($event): bool => $event->description === 'servers:evaluate-no-report');
+    expect($event?->filtersPass(app()))->toBeTrue();
+    $event->run(app());
+}
+
+it('counts "No report" as without a heartbeat once /up has not been called for 15 minutes, also after maintenance', function (): void {
+    config(['app.maintenance.driver' => 'array']);
+    [$server, $token] = alertsServer();
+    alertsUptime($this, 1, [$token]);
+    $reported = now()->subMinute()->toImmutable();
+    // The last /up saw maintenance; then no healthcheck calls /up any more.
+    $this->artisan('down')->assertSuccessful();
+    $this->get('/up')->assertOk();
+    $this->artisan('up')->assertSuccessful();
+
+    $this->travel(14)->minutes();
+    alertsScheduledPass();
+    expect(alertsOpen($server))->toBe([]);
+
+    $this->travel(2)->minutes();
+    alertsScheduledPass();
+    expect(ServerIssue::query()->where('server_id', $server->id)->sole()->opened_at->equalTo($reported->addMinutes(2)))->toBeTrue();
+});
+
+it('answers /up with 200 and reports the failure when the heartbeat cannot be written', function (): void {
+    Exceptions::fake();
+    // A cache whose Redis connection does not exist: every read and write throws.
+    config(['cache.stores.unreachable' => ['driver' => 'redis', 'connection' => 'unreachable'], 'cache.default' => 'unreachable']);
+
+    $this->get('/up')->assertOk();
+
+    Exceptions::assertReported(fn (InvalidArgumentException $exception): bool => str_contains($exception->getMessage(), '[unreachable]'));
 });

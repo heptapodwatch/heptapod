@@ -16,10 +16,13 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
+use Illuminate\Foundation\Events\DiagnosingHealth;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Throwable;
 
 final class ServersServiceProvider extends ServiceProvider
 {
@@ -48,6 +51,15 @@ final class ServersServiceProvider extends ServiceProvider
         // global middleware (CORS, the API entry throttle), exactly where the router raises its own 404.
         $kernel->pushMiddleware(EnsureServersEnabled::class);
 
+        // The web's /up (the container healthcheck, every 30 s) tells "No report" when reports could be received.
+        Event::listen(DiagnosingHealth::class, static function (): void {
+            // Bookkeeping, not readiness: a failure is reported, never an unhealthy /up.
+            try {
+                app(EvaluateServerIssues::class)->ingestHeartbeat(CarbonImmutable::now('UTC'), app()->isDownForMaintenance());
+            } catch (Throwable $exception) {
+                report($exception);
+            }
+        });
         $this->callAfterResolving(Schedule::class, static function (Schedule $schedule): void {
             $schedule->call(new PruneServerSamples)->name('servers:prune-samples')->hourly()->withoutOverlapping(120)
                 ->when(static fn (): bool => app(ServersAccess::class)->enabled());
