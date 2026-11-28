@@ -64,7 +64,10 @@ final readonly class DigestMail
         $rank = array_flip(array_map(static fn (NotificationCategory $category): string => $category->value, NotificationCategory::grid()));
         /** @param array{site: int, category: ?NotificationCategory, check: CheckKey|null, meta: string|null} $row */
         $order = static fn (array $row): int => $row['category'] instanceof NotificationCategory ? $rank[$row['category']->value] : count($rank);
-        usort($rows, static fn (array $a, array $b): int => [$order($a), $labels[$a['site']]] <=> [$order($b), $labels[$b['site']]]);
+        // Natural order, so a "#9" site suffix sorts before "#10".
+        usort($rows, static fn (array $a, array $b): int => $order($a) !== $order($b)
+            ? $order($a) <=> $order($b)
+            : strnatcmp($labels[$a['site']], $labels[$b['site']]));
         $shown = array_slice($rows, 0, self::ShownItems);
         // The rows share one byte budget; a shortened label keeps its distinguishing end, else falls back to its site ID.
         $items = MailRowBudget::fit(array_map(static fn (array $row): array => ['text' => $labels[$row['site']], 'key' => $row['site'],
