@@ -71,7 +71,7 @@ A server issue opens when a value stays at or above its threshold in every sampl
 | **No report**        | No report for 2 min                 | None             |
 
 - Heptapod looks for missing reports every five minutes. The next report resolves **No report**.
-- **No report** waits 11 minutes for the first report after Heptapod itself was down for more than about 90 seconds or in maintenance mode, as during an upgrade. A longer threshold of the server applies instead.
+- Sometimes Heptapod itself is down for more than about 90 seconds, or in maintenance mode during an upgrade. When it notices this, **No report** waits 11 minutes for the next report. A longer threshold of the server applies instead. Heptapod notices this through its container healthcheck. Without a healthcheck, or when the web app stays down for more than 15 minutes, **No report** uses the normal threshold.
 - To change thresholds for one server, open **Settings…** on its page. Under **Alert thresholds**, set each value and duration; disks can differ per mount. **Reset** restores the default.
 - Under **Mounts**, clear a mount to ignore it. It never alerts, and its open issue ends without a recovery alert.
 
