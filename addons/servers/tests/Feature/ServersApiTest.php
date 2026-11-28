@@ -8,10 +8,10 @@ use Heptapod\Actions\CreateApiToken;
 use Heptapod\Addons\Servers\Server;
 use Heptapod\Addons\Servers\ServerIssue;
 use Heptapod\Addons\Servers\ServerIssueKind;
+use Heptapod\Addons\Servers\ServersSettings;
 use Heptapod\Models\Client;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
-use Heptapod\Settings\InstanceSettings;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -29,9 +29,7 @@ beforeEach(function (): void {
 
 function apiSwitch(bool $on): void
 {
-    $settings = app(InstanceSettings::class);
-    $settings->servers_enabled = $on;
-    $settings->save();
+    app(ServersSettings::class)->turn($on);
 }
 
 function apiUser(string $role): User

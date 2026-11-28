@@ -18,9 +18,6 @@ final class InstanceSettings extends Settings
 
     public bool $updates_enabled;
 
-    // The Owner's switch for the experimental servers; heptapod.servers.enabled_by_server is a hard off above it.
-    public bool $servers_enabled;
-
     public int $alert_after_minutes;
 
     public int $alert_recovery_checks;

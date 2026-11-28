@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Settings;
 
 use Heptapod\Contracts\ServersAccess;
+use Heptapod\Contracts\ServersSwitch;
 use Heptapod\Models\User;
 use Heptapod\Queries\UpdateStatusReader;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -12,11 +13,12 @@ use Illuminate\Support\Facades\DB;
 
 final readonly class InstanceServersAccess implements ServersAccess
 {
-    public function __construct(private InstanceSettings $settings) {}
+    /** @param  ?ServersSwitch  $switch  null without the servers addon */
+    public function __construct(private ?ServersSwitch $switch = null) {}
 
     public function enabled(): bool
     {
-        return config()->boolean('heptapod.servers.enabled_by_server') && $this->settings->servers_enabled;
+        return config()->boolean('heptapod.servers.enabled_by_server') && $this->switch?->isOn() === true;
     }
 
     /** Servers belong to no client, so a client-limited token sees none, like a site outside its client (SitePolicy). */

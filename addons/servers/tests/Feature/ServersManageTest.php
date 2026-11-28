@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Heptapod\Addons\Servers\Server;
+use Heptapod\Addons\Servers\ServersSettings;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\SiteServers;
 use Heptapod\Models\Check;
 use Heptapod\Models\Client;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
-use Heptapod\Settings\InstanceSettings;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -27,9 +27,7 @@ beforeEach(function (): void {
 
 function manageSwitch(bool $on): void
 {
-    $settings = app(InstanceSettings::class);
-    $settings->servers_enabled = $on;
-    $settings->save();
+    app(ServersSettings::class)->turn($on);
 }
 
 function manageUser(string $role): User

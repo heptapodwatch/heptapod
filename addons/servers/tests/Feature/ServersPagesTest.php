@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Heptapod\Addons\Servers\Server;
+use Heptapod\Addons\Servers\ServersSettings;
 use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
 use Illuminate\Console\Scheduling\Event;
@@ -23,9 +24,7 @@ beforeEach(function (): void {
 
 function serversSwitch(bool $on): void
 {
-    $settings = app(InstanceSettings::class);
-    $settings->servers_enabled = $on;
-    $settings->save();
+    app(ServersSettings::class)->turn($on);
 }
 
 function serversUser(string $role): User
@@ -87,7 +86,7 @@ it('lets the Owner switch servers in Settings → General only where the environ
     $this->get('/settings/instance')->assertInertia(fn (Assert $page): Assert => $page->where('instancePage.servers_enabled_by_server', false));
     $this->patchJson('/settings/instance', ['name' => 'Heptapod', 'servers_enabled' => false])->assertUnprocessable()
         ->assertJsonPath('code', 'servers_disabled_by_server');
-    expect(app(InstanceSettings::class)->servers_enabled)->toBeTrue();
+    expect(app(ServersSettings::class)->enabled)->toBeTrue();
     $this->patch('/settings/instance', ['name' => 'Renamed'])->assertRedirect('/settings/instance');
     expect(app(InstanceSettings::class)->name)->toBe('Renamed');
 });
