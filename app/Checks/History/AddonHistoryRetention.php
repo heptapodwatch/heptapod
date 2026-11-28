@@ -16,8 +16,8 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class AddonHistoryRetention
 {
-    /** Cascades (crawl findings per snapshot) multiply a batch, so it stays well below the statement timeout. */
-    private const int BatchRows = 1000;
+    /** Cascades multiply a batch (a crawl snapshot carries hundreds of findings), so it stays far below the statement timeout. */
+    private const int BatchRows = 100;
 
     public function __construct(private CheckRegistry $registry) {}
 

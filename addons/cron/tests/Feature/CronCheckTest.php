@@ -360,6 +360,9 @@ it('prunes accepted history while retaining the last task baseline and stable id
         $type->persistence()->finalize(new RunReference($runId, CarbonImmutable::now()), $context->claimToken);
         $this->travel(1)->seconds();
     }
+    // Several prune batches of pings.
+    DB::table('cron_pings')->insert(array_map(fn (int $revision): array => ['cron_check_id' => $task->id, 'phase' => 'finish', 'ping_revision' => $revision,
+        'result' => 'success', 'meta' => '{}', 'received_at' => CarbonImmutable::now()], range(1000, 1250)));
     $this->travel(61)->days();
     app(AddonHistoryRetention::class)->prune(CarbonImmutable::now()->subDays(31));
     expect(DB::table('cron_run_tasks')->pluck('run_id')->all())->toBe([102])
