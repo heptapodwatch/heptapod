@@ -50,7 +50,6 @@
     "servers.install.title": "Agenten installieren",
     "servers.install.description": "Führen Sie diese Befehle auf {{name}} aus; diese Seite aktualisiert sich, sobald der erste Bericht eintrifft.",
     "servers.install.command": "Installationsbefehl",
-    "servers.install.copy_failed": "Kopieren fehlgeschlagen. Markieren Sie den Text und kopieren Sie ihn von Hand.",
     "servers.install.verify_summary": "Herunterladen, Prüfsumme prüfen, dann ausführen",
     "servers.install.source": "Skript und Agent stammen aus dem GitHub-Release dieser Heptapod-Version, nie von dieser Instanz:",
     "servers.install.releases": "Heptapod-Releases",

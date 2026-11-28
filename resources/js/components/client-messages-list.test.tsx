@@ -147,9 +147,7 @@ it('opens the message as sent and exports its stored attachment from the row', a
     fireEvent.click(screen.getByRole('button', { name: 'Export' }));
     fireEvent.click(screen.getByRole('radio', { name: 'export.format.md' }));
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
-    expect(
-        await screen.findByRole('button', { name: 'export.copied' }),
-    ).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Copied' })).toBeTruthy();
     expect(fetchExport).toHaveBeenCalledWith(
         '/clients/3/client-messages/7/attachment.md',
         expect.anything(),

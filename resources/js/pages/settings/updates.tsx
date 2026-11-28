@@ -20,8 +20,8 @@ import {
     useHttpRequest,
 } from '@/hooks/use-http-request';
 import { onLiveSignal } from '@/lib/live-store';
-import { Archive, Copy, ExternalLink } from 'lucide-react';
-import { useClipboard } from '@/hooks/use-clipboard';
+import { Archive, ExternalLink } from 'lucide-react';
+import { CopyButton } from '@/components/copy-button';
 import { EmptyState } from '@/components/empty-state';
 import { useEffect, useId, useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -766,28 +766,12 @@ const upgradeCommand = 'cd /opt/heptapod && sudo ./scripts/upgrade.sh';
 
 /** The upgrade command, selectable and copyable; a failed copy leaves the visible text to select by hand. */
 function UpgradeCommand() {
-    const { t } = useTranslation();
-    const [copied, copy] = useClipboard();
     return (
         <div className="flex items-start gap-2">
             <code className="block min-w-0 flex-1 rounded-lg border bg-muted/30 px-3 py-2 text-xs break-all">
                 {upgradeCommand}
             </code>
-            <Button
-                variant="outline"
-                onClick={async () => {
-                    if (!(await copy(upgradeCommand))) {
-                        toast.error(
-                            t(
-                                'Copy failed. Select the command and copy it manually.',
-                            ),
-                        );
-                    }
-                }}
-            >
-                <Copy className="size-3.5" />
-                {t(copied ? 'Copied' : 'Copy')}
-            </Button>
+            <CopyButton value={upgradeCommand} inline />
         </div>
     );
 }

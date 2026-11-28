@@ -6,7 +6,6 @@
     "export.format.txt": "Plain text",
     "export.csv_no_copy": "CSV is a file for spreadsheets. Copy uses Markdown or plain text.",
     "export.include": "Include",
-    "export.copied": "Copied",
     "export.download": "Download",
     "export.failed": "The export failed. Try again.",
     "export.capped": "Holds the first :shown of :total rows.",

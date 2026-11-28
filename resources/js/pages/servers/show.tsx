@@ -1,10 +1,8 @@
 import { Head, router, usePage, usePoll } from '@inertiajs/react';
-import { Copy } from 'lucide-react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActionNoteSlot } from '@/components/action-note-slot';
 import { ConfirmDialog, confirmVisit } from '@/components/confirm-dialog';
-import InputError from '@/components/input-error';
+import { CopyButton } from '@/components/copy-button';
 import { MonitoringTime } from '@/components/monitoring';
 import { PageContainer } from '@/components/page-container';
 import { PageHeader } from '@/components/page-header';
@@ -43,7 +41,6 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Disclosure } from '@/components/ui/disclosure';
-import { useClipboard } from '@/hooks/use-clipboard';
 import { useFormat } from '@/hooks/use-format';
 import { destroy, index, snooze, unsnooze } from '@/routes/servers';
 import { rotate } from '@/routes/servers/token';
@@ -111,31 +108,6 @@ function IssueNotice({
     );
 }
 type Release = Install & { version: string; release_url: string };
-
-/** Copies a value; a refused clipboard says so next to the button. */
-function CopyButton({ value }: { value: string }) {
-    const { t } = useTranslation();
-    const [copied, copy] = useClipboard();
-    const [failed, setFailed] = useState(false);
-    const noteId = useId();
-    return (
-        <div className="space-y-1.5">
-            <Button
-                variant="outline"
-                aria-describedby={failed ? noteId : undefined}
-                onClick={async () => setFailed(!(await copy(value)))}
-            >
-                <Copy className="size-4" />
-                {t(copied === value ? 'Copied' : 'Copy')}
-            </Button>
-            <ActionNoteSlot id={noteId}>
-                {failed && (
-                    <InputError message={t('servers.install.copy_failed')} />
-                )}
-            </ActionNoteSlot>
-        </div>
-    );
-}
 
 /** The agent token, shown once, and the install command; the installer asks for the token on a hidden prompt. */
 function InstallCommand({

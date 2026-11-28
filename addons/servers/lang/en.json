@@ -50,7 +50,6 @@
     "servers.install.title": "Install the agent",
     "servers.install.description": "Run these commands on {{name}}; this page updates when the first report arrives.",
     "servers.install.command": "Install command",
-    "servers.install.copy_failed": "Copy failed. Select the text and copy it manually.",
     "servers.install.verify_summary": "Download, verify the checksum, then run",
     "servers.install.source": "The script and the agent come from the GitHub release of this Heptapod version, never from this instance:",
     "servers.install.releases": "Heptapod releases",
