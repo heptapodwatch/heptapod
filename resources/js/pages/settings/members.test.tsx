@@ -40,6 +40,7 @@ it('explains why the last active Owner cannot be edited and offers only Close', 
             roster={{
                 clients: [],
                 invitations: [],
+                has_clients: false,
                 invite_roles: ['Member'],
                 members: [
                     {
@@ -103,6 +104,7 @@ it('lets the server validate the invite email and shows its error at the field',
                     clients: [],
                     invitations: [],
                     members: [],
+                    has_clients: false,
                     invite_roles: ['Admin'],
                 }}
             />,

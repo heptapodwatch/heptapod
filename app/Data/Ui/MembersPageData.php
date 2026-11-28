@@ -13,7 +13,7 @@ final class MembersPageData extends Data
     /**
      * @param  list<array{id: int, name: string, email: string, role: string|null, client_ids: list<int>, client_scope: string, effective_client_scope: string, last_active_at: string|null, disabled: bool, is_last_owner: bool, can_edit: bool, can_deactivate: bool, can_reinvite: bool, allowed_roles: list<string>}>  $members
      * @param  list<array{id: int, email: string, role: string, client_ids: list<int>, client_scope: string, inviter: string|null, expires_at: string, expired: bool, can_manage: bool}>  $invitations
-     * @param  list<array{id: int, name: string, archived: bool, short_name: string|null, accent_color: string|null, avatar: ClientAvatarData, is_internal: bool}>  $clients
+     * @param  list<array{id: int, name: string, archived: bool, short_name: string|null, accent_color: string|null, avatar: ClientAvatarData, is_internal: bool}>  $clients  the clients the members and invitations are assigned
      * @param  list<string>  $invite_roles
      */
     public function __construct(
@@ -21,5 +21,7 @@ final class MembersPageData extends Data
         public readonly array $invitations,
         public readonly array $clients,
         public readonly array $invite_roles,
+        /** Whether any client exists to assign a Member to. */
+        public readonly bool $has_clients,
     ) {}
 }

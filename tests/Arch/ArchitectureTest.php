@@ -246,6 +246,7 @@ arch('new readers must materialize visibility before leaf lookups', function ():
     ];
     $directClientReaders = ['SitesReader' => 1, 'ClientsReader' => 2, 'SiteDetailReader' => 1, 'SearchReader' => 1,
         'EventsReader' => 1, // Activity client filters must be limited to the user's visible clients.
+        'PickerReader' => 1, // The client picker reads the visible clients, bounded by its search limit.
     ];
     foreach (glob(dirname(__DIR__, 2).'/app/Queries/*.php') as $file) {
         $source = file_get_contents($file);

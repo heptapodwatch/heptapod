@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ClientCreateSheet } from '@/components/client-create-sheet';
 import { ClientField } from '@/components/client-field';
+import { usePickerEntities } from '@/components/search-combobox';
 import {
     clientPagination,
     ListFooter,
@@ -58,7 +59,7 @@ function ConflictSelect({
     proposed: string[];
 } & Pick<
     ComponentProps<typeof ClientField>,
-    'clients' | 'onValueChange' | 'onCreateClient' | 'disabled'
+    'onValueChange' | 'onCreateClient' | 'disabled'
 >) {
     const { t, i18n } = useTranslation();
     return (
@@ -92,7 +93,6 @@ function MappingRow({
     value,
     onChange,
     onCreateClient,
-    clients,
     inheritLabel,
     disabled,
 }: {
@@ -100,9 +100,8 @@ function MappingRow({
     label: string;
     meta: string;
     value: Target;
-    onChange: (value: Target) => void;
+    onChange: (value: Target, client?: Heptapod.Data.Ui.ClientData) => void;
     onCreateClient: (name: string) => void;
-    clients: Heptapod.Data.Ui.ClientData[];
     inheritLabel?: string;
     disabled: boolean;
 }) {
@@ -119,7 +118,6 @@ function MappingRow({
                 <ClientField
                     id={`${id}-target`}
                     ariaLabel={t('Client for :name', { name: label })}
-                    clients={clients}
                     leadingOptions={
                         inheritLabel
                             ? [{ value: inherit, label: inheritLabel }]
@@ -136,16 +134,13 @@ function MappingRow({
 }
 
 export default function ImportOhDear({
-    clients: suppliedClients,
+    internal_client: internal,
     timezones,
     sections,
     plan_page_size,
 }: Heptapod.Data.Ui.ImportOhDearPageData) {
     const { t } = useTranslation();
     const format = useFormat();
-    // Clients created from a picker join the list, so every other picker offers them too.
-    const [clients, setClients] = useState(suppliedClients);
-    const internal = clients.find((client) => client.is_internal)!;
     const http = useHttpRequest<
         { ohdear_token: string; sections: Heptapod.Enums.ImportSection[] },
         Plan
@@ -174,10 +169,25 @@ export default function ImportOhDear({
         },
         { url: string }
     >({ expected: 0, groups: {}, overrides: {} });
-    const setGroup = (key: string) => (value: Target) =>
-        setGroups((current) => ({ ...current, [key]: value }));
-    const setOverride = (sourceId: string) => (value: Target) =>
-        setOverrides((current) => ({ ...current, [sourceId]: value }));
+    // Names of the clients chosen anywhere on the page, for the "Automatic: …" and conflict lines.
+    const chosen = usePickerEntities(
+        'clients',
+        [...new Set([...Object.values(groups), ...Object.values(overrides)])]
+            .filter((target) => /^[1-9][0-9]*$/.test(target))
+            .map(Number),
+    );
+    const setGroup =
+        (key: string) =>
+        (value: Target, client?: Heptapod.Data.Ui.ClientData) => {
+            if (client) chosen.remember([client]);
+            setGroups((current) => ({ ...current, [key]: value }));
+        };
+    const setOverride =
+        (sourceId: string) =>
+        (value: Target, client?: Heptapod.Data.Ui.ClientData) => {
+            if (client) chosen.remember([client]);
+            setOverrides((current) => ({ ...current, [sourceId]: value }));
+        };
     const createClientFor =
         (select: (target: Target) => void) => (name: string) =>
             setCreating({ name, select });
@@ -199,8 +209,7 @@ export default function ImportOhDear({
     const groupTarget = (key: string): Target =>
         groups[key] ?? String(internal.id);
     const targetName = (target: Target): string =>
-        clients.find((client) => String(client.id) === target)?.name ??
-        internal.name;
+        chosen.known.get(Number(target))?.name ?? internal.name;
     // Distinct clients proposed by the site's assigned tags. The same client from several tags is one candidate.
     const tagCandidates = (row: Row): Target[] => [
         ...new Set(
@@ -529,7 +538,6 @@ export default function ImportOhDear({
                                                 onCreateClient={createClientFor(
                                                     setGroup(`team:${team.id}`),
                                                 )}
-                                                clients={clients}
                                                 disabled={http.processing}
                                             />
                                         ))}
@@ -558,7 +566,6 @@ export default function ImportOhDear({
                                             onCreateClient={createClientFor(
                                                 setGroup(`tag:${tag}`),
                                             )}
-                                            clients={clients}
                                             disabled={http.processing}
                                         />
                                     ))}
@@ -843,7 +850,6 @@ export default function ImportOhDear({
                                                             proposed={tagCandidates(
                                                                 row,
                                                             ).map(targetName)}
-                                                            clients={clients}
                                                             onValueChange={setOverride(
                                                                 row.source_id,
                                                             )}
@@ -867,7 +873,6 @@ export default function ImportOhDear({
                                                                         row.url,
                                                                 },
                                                             )}
-                                                            clients={clients}
                                                             leadingOptions={[
                                                                 {
                                                                     value: inherit,
@@ -967,7 +972,7 @@ export default function ImportOhDear({
                     timezones={timezones}
                     onClose={() => setCreating(null)}
                     onCreated={(created) => {
-                        setClients((current) => [...current, created]);
+                        chosen.remember([created]);
                         creating.select(String(created.id));
                         setCreating(null);
                     }}

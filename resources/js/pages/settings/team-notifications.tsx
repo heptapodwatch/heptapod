@@ -89,7 +89,7 @@ export default function TeamNotifications({
             <RecipientSettings
                 page={settings}
                 scopeDescription={t('recipient_settings.team.scope', {
-                    count: settings.sites.length,
+                    count: settings.site_count,
                 })}
             />
         </>

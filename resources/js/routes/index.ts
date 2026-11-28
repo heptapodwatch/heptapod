@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../wayfinder'
 /**
 * @see \Laravel\Fortify\Http\Controllers\AuthenticatedSessionController::login
 * @see vendor/laravel/fortify/src/Http/Controllers/AuthenticatedSessionController.php:47
@@ -805,6 +805,105 @@ searchForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 })
 
 search.form = searchForm
+
+/**
+* @see \Heptapod\Http\Controllers\PickerController::__invoke
+* @see app/Http/Controllers/PickerController.php:16
+* @route '/pickers/{kind}'
+*/
+export const pickers = (args: { kind: string | number } | [kind: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: pickers.url(args, options),
+    method: 'get',
+})
+
+pickers.definition = {
+    methods: ["get","head"],
+    url: '/pickers/{kind}',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \Heptapod\Http\Controllers\PickerController::__invoke
+* @see app/Http/Controllers/PickerController.php:16
+* @route '/pickers/{kind}'
+*/
+pickers.url = (args: { kind: string | number } | [kind: string | number ] | string | number, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { kind: args }
+    }
+
+    if (Array.isArray(args)) {
+        args = {
+            kind: args[0],
+        }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+        kind: args.kind,
+    }
+
+    return pickers.definition.url
+            .replace('{kind}', parsedArgs.kind.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \Heptapod\Http\Controllers\PickerController::__invoke
+* @see app/Http/Controllers/PickerController.php:16
+* @route '/pickers/{kind}'
+*/
+pickers.get = (args: { kind: string | number } | [kind: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: pickers.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\PickerController::__invoke
+* @see app/Http/Controllers/PickerController.php:16
+* @route '/pickers/{kind}'
+*/
+pickers.head = (args: { kind: string | number } | [kind: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: pickers.url(args, options),
+    method: 'head',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\PickerController::__invoke
+* @see app/Http/Controllers/PickerController.php:16
+* @route '/pickers/{kind}'
+*/
+const pickersForm = (args: { kind: string | number } | [kind: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: pickers.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\PickerController::__invoke
+* @see app/Http/Controllers/PickerController.php:16
+* @route '/pickers/{kind}'
+*/
+pickersForm.get = (args: { kind: string | number } | [kind: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: pickers.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \Heptapod\Http\Controllers\PickerController::__invoke
+* @see app/Http/Controllers/PickerController.php:16
+* @route '/pickers/{kind}'
+*/
+pickersForm.head = (args: { kind: string | number } | [kind: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: pickers.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+pickers.form = pickersForm
 
 /**
 * @see \Heptapod\Http\Controllers\HealthController::__invoke

@@ -39,8 +39,8 @@ it('provides installed schemas and only visible clients without secrets', functi
     Tag::findOrCreate('Unused tag', 'sites', 'en');
     $keys = array_map(static fn (CheckKey $key): string => $key->value, app(CheckRegistry::class)->keys());
 
-    $response = $this->actingAs($user)->get('/sites/create')->assertInertia(fn (Assert $page): Assert => $page->component('sites/create')->has('clients', 1)
-        ->where('clients.0.id', $client->id)->missing('tags')->has('checks', count($keys)));
+    $response = $this->actingAs($user)->get('/sites/create')->assertInertia(fn (Assert $page): Assert => $page->component('sites/create')->where('only_client_id', $client->id)
+        ->missing('tags')->has('checks', count($keys)));
     $this->get('/sites/create?client_id='.$client->id)->assertInertia(fn (Assert $page): Assert => $page->where('selected_client_id', $client->id));
     $this->get('/sites/create?client_id='.$hidden->client_id)->assertNotFound();
     $this->get('/sites')->assertInertia(fn (Assert $page): Assert => $page->has('tags', 1)->where('tags.0.name', 'Visible tag'));
@@ -87,7 +87,7 @@ it('ignores stale presentation selection for creation lists and authorized deep 
 
     $this->actingAs($user)->withSession(['selected_client_id' => $selected->id]);
     $response = $this->get('/sites/create')->assertOk();
-    expect(collect($response->inertiaProps()['clients'])->pluck('id')->all())->toContain($selected->id, $other->id);
+    expect($response->inertiaProps()['only_client_id'])->toBeNull();
     app()->instance(TargetResolver::class, (new FakeTargetResolver)->respondWith('second.fixtures.test', ['127.0.0.1']));
     $this->post('/sites', ['client_id' => $other->id, 'url' => 'https://second.fixtures.test'])->assertRedirect();
     $this->assertDatabaseHas('sites', ['client_id' => $other->id, 'url' => 'https://second.fixtures.test']);
@@ -166,7 +166,7 @@ it('uses the same cron task schema for props and task validation', function (): 
     expect(fn () => $definitions->create($check->id, ['name' => 'Backup', 'type' => 'simple', 'frequency_in_minutes' => 5, 'unknown' => true]))->toThrow(ValidationException::class);
 });
 
-it('loads add-site client options without N+1 queries or removed tag options even without planner statistics', function (int $count, int $sitesPerClient, int $tagCount): void {
+it('loads add-site without reading every client or removed tag options even without planner statistics', function (int $count, int $sitesPerClient, int $tagCount): void {
     $user = User::factory()->create(['client_scope' => ClientScope::Restricted]);
     $user->assignRole('Member');
     $clients = Client::factory()->count($count)->create();
@@ -186,14 +186,13 @@ it('loads add-site client options without N+1 queries or removed tag options eve
     $response = $this->get('/sites/create');
     $queries = DB::getQueryLog();
     DB::disableQueryLog();
-    $response->assertOk()->assertInertia(fn (Assert $page): Assert => $page->has('clients', $count)->missing('tags'));
+    $response->assertOk()->assertInertia(fn (Assert $page): Assert => $page->missing('clients')->where('only_client_id', null)->missing('tags'));
     expect(collect($queries)->filter(static fn (array $query): bool => str_contains($query['query'], 'from "tags"') || str_contains($query['query'], 'from "taggables"')))->toBeEmpty();
-    // Client avatars add two batched relation reads to the cold page load, the sidebar's inline late runs count two more.
-    // +1 since 2026-11-19: the instance zone, the default of the inline client form's zone field.
-    // +4: Running now (visible sites, check runs, imports, backup).
-    expect(count($queries))->toBeLessThanOrEqual(21);
+    // The sidebar's inline late runs count two reads; the instance zone (the inline client form's default) one;
+    // Running now four (visible sites, check runs, imports, backup). The client picker searches on the server since 2026-11-28 (-4).
+    expect(count($queries))->toBeLessThanOrEqual(17);
     if ($count === 300) {
-        $clientQuery = collect($queries)->first(fn (array $query): bool => str_starts_with($query['query'], 'select "clients".* from "clients"'));
+        $clientQuery = collect($queries)->first(fn (array $query): bool => str_contains($query['query'], 'from "clients"') && str_contains($query['query'], 'limit 2'));
         expect($clientQuery)->not->toBeNull();
         expect(QueryPlanWork::forQuery($clientQuery['query'], $clientQuery['bindings']))->toBeLessThan(12 * $count);
     }

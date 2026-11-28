@@ -14,7 +14,6 @@ import {
     HistoryFilters,
     ListFilterBar,
 } from '@/components/list-filter-bar';
-import { clientComboboxOptions } from '@/components/entity-combobox';
 import { ListHeader, ListRow } from '@/components/ui/table';
 import { PageHeader } from '@/components/page-header';
 import { PageContainer } from '@/components/page-container';
@@ -42,7 +41,6 @@ export default function Runs({
     finished,
     runs,
     next_cursor,
-    clients,
     filters,
     before,
     per_page,
@@ -87,7 +85,9 @@ export default function Runs({
             <div data-run-filters>
                 <ListFilterBar
                     filters={filters}
-                    sources={{ clients: clientComboboxOptions(clients) }}
+                    sources={{
+                        clients: { kind: 'clients', scope: { browse: true } },
+                    }}
                     disabledReason={
                         checkScoped
                             ? {

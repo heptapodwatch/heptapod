@@ -63,7 +63,7 @@ it('filters maintenance target intersections without changing target facts or ex
         expect($rows[$tagWindow->id]['siteCount'])->toBe(2)->and($rows[$tagWindow->id]['targetLabel'])->toBe('Cross-client target');
     } else {
         expect(json_encode($response->inertiaProps(), JSON_THROW_ON_ERROR))->not->toContain('Cross-client target', 'Foreign client');
-        expect(array_column($response->inertiaProps()['filter_clients'], 'id'))->not->toContain($foreign->id);
+        expect(array_column($response->inertiaProps()['window_clients'], 'id'))->not->toContain($foreign->id);
     }
     $response = $this->get('/maintenance?client_id='.$foreign->id)->assertOk();
     expect($response->inertiaProps()['windows'])->toHaveCount($role === 'Owner' ? 1 : 0);
@@ -132,7 +132,7 @@ it('renders active, planned and done windows with only their available actions',
     MaintenancePeriod::factory()->create(['site_id' => $site->id, 'starts_at' => now()->addDay(), 'ends_at' => now()->addDay()->addHour()]);
 
     $this->actingAs($owner)->get('/maintenance')->assertInertia(fn (Assert $page): Assert => $page
-        ->component('maintenance/index')->where('can_manage', true)->has('sites', 1)
+        ->component('maintenance/index')->where('can_manage', true)
         ->where('windows.0.state', 'planned')->where('windows.1.state', 'active')->where('windows.2.state', 'done')
         ->where('windows.1.actions.0', 'end_now')->has('windows.2.actions', 0));
 });
@@ -151,7 +151,7 @@ it('hides a window outside member reach and disallows member writes', function (
         'ends_local' => '2026-10-04 01:00', 'timezone' => 'UTC', 'recurrence_type' => 'once',
     ])->assertRedirect(route('maintenance.index'));
     $this->actingAs($member)->get('/maintenance')->assertInertia(fn (Assert $page): Assert => $page->has('windows', 0)
-        ->where('can_manage', false)->has('sites', 0)->has('clients', 0)->has('tags', 0));
+        ->where('can_manage', false)->has('tags', 0));
     $this->post('/maintenance', [
         'target_type' => 'client', 'target_id' => $denied->id, 'starts_local' => '2026-10-04 00:00',
         'ends_local' => '2026-10-04 01:00', 'timezone' => 'UTC', 'recurrence_type' => 'once',
@@ -377,7 +377,7 @@ it('does not emit reminders while a muted window covers an already-open incident
     expect(Event::query()->where('incident_id', $incident->id)->where('type', 'incident.still_down')->count())->toBe(0);
 });
 
-it('supplies each target options resolved client timezone and the viewers own zone on maintenance', function (): void {
+it('supplies each target the resolved client timezone and the viewers own zone on maintenance', function (): void {
     $this->travelTo(CarbonImmutable::parse('2026-10-04T12:00:00Z'));
     app(InstanceSettings::class)->timezone = 'Europe/London';
     app(InstanceSettings::class)->save();
@@ -386,8 +386,6 @@ it('supplies each target options resolved client timezone and the viewers own zo
     $inheritedClient = Client::factory()->create(['name' => 'Default Studio', 'timezone' => null]);
     $newYorkSite = Site::factory()->for($newYorkClient)->create(['friendly_name' => 'NY Shop']);
     $inheritedSite = Site::factory()->for($inheritedClient)->create(['friendly_name' => 'Default Shop']);
-    $newYorkSite->attachTag('Release', 'sites');
-    $tagId = $newYorkSite->tags()->firstOrFail()->id;
 
     $berlinOwner = User::factory()->create(['timezone' => 'Europe/Berlin']);
     $berlinOwner->assignRole('Owner');
@@ -395,16 +393,16 @@ it('supplies each target options resolved client timezone and the viewers own zo
     $inheritedOwner->assignRole('Owner');
 
     $berlinProps = $this->actingAs($berlinOwner)->get('/maintenance')->assertOk()->inertiaProps();
-    $sitesById = collect($berlinProps['sites'])->keyBy('id');
-    $clientsById = collect($berlinProps['clients'])->keyBy('id');
-    $tagsById = collect($berlinProps['tags'])->keyBy('id');
+    // The target pickers read the zone with the chosen site or client.
+    $sitesById = collect($this->getJson('/pickers/sites?'.http_build_query(['ids' => [$newYorkSite->id, $inheritedSite->id]]))->json('options'))->keyBy('id');
+    $clientsById = collect($this->getJson('/pickers/clients?'.http_build_query(['ids' => [$newYorkClient->id, $inheritedClient->id]]))->json('options'))->keyBy('id');
 
     expect($berlinProps['timezone'])->toBe('Europe/Berlin')
+        ->and($berlinProps['timezones'])->toContain('America/New_York')
         ->and($sitesById[$newYorkSite->id]['timezone'])->toBe('America/New_York')
         ->and($sitesById[$inheritedSite->id]['timezone'])->toBe('Europe/London')
         ->and($clientsById[$newYorkClient->id]['timezone'])->toBe('America/New_York')
-        ->and($clientsById[$inheritedClient->id]['timezone'])->toBe('Europe/London')
-        ->and($tagsById[$tagId]['timezone'])->toBeNull();
+        ->and($clientsById[$inheritedClient->id]['timezone'])->toBe('Europe/London');
 
     $inheritedProps = $this->actingAs($inheritedOwner)->get('/maintenance')->assertOk()->inertiaProps();
     expect($inheritedProps['timezone'])->toBe('Europe/London');

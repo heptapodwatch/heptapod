@@ -1,25 +1,26 @@
 import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ClientMark } from '@/components/client-mark';
+import { SearchCombobox } from '@/components/search-combobox';
 import InputError, { fieldErrorProps } from '@/components/input-error';
-import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
+import type { ComboboxOption } from '@/components/ui/combobox';
 import { Label } from '@/components/ui/label';
 
 /**
  * The one picker that assigns something to a client. With `onCreateClient` it ends in "Create client …",
  * which the caller answers by opening ClientCreateSheet and selecting the created client.
- * Pickers that only scope or filter by client use EntityCombobox / FilterCombobox instead.
+ * Pickers that only scope or filter by client use SearchCombobox / FilterCombobox instead.
  */
 export function ClientField({
-    clients,
     leadingOptions = [],
     onCreateClient,
     error,
     id = 'site-client',
     ariaLabel,
     ...comboboxProps
-}: Omit<ComponentProps<typeof Combobox>, 'options' | 'create'> & {
-    clients: Heptapod.Data.Ui.ClientData[];
+}: Omit<
+    ComponentProps<typeof SearchCombobox<'clients'>>,
+    'kind' | 'leadingOptions' | 'create'
+> & {
     /** Choices listed before the clients, e.g. "Use the team assignment". */
     leadingOptions?: ComboboxOption[];
     onCreateClient?: (name: string) => void;
@@ -31,17 +32,11 @@ export function ClientField({
     return (
         <div className="space-y-2">
             {!ariaLabel && <Label htmlFor={id}>{t('Client')}</Label>}
-            <Combobox
+            <SearchCombobox
+                kind="clients"
                 id={id}
                 ariaLabel={ariaLabel}
-                options={[
-                    ...leadingOptions,
-                    ...clients.map((client) => ({
-                        value: String(client.id),
-                        label: client.name,
-                        mark: <ClientMark client={client} small />,
-                    })),
-                ]}
+                leadingOptions={leadingOptions}
                 invalid={!!error}
                 describedBy={fieldErrorProps(id, error)['aria-describedby']}
                 create={

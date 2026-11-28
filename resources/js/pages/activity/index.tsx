@@ -8,7 +8,6 @@ import {
 import { ActivityTimeline } from '@/components/activity-timeline';
 import { Activity as ActivityIcon } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
-import { clientComboboxOptions } from '@/components/entity-combobox';
 import { PageHeader } from '@/components/page-header';
 import { PageContainer } from '@/components/page-container';
 import { Head, InfiniteScroll, router, usePage } from '@inertiajs/react';
@@ -34,7 +33,6 @@ export default function Activity({
     events,
     head,
     retention_days,
-    clients,
     filters,
     expanded_id,
     expanded_events,
@@ -179,7 +177,9 @@ export default function Activity({
             />
             <ListFilterBar
                 filters={withFilterValues(filters, draft)}
-                sources={{ clients: clientComboboxOptions(clients) }}
+                sources={{
+                    clients: { kind: 'clients', scope: { browse: true } },
+                }}
                 status={
                     pendingChanges > 0 ? (
                         <PendingChanges

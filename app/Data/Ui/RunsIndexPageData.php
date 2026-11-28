@@ -16,7 +16,6 @@ final class RunsIndexPageData extends Data
      * @param  ClosureLazy|list<CurrentRunData>  $current
      * @param  ClosureLazy|list<FinishedRunData>  $finished
      * @param  ClosureLazy|list<RunRowData>  $runs
-     * @param  ClosureLazy|list<ClientData>  $clients
      * @param  ClosureLazy|array<string, ListFilterData>  $filters
      */
     public function __construct(
@@ -25,7 +24,6 @@ final class RunsIndexPageData extends Data
         public readonly ClosureLazy|array $finished,
         public readonly ClosureLazy|array $runs,
         public readonly ClosureLazy|string|null $next_cursor,
-        public readonly ClosureLazy|array $clients,
         public readonly ClosureLazy|array $filters,
         public readonly ?int $before,
         public readonly int $per_page,

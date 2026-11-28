@@ -1,7 +1,6 @@
-import type { ComponentProps } from 'react';
 import { ClientMark } from '@/components/client-mark';
 import { SiteAvatar } from '@/components/site-avatar';
-import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
+import type { ComboboxOption } from '@/components/ui/combobox';
 
 export function siteHost(url: string): string {
     try {
@@ -70,13 +69,4 @@ export function clientComboboxOptions(clients: ClientLike[]): ComboboxOption[] {
             />
         ) : undefined,
     }));
-}
-
-/** One entity picker for sites, clients and tags, on the shared searchable Combobox. */
-export function EntityCombobox(
-    props: Omit<ComponentProps<typeof Combobox>, 'options'> & {
-        options: ComboboxOption[];
-    },
-) {
-    return <Combobox {...props} />;
 }

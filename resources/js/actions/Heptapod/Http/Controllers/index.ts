@@ -5,6 +5,7 @@ import ActivityController from './ActivityController'
 import RunsController from './RunsController'
 import LiveChangesController from './LiveChangesController'
 import SearchController from './SearchController'
+import PickerController from './PickerController'
 import ClientsIndexController from './ClientsIndexController'
 import ClientSettingsController from './ClientSettingsController'
 import ClientDetailController from './ClientDetailController'
@@ -58,6 +59,7 @@ const Controllers = {
     RunsController: Object.assign(RunsController, RunsController),
     LiveChangesController: Object.assign(LiveChangesController, LiveChangesController),
     SearchController: Object.assign(SearchController, SearchController),
+    PickerController: Object.assign(PickerController, PickerController),
     ClientsIndexController: Object.assign(ClientsIndexController, ClientsIndexController),
     ClientSettingsController: Object.assign(ClientSettingsController, ClientSettingsController),
     ClientDetailController: Object.assign(ClientDetailController, ClientDetailController),

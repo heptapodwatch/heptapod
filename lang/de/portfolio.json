@@ -42,6 +42,8 @@
     "combobox.create_failed": "Die Option konnte nicht angelegt werden. Prüfen Sie Ihre Verbindung und Berechtigungen und versuchen Sie es erneut.",
     "combobox.options": "Optionen",
     "combobox.empty": "Keine Optionen gefunden.",
+    "combobox.more_matches": "Weitere Optionen passen. Tippen Sie, um die Auswahl einzugrenzen.",
+    "combobox.failed": "Die Optionen konnten nicht geladen werden. Prüfen Sie Ihre Verbindung, schließen Sie die Liste und öffnen Sie sie erneut.",
     "combobox.selected": "Ausgewählt",
     "combobox.remove": ":name entfernen",
     "{{count}} clients_one": "{{formattedCount}} Kunde",

@@ -6,7 +6,6 @@ import {
     withFilterValues,
 } from '@/components/list-filter-bar';
 import { ListFooter } from '@/components/list-footer';
-import { clientComboboxOptions } from '@/components/entity-combobox';
 import {
     useLiveSearch,
     type LiveSearchVisitOptions,
@@ -178,7 +177,10 @@ export default function SitesIndex({
                     <ListFilterBar
                         filters={draftFilters}
                         sources={{
-                            clients: clientComboboxOptions(clients),
+                            clients: {
+                                kind: 'clients',
+                                scope: { browse: true },
+                            },
                             tags: tagOptions,
                             advisories: [
                                 { value: 'any:1', label: t('With advisories') },

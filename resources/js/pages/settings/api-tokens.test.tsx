@@ -126,6 +126,7 @@ const page: Heptapod.Data.Ui.ApiTokenSettingsData = {
         ],
     },
     clients: [],
+    has_clients: false,
     timezone: 'Europe/Berlin',
 };
 
@@ -247,22 +248,7 @@ it('offers no server abilities for a token limited to one client and drops the c
                 'servers:snooze',
             ],
         },
-        clients: [
-            {
-                id: 7,
-                name: 'Acme',
-                short_name: null,
-                accent_color: null,
-                avatar: {
-                    url: null,
-                    backing: 'none',
-                    source: 'initials',
-                    site_id: null,
-                    site_host: null,
-                },
-                is_internal: false,
-            },
-        ],
+        has_clients: true,
     };
     render(
         <TooltipProvider>

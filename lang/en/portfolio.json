@@ -42,6 +42,8 @@
     "combobox.create_failed": "Could not create the option. Check your connection and permissions, then try again.",
     "combobox.options": "Options",
     "combobox.empty": "No options found.",
+    "combobox.more_matches": "More options match. Type to narrow them down.",
+    "combobox.failed": "Could not load the options. Check your connection, then close and reopen the list.",
     "combobox.selected": "Selected",
     "combobox.remove": "Remove :name",
     "{{count}} clients_one": "{{formattedCount}} client",

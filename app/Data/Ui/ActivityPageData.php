@@ -20,7 +20,6 @@ final class ActivityPageData extends Data
      * @param  ScrollProp<mixed>|ActivityBatchData  $events  Infinite scroll of ActivityBatchData, newest first; cursor `before`.
      * @param  OptionalProp|ActivityBatchData|null  $head  The newest batch, sent only on live reloads.
      * @param  list<EventData>  $expanded_events
-     * @param  list<ClientData>  $clients
      */
     public function __construct(
         #[LiteralTypeScriptType('Heptapod.Data.Ui.ActivityBatchData')]
@@ -28,7 +27,6 @@ final class ActivityPageData extends Data
         #[LiteralTypeScriptType('Heptapod.Data.Ui.ActivityBatchData | undefined')]
         public readonly OptionalProp|ActivityBatchData|null $head,
         public readonly int $retention_days,
-        public readonly array $clients,
         public readonly array $filters,
         public readonly ?int $expanded_id,
         public readonly array $expanded_events,

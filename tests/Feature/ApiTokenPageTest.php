@@ -39,9 +39,9 @@ it('renders only safe own metadata and accessible clients including empty client
         ->where('tokensPage.tokens.0.client_id', $hidden->id)
         ->where('tokensPage.tokens.0.client_name', null)
         ->where('tokensPage.tokens.0.last_used_at', null)
-        ->has('tokensPage.clients', 1)
-        ->where('tokensPage.clients.0.id', $visible->id)
-        ->where('tokensPage.clients.0.name', $visible->name)
+        // The rows read only the tokens' own clients (the hidden one is not readable); the picker offers the empty one.
+        ->has('tokensPage.clients', 0)
+        ->where('tokensPage.has_clients', true)
         ->where('tokensPage.timezone', 'Europe/Berlin')->etc());
     expect(str_contains($response->getContent(), $own->plainTextToken))->toBeFalse();
     expect(str_contains($response->getContent(), $own->accessToken->token))->toBeFalse();

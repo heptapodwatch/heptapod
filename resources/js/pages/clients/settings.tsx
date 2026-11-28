@@ -23,10 +23,7 @@ import { Button } from '@/components/ui/button';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import { RadioCards } from '@/components/ui/radio-cards';
 import { CheckboxField } from '@/components/ui/checkbox';
-import {
-    EntityCombobox,
-    clientComboboxOptions,
-} from '@/components/entity-combobox';
+import { SearchCombobox } from '@/components/search-combobox';
 import { Label } from '@/components/ui/label';
 import { InfoTooltip } from '@/components/info-tooltip';
 import {
@@ -47,9 +44,9 @@ type MoveBlocker = {
 
 export default function ClientSettings({
     client,
-    avatar_sites,
+    has_icon_sites,
     timezones,
-    clients,
+    internal_client_id,
     site_count,
     archive_paused_site_count,
 }: Heptapod.Data.Ui.ClientSettingsPageData) {
@@ -67,9 +64,7 @@ export default function ClientSettings({
         client_id: string;
     }>({
         site_action: 'archive',
-        client_id: String(
-            clients.find((choice) => choice.is_internal)?.id ?? '',
-        ),
+        client_id: String(internal_client_id ?? ''),
     });
     const clientId = client?.id;
     const targetId = archiveForm.data.client_id;
@@ -186,7 +181,7 @@ export default function ClientSettings({
                     {client && (
                         <ClientAvatarSettings
                             client={client}
-                            sites={avatar_sites}
+                            hasIconSites={has_icon_sites}
                             draft={form.data.avatar}
                             onDraftChange={(avatar) =>
                                 form.setData('avatar', avatar)
@@ -318,11 +313,14 @@ export default function ClientSettings({
                                             <Label htmlFor="archive-target-client">
                                                 {t('Client')}
                                             </Label>
-                                            <EntityCombobox
+                                            <SearchCombobox
+                                                kind="clients"
+                                                omit={
+                                                    clientId === undefined
+                                                        ? []
+                                                        : [clientId]
+                                                }
                                                 id="archive-target-client"
-                                                options={clientComboboxOptions(
-                                                    clients,
-                                                )}
                                                 value={
                                                     archiveForm.data.client_id
                                                 }

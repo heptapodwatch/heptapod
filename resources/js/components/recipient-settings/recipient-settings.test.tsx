@@ -14,6 +14,32 @@ import type {
     SettingsPage,
 } from '@/components/recipient-settings/model';
 import { RecipientSettings } from '@/components/recipient-settings/recipient-settings';
+import { stubPickerFetch } from '@/test/picker-fetch';
+
+type MutedSite = SettingsPage['muted_sites'][number];
+/** The same site as the exceptions picker finds it on the server. */
+const pickerSite = ({
+    identity: _identity,
+    url: _url,
+    ...site
+}: MutedSite): Heptapod.Data.Ui.PickerSiteData => ({
+    ...site,
+    timezone: 'UTC',
+});
+const staging: MutedSite = {
+    id: 3,
+    name: 'staging.example',
+    identity: {
+        label: 'staging.example',
+        detail: 'Studio · staging.example',
+    },
+    client_id: 1,
+    client_name: 'Studio',
+    host: 'staging.example',
+    url: 'https://staging.example',
+    icon_url: null,
+    icon_backing: 'none',
+};
 
 vi.hoisted(() => {
     window.matchMedia = vi.fn().mockReturnValue({
@@ -77,6 +103,7 @@ const toast = vi.hoisted(() =>
 vi.mock('sonner', () => ({ toast }));
 
 beforeEach(() => {
+    stubPickerFetch({ sites: [pickerSite(staging)] });
     requests.length = 0;
     mockedPageUrl = null;
     writeResponse = json(200, { id: 1, enabled: true, suppressed_count: 0 });
@@ -154,23 +181,8 @@ function page(channels: Channel[]): SettingsPage {
             digest_weekdays: null,
             timezone: 'Europe/Berlin',
         },
-        sites: [
-            {
-                id: 3,
-                name: 'staging.example',
-                identity: {
-                    label: 'staging.example',
-                    detail: 'Studio · staging.example',
-                },
-                client_id: 1,
-                client_name: 'Studio',
-                host: 'staging.example',
-                url: 'https://staging.example',
-                icon_url: null,
-                icon_backing: 'none',
-            },
-        ],
-        clients: [],
+        muted_sites: [staging],
+        site_count: 1,
         channel_types: [],
         check_types: [],
         timezones: ['UTC', 'Europe/Berlin'],
@@ -484,30 +496,29 @@ it('tells same-named sites apart in the exception picker, its chips and the chan
         icon_backing: 'none' as const,
     });
     window.history.replaceState(null, '', '?channel=7');
+    const kestrel = site(
+        3,
+        'https://shop.example',
+        'Kestrel',
+        'Website (Kestrel · shop.example)',
+    );
+    stubPickerFetch({
+        sites: [
+            kestrel,
+            site(4, 'https://blog.example', 'Hollis', 'Website (blog.example)'),
+            site(
+                5,
+                'https://shop.example',
+                'Pike',
+                'Website (Pike · shop.example)',
+            ),
+        ].map(pickerSite),
+    });
     render(
         <RecipientSettings
             page={{
                 ...page([channel({ muted_site_ids: [3] })]),
-                sites: [
-                    site(
-                        3,
-                        'https://shop.example',
-                        'Kestrel',
-                        'Website (Kestrel · shop.example)',
-                    ),
-                    site(
-                        4,
-                        'https://blog.example',
-                        'Hollis',
-                        'Website (blog.example)',
-                    ),
-                    site(
-                        5,
-                        'https://shop.example',
-                        'Pike',
-                        'Website (Pike · shop.example)',
-                    ),
-                ],
+                muted_sites: [kestrel],
             }}
             scopeDescription="scope"
         />,
@@ -531,7 +542,7 @@ it('tells same-named sites apart in the exception picker, its chips and the chan
     });
     fireEvent.click(blog);
     expect(sheet.textContent).toContain(
-        'recipient_settings.sentence.not_for(sites=Website (Kestrel · shop.example) recipient_settings.and Website (blog.example))',
+        'recipient_settings.sentence.not_for(sites=Website (Kestrel · shop.example) recipient_settings.and Website (Hollis · blog.example))',
     );
 });
 
@@ -570,38 +581,32 @@ it('tells apart same-named sites of one client and host by path, then port, then
         icon_url: null,
         icon_backing: 'none' as const,
     });
+    const muted = [
+        site(10, 'https://example.test/shop', 'Kestrel · example.test/shop'),
+        site(11, 'https://example.test/blog', 'Kestrel · example.test/blog'),
+        site(
+            12,
+            'https://example.test:8443/blog',
+            'Kestrel · example.test:8443/blog',
+        ),
+        site(
+            13,
+            'http://example.test/docs',
+            'Kestrel · example.test/docs · #13',
+        ),
+        site(
+            14,
+            'https://example.test/docs',
+            'Kestrel · example.test/docs · #14',
+        ),
+    ];
+    stubPickerFetch({ sites: muted.map(pickerSite) });
     window.history.replaceState(null, '', '?channel=7');
     render(
         <RecipientSettings
             page={{
                 ...page([channel({ muted_site_ids: [10, 11, 12, 13, 14] })]),
-                sites: [
-                    site(
-                        10,
-                        'https://example.test/shop',
-                        'Kestrel · example.test/shop',
-                    ),
-                    site(
-                        11,
-                        'https://example.test/blog',
-                        'Kestrel · example.test/blog',
-                    ),
-                    site(
-                        12,
-                        'https://example.test:8443/blog',
-                        'Kestrel · example.test:8443/blog',
-                    ),
-                    site(
-                        13,
-                        'http://example.test/docs',
-                        'Kestrel · example.test/docs · #13',
-                    ),
-                    site(
-                        14,
-                        'https://example.test/docs',
-                        'Kestrel · example.test/docs · #14',
-                    ),
-                ],
+                muted_sites: muted,
             }}
             scopeDescription="scope"
         />,
@@ -664,9 +669,13 @@ it('uses server identities for mixed-stage collisions in chips and picker detail
         icon_backing: 'none' as const,
         identity: { label, detail },
     }));
+    stubPickerFetch({ sites: sites.map(pickerSite) });
     render(
         <RecipientSettings
-            page={{ ...page([channel({ muted_site_ids: [10, 12] })]), sites }}
+            page={{
+                ...page([channel({ muted_site_ids: [10, 12] })]),
+                muted_sites: sites.filter(({ id }) => id !== 11),
+            }}
             scopeDescription="scope"
         />,
     );
@@ -687,28 +696,20 @@ it('uses server identities for mixed-stage collisions in chips and picker detail
 });
 
 it('saves channel preference and site-mute changes in a single atomic request', async () => {
+    stubPickerFetch({
+        sites: [
+            pickerSite(staging),
+            pickerSite({
+                ...staging,
+                id: 4,
+                name: 'shop.example',
+                host: 'shop.example',
+            }),
+        ],
+    });
     render(
         <RecipientSettings
-            page={{
-                ...page([channel({ muted_site_ids: [3] })]),
-                sites: [
-                    ...page([]).sites,
-                    {
-                        id: 4,
-                        name: 'shop.example',
-                        identity: {
-                            label: 'shop.example',
-                            detail: 'Studio · shop.example',
-                        },
-                        client_id: 1,
-                        client_name: 'Studio',
-                        host: 'shop.example',
-                        url: 'https://shop.example',
-                        icon_url: null,
-                        icon_backing: 'none',
-                    },
-                ],
-            }}
+            page={page([channel({ muted_site_ids: [3] })])}
             scopeDescription="scope"
         />,
     );

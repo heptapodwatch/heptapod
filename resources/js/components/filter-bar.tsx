@@ -3,6 +3,10 @@ import { ChevronDown, SlidersHorizontal, X } from 'lucide-react';
 import { Collapsible as CollapsiblePrimitive } from 'radix-ui';
 import type { ComponentProps, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+    SearchCombobox,
+    type SearchedSource,
+} from '@/components/search-combobox';
 import { Button } from '@/components/ui/button';
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { SelectTrigger } from '@/components/ui/select';
@@ -179,6 +183,8 @@ export function FilterCombobox({
     id,
     ariaLabel,
     options,
+    search,
+    leadingOptions,
     value,
     onValueChange,
     onClear,
@@ -189,28 +195,40 @@ export function FilterCombobox({
     id?: string;
     ariaLabel: string;
     options: ComboboxOption[];
+    /** Searches these entities on the server; `leadingOptions` then holds the fixed choices ("All clients"). */
+    search?: SearchedSource;
+    leadingOptions?: ComboboxOption[];
     value: string;
     onValueChange: (value: string) => void;
     onClear: (() => void) | null;
     notice?: string;
 }) {
+    const shared = {
+        id,
+        value,
+        onValueChange,
+        triggerClassName: filterTriggerClass(onClear !== null),
+        ariaLabel,
+        notice,
+        disabled,
+        describedBy,
+    };
     return (
         <div
             className="relative w-full md:w-40 md:shrink-0"
             role="group"
             aria-label={ariaLabel}
         >
-            <Combobox
-                id={id}
-                options={options}
-                value={value}
-                onValueChange={onValueChange}
-                triggerClassName={filterTriggerClass(onClear !== null)}
-                ariaLabel={ariaLabel}
-                notice={notice}
-                disabled={disabled}
-                describedBy={describedBy}
-            />
+            {search ? (
+                <SearchCombobox
+                    {...shared}
+                    kind={search.kind}
+                    scope={search.scope}
+                    leadingOptions={leadingOptions}
+                />
+            ) : (
+                <Combobox {...shared} options={options} />
+            )}
             {onClear && (
                 <FilterClearButton label={ariaLabel} onClear={onClear} />
             )}

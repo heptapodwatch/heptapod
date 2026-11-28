@@ -19,7 +19,6 @@ use Heptapod\Models\Check;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Queries\RunsReader;
-use Heptapod\Queries\SitesReader;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -27,7 +26,7 @@ use Spatie\LaravelData\Lazy;
 
 final class RunsController extends Controller
 {
-    public function __invoke(Request $request, RunsReader $reader, SitesReader $sites): Response
+    public function __invoke(Request $request, RunsReader $reader): Response
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
@@ -91,7 +90,6 @@ final class RunsController extends Controller
             finished: Lazy::closure(static fn (): array => $read()->finished),
             runs: Lazy::closure(static fn (): array => $readHistory()->runs),
             next_cursor: Lazy::closure(static fn (): ?string => $readHistory()->next_cursor),
-            clients: Lazy::closure(static fn (): array => $sites->clients($user)),
             filters: Lazy::closure(static fn (): array => $query->data()),
             before: $filters->before,
             per_page: $filters->per_page,

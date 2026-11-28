@@ -27,7 +27,7 @@ export default function ClientNotifications({
                 <RecipientSettings
                     page={settings}
                     scopeDescription={t('recipient_settings.client.scope', {
-                        count: settings.sites.length,
+                        count: settings.site_count,
                     })}
                     notice={
                         <Alert tone="info">

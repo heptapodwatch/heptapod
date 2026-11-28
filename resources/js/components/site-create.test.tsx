@@ -7,10 +7,11 @@ import {
     waitFor,
     within,
 } from '@testing-library/react';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi, type Mock } from 'vitest';
 import { router, http } from '@inertiajs/react';
-import { addSitePage } from '@/fixtures/design';
+import { addSitePage, clients as fixtureClients } from '@/fixtures/design';
 import AddSite from '@/pages/sites/create';
+import { stubPickerFetch } from '@/test/picker-fetch';
 
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }));
 let userId = 1;
@@ -36,6 +37,9 @@ vi.mock('react-i18next', () => {
     return { useTranslation: () => ({ t, i18n: { language: 'en', t } }) };
 });
 const options = { ...addSitePage, can_create_site: true };
+// The client picker searches these on the server; a test may add the client it creates.
+let clients = [...fixtureClients];
+let appFetch: Mock;
 const storageKey = (id = userId) => `heptapod:site-create:${id}`;
 const stored = () => JSON.parse(localStorage.getItem(storageKey()) ?? 'null');
 const urlField = () => screen.getByLabelText('URL') as HTMLInputElement;
@@ -46,16 +50,16 @@ const enterAddress = async (url = 'https://shop.example.test') => {
     fireEvent.blur(urlField());
     await waitFor(() => expect(clientField()).not.toBeNull());
 };
-const chooseClient = (name = options.clients[1]!.name) => {
+const chooseClient = async (name = clients[1]!.name) => {
     fireEvent.click(clientField()!);
-    fireEvent.click(screen.getByRole('option', { name }));
+    fireEvent.click(await screen.findByRole('option', { name }));
 };
 const restoreDraft = (draft: Record<string, unknown>) =>
     localStorage.setItem(
         storageKey(),
         JSON.stringify({
             url: 'https://shop.example.test',
-            client_id: String(options.clients[0]!.id),
+            client_id: String(clients[0]!.id),
             saved_at: new Date().toISOString(),
             ...draft,
         }),
@@ -77,17 +81,16 @@ beforeEach(() => {
     );
     Element.prototype.scrollIntoView = vi.fn();
     document.cookie = 'XSRF-TOKEN=test';
-    vi.stubGlobal(
-        'fetch',
-        vi.fn().mockResolvedValue({
-            ok: true,
-            json: async () => ({
-                recommended_checks: ['uptime'],
-                failure: null,
-                status: 200,
-            }),
+    clients = [...fixtureClients];
+    appFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+            recommended_checks: ['uptime'],
+            failure: null,
+            status: 200,
         }),
-    );
+    });
+    stubPickerFetch({ clients }, appFetch);
 });
 afterEach(async () => {
     cleanup();
@@ -102,11 +105,9 @@ it('reveals Client once the address is checked, then Details and Checks once a c
     render(<AddSite {...options} />);
     expect(clientField()).toBeNull();
     await enterAddress();
-    expect(
-        within(clientField()!).queryByText(options.clients[0]!.name),
-    ).toBeNull();
+    expect(within(clientField()!).queryByText(clients[0]!.name)).toBeNull();
     expect(screen.queryByLabelText('Name')).toBeNull();
-    chooseClient();
+    await chooseClient();
     expect(screen.getByLabelText('Name')).not.toBeNull();
     expect(screen.getByLabelText('Tags')).not.toBeNull();
     expect(switchState('checks.uptime.label')).toBe('true');
@@ -116,7 +117,7 @@ it('reveals Client once the address is checked, then Details and Checks once a c
 });
 
 it('reveals Client after an unreachable address but not after an address the server refuses', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
+    appFetch.mockResolvedValueOnce({
         ok: false,
         status: 422,
         json: async () => ({
@@ -133,7 +134,7 @@ it('reveals Client after an unreachable address but not after an address the ser
     );
     expect(screen.queryByText(/sites.url_unreachable/)).toBeNull();
     expect(clientField()).toBeNull();
-    vi.mocked(fetch).mockResolvedValueOnce({
+    appFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
             recommended_checks: ['uptime'],
@@ -149,10 +150,10 @@ it('reveals Client after an unreachable address but not after an address the ser
 });
 
 it('preselects the only client and reveals everything after the address check', async () => {
-    render(<AddSite {...options} clients={[options.clients[1]!]} />);
+    render(<AddSite {...options} only_client_id={clients[1]!.id} />);
     await enterAddress();
     expect(
-        within(clientField()!).getByText(options.clients[1]!.name),
+        await within(clientField()!).findByText(clients[1]!.name),
     ).not.toBeNull();
     expect(screen.getByLabelText('Name')).not.toBeNull();
 });
@@ -211,7 +212,7 @@ it('submits name, distinct tags and the selected checks once', async () => {
     const post = vi.spyOn(router, 'post').mockImplementation(() => {});
     render(<AddSite {...options} />);
     await enterAddress();
-    chooseClient();
+    await chooseClient();
     fireEvent.change(screen.getByLabelText('Name'), {
         target: { value: ' Shop ' },
     });
@@ -222,7 +223,7 @@ it('submits name, distinct tags and the selected checks once', async () => {
     expect(post).toHaveBeenCalledTimes(1);
     expect(post.mock.calls[0]![1]).toEqual({
         url: 'https://shop.example.test',
-        client_id: String(options.clients[1]!.id),
+        client_id: String(clients[1]!.id),
         friendly_name: 'Shop',
         tags: ['shop', 'live'],
         checks: ['uptime'],
@@ -235,7 +236,7 @@ it('shows a per-tag server error on the Tags field and clears it on edit', async
     });
     render(<AddSite {...options} />);
     await enterAddress();
-    chooseClient();
+    await chooseClient();
     const tags = screen.getByLabelText('Tags');
     fireEvent.change(tags, { target: { value: 'shop, x' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add site' }));
@@ -279,7 +280,7 @@ it.each([
 it('restores the whole draft with its sections, manual check choices and settings after a reload', async () => {
     const view = render(<AddSite {...options} />);
     await enterAddress();
-    chooseClient();
+    await chooseClient();
     fireEvent.change(screen.getByLabelText('Name'), {
         target: { value: 'Shop' },
     });
@@ -299,7 +300,7 @@ it('restores the whole draft with its sections, manual check choices and setting
     view.unmount();
     render(<AddSite {...options} />);
     expect(
-        within(clientField()!).getByText(options.clients[1]!.name),
+        await within(clientField()!).findByText(clients[1]!.name),
     ).not.toBeNull();
     expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe(
         'Shop',
@@ -307,7 +308,7 @@ it('restores the whole draft with its sections, manual check choices and setting
     expect((screen.getByLabelText('Tags') as HTMLInputElement).value).toBe(
         'shop, live',
     );
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(appFetch).toHaveBeenCalledTimes(2));
     expect(switchState('checks.dns.label')).toBe('true');
     expect(stored().changedChecks).toContain('dns');
     expect(stored().settings['uptime.timeout']).toBe(17);
@@ -470,7 +471,7 @@ it('restores a draft changed within two hours and removes an older one', () => {
 it('saves no draft for an untouched form, keeps the time of the last edit and removes the draft once every value is back at its default', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-11-14T12:00:00Z'));
-    vi.mocked(fetch).mockResolvedValue({
+    appFetch.mockResolvedValue({
         ok: true,
         json: async () => ({
             recommended_checks: ['uptime', 'dns'],
@@ -481,7 +482,7 @@ it('saves no draft for an untouched form, keeps the time of the last edit and re
     render(
         <AddSite
             {...options}
-            selected_client_id={options.clients[1]!.id}
+            selected_client_id={clients[1]!.id}
             checks={options.checks.map((check) =>
                 check.key === 'uptime'
                     ? {
@@ -532,13 +533,11 @@ it('saves no draft for an untouched form, keeps the time of the last edit and re
     expect(localStorage.getItem(storageKey())).toBeNull();
 });
 
-it('keeps the client the page was opened for over the client of a draft', () => {
+it('keeps the client the page was opened for over the client of a draft', async () => {
     restoreDraft({ friendly_name: 'Shop' });
-    render(
-        <AddSite {...options} selected_client_id={options.clients[1]!.id} />,
-    );
+    render(<AddSite {...options} selected_client_id={clients[1]!.id} />);
     expect(
-        within(clientField()!).getByText(options.clients[1]!.name),
+        await within(clientField()!).findByText(clients[1]!.name),
     ).not.toBeNull();
     expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe(
         'Shop',
@@ -604,11 +603,13 @@ it('creates a client in a sheet with the normal form and selects it in place', a
         status: 201,
         headers: { 'content-type': 'application/json' },
         data: JSON.stringify({
-            ...options.clients[0],
+            ...clients[0],
             id: 987,
             name: 'New Studio',
         }),
     });
+    // The server knows the client once it is created.
+    clients.push({ ...clients[0]!, id: 987, name: 'New Studio' });
     render(<AddSite {...options} />);
     await enterAddress();
     fireEvent.click(clientField()!);
@@ -638,7 +639,9 @@ it('creates a client in a sheet with the normal form and selects it in place', a
         locale: 'en',
         timezone: null,
     });
-    expect(within(clientField()!).getByText('New Studio')).not.toBeNull();
+    expect(
+        await within(clientField()!).findByText('New Studio'),
+    ).not.toBeNull();
     expect(stored().client_id).toBe('987');
     expect(screen.getByLabelText('Name')).not.toBeNull();
 });
@@ -808,7 +811,7 @@ it('names the probe reason on recommended checks and refreshes recommendations o
         checks: ['uptime', 'application_health'],
         changedChecks: ['lighthouse', 'mixed_content', 'application_health'],
     });
-    vi.mocked(fetch).mockResolvedValue({
+    appFetch.mockResolvedValue({
         ok: true,
         json: async () => ({
             recommended_checks: [
@@ -844,7 +847,7 @@ it('names the probe reason on recommended checks and refreshes recommendations o
     await waitFor(() =>
         expect(screen.getByText('add_site.reason.status')).not.toBeNull(),
     );
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(appFetch).toHaveBeenCalledTimes(1);
     const recommended = within(
         screen.getByRole('region', { name: 'add_site.group.recommended' }),
     );
@@ -873,7 +876,7 @@ it('names the probe reason on recommended checks and refreshes recommendations o
 it('debounces the address check, aborts stale results and normalises on blur', async () => {
     vi.useFakeTimers();
     const pending: ((value: Response) => void)[] = [];
-    vi.mocked(fetch).mockImplementation(
+    appFetch.mockImplementation(
         () =>
             new Promise((resolve) =>
                 pending.push(resolve),
@@ -883,16 +886,16 @@ it('debounces the address check, aborts stale results and normalises on blur', a
     const field = urlField();
     fireEvent.change(field, { target: { value: 'FIRST.example/' } });
     await act(() => vi.advanceTimersByTimeAsync(599));
-    expect(fetch).not.toHaveBeenCalled();
+    expect(appFetch).not.toHaveBeenCalled();
     await act(() => vi.advanceTimersByTimeAsync(1));
     expect(screen.getByText('sites.url_checking')).not.toBeNull();
-    const firstSignal = vi.mocked(fetch).mock.calls[0]![1]!.signal!;
+    const firstSignal = appFetch.mock.calls[0]![1]!.signal!;
     fireEvent.change(field, { target: { value: 'SECOND.example/' } });
     expect(firstSignal.aborted).toBe(true);
     fireEvent.blur(field);
-    const blurSignal = vi.mocked(fetch).mock.calls[1]![1]!.signal!;
+    const blurSignal = appFetch.mock.calls[1]![1]!.signal!;
     await act(() => vi.advanceTimersByTimeAsync(600));
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(appFetch).toHaveBeenCalledTimes(2);
     expect(blurSignal.aborted).toBe(false);
     const result = (url: string) =>
         ({
@@ -921,7 +924,7 @@ it('lets the server validate a scheme-less host with a port instead of rejecting
 });
 
 it('offers the observed redirect address and still reveals Client on an HTTP warning', async () => {
-    vi.mocked(fetch).mockResolvedValue({
+    appFetch.mockResolvedValue({
         ok: true,
         json: async () => ({
             normalised_url: 'http://shop.example',
@@ -935,7 +938,7 @@ it('offers the observed redirect address and still reveals Client on an HTTP war
     await enterAddress('http://shop.example/');
     expect(screen.getByText('Warning · HTTP 404')).not.toBeNull();
     await act(async () => fireEvent.blur(urlField()));
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(appFetch).toHaveBeenCalledTimes(1);
     fireEvent.click(
         screen.getByRole('button', { name: 'sites.url_use_address' }),
     );

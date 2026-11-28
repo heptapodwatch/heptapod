@@ -16,7 +16,7 @@ final class ApiTokenSettingsData extends Data
      * @param  list<string>  $client_abilities  the abilities it may grant a token limited to one client
      * @param  array{read: list<string>, write: list<string>, manage: list<string>, agent-read: list<string>}  $presets
      * @param  array{read-everything: list<string>, deploy-automation: list<string>|null, full-access: list<string>}  $starting_points
-     * @param  list<array{id: int, name: string, short_name: string|null, accent_color: string|null, avatar: ClientAvatarData, is_internal: bool}>  $clients
+     * @param  list<array{id: int, name: string, short_name: string|null, accent_color: string|null, avatar: ClientAvatarData, is_internal: bool}>  $clients  the clients the tokens are limited to
      */
     public function __construct(
         public readonly array $tokens,
@@ -25,6 +25,8 @@ final class ApiTokenSettingsData extends Data
         public readonly array $presets,
         public readonly array $starting_points,
         public readonly array $clients,
+        /** Whether the user can limit a token to one client at all. */
+        public readonly bool $has_clients,
         public readonly string $timezone,
     ) {}
 }

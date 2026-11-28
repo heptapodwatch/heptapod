@@ -70,6 +70,7 @@ it('ties the role and client access errors to their own controls in the invite s
                         is_internal: false,
                     },
                 ],
+                has_clients: true,
                 invite_roles: ['Admin', 'Member'],
             }}
         />,

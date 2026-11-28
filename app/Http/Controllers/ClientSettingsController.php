@@ -25,7 +25,7 @@ final class ClientSettingsController extends Controller
     {
         Gate::authorize('create', Client::class);
 
-        return Inertia::render('clients/settings', new ClientSettingsPageData(null, [], [], \DateTimeZone::listIdentifiers())->toArray())
+        return Inertia::render('clients/settings', new ClientSettingsPageData(null, [], false, \DateTimeZone::listIdentifiers())->toArray())
             ->with('instanceTimezone', app(InstanceSettings::class)->timezone);
     }
 

@@ -9,6 +9,7 @@ import {
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { http, router } from '@inertiajs/react';
 import { clients } from '@/fixtures/design';
+import { stubPickerFetch } from '@/test/picker-fetch';
 import ImportOhDear from '@/pages/settings/import-ohdear';
 
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }));
@@ -76,7 +77,11 @@ const json = (data: unknown, status = 200) => ({
     data: JSON.stringify(data),
 });
 
+// The clients the pickers find on the server; a created one joins them.
+let pickerClients: Heptapod.Data.Ui.ClientData[] = [];
 beforeEach(() => {
+    pickerClients = [internal, ...clients];
+    stubPickerFetch({ clients: pickerClients });
     vi.stubGlobal(
         'ResizeObserver',
         class {
@@ -101,12 +106,15 @@ it('creates a client from a group picker, selects it there, offers it in every p
         .spyOn(http.getClient(), 'request')
         .mockImplementation(async ({ url }) => {
             if (url.endsWith('/plan')) return json(plan);
-            if (url === '/clients') return json(created, 201);
+            if (url === '/clients') {
+                pickerClients.push(created);
+                return json(created, 201);
+            }
             return json({ url: '/settings/import/ohdear/runs/run-1' });
         });
     render(
         <ImportOhDear
-            clients={[internal, ...clients]}
+            internal_client={internal}
             timezones={['UTC', 'Europe/Berlin']}
             sections={sections}
             plan_page_size={50}
@@ -133,12 +141,14 @@ it('creates a client from a group picker, selects it there, offers it in every p
     ).toBe('Studio Nord');
     fireEvent.click(screen.getByRole('button', { name: 'Add client' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(within(teamPicker).getByText('Studio Nord')).not.toBeNull();
+    expect(await within(teamPicker).findByText('Studio Nord')).not.toBeNull();
 
     fireEvent.click(
         screen.getByRole('combobox', { name: 'Client for retail' }),
     );
-    expect(screen.getByRole('option', { name: 'Studio Nord' })).not.toBeNull();
+    expect(
+        await screen.findByRole('option', { name: 'Studio Nord' }),
+    ).not.toBeNull();
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Start import' }));
@@ -161,7 +171,7 @@ it('creates a client from a group picker, selects it there, offers it in every p
 const showPlan = async (planPageSize = 50) => {
     render(
         <ImportOhDear
-            clients={[internal, ...clients]}
+            internal_client={internal}
             timezones={['UTC', 'Europe/Berlin']}
             sections={sections}
             plan_page_size={planPageSize}
@@ -173,9 +183,12 @@ const showPlan = async (planPageSize = 50) => {
     fireEvent.click(screen.getByRole('button', { name: 'Show plan' }));
     await screen.findByRole('combobox', { name: 'Client for Agency' });
 };
-const choose = (picker: string, option: string) => {
-    fireEvent.click(screen.getByRole('combobox', { name: picker }));
-    fireEvent.click(screen.getByRole('option', { name: option }));
+const choose = async (picker: string, option: string) => {
+    const trigger = screen.getByRole('combobox', { name: picker });
+    fireEvent.click(trigger);
+    fireEvent.click(await screen.findByRole('option', { name: option }));
+    // The closed popover hands focus back a tick later; opening the next picker before that would close it again.
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
 };
 
 it('resolves a tag conflict with a client created in the conflict picker', async () => {
@@ -185,12 +198,15 @@ it('resolves a tag conflict with a client created in the conflict picker', async
         .spyOn(http.getClient(), 'request')
         .mockImplementation(async ({ url }) => {
             if (url.endsWith('/plan')) return json(conflicting);
-            if (url === '/clients') return json(created, 201);
+            if (url === '/clients') {
+                pickerClients.push(created);
+                return json(created, 201);
+            }
             return json({ url: '/settings/import/ohdear/runs/run-1' });
         });
     await showPlan();
-    choose('Client for retail', clients[0]!.name);
-    choose('Client for sale', clients[1]!.name);
+    await choose('Client for retail', clients[0]!.name);
+    await choose('Client for sale', clients[1]!.name);
     const conflict = screen.getByRole('combobox', { name: 'Client for shop' });
     expect(conflict.getAttribute('aria-invalid')).toBe('true');
     expect(
@@ -211,7 +227,7 @@ it('resolves a tag conflict with a client created in the conflict picker', async
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     const resolved = screen.getByRole('combobox', { name: 'Client for shop' });
     expect(resolved.getAttribute('aria-invalid')).toBeNull();
-    expect(within(resolved).getByText('Studio Nord')).not.toBeNull();
+    expect(await within(resolved).findByText('Studio Nord')).not.toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Start import' }));
     await waitFor(() =>
@@ -276,7 +292,7 @@ it('pages large import plans with ListFooter, preserves overrides across pages a
 
     expect(screen.getByText('site-1')).not.toBeNull();
     expect(screen.queryByText('site-11')).toBeNull();
-    choose('Client for site-1', clients[0]!.name);
+    await choose('Client for site-1', clients[0]!.name);
 
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
     expect(screen.queryByText('site-1')).toBeNull();

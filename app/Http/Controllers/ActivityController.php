@@ -13,7 +13,6 @@ use Heptapod\Data\Ui\ActivityPageData;
 use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Models\User;
 use Heptapod\Queries\EventsReader;
-use Heptapod\Queries\SitesReader;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -23,10 +22,11 @@ final class ActivityController extends Controller
 {
     private const int BatchSize = 50;
 
-    public function __invoke(Request $request, EventsReader $reader, SitesReader $sites): Response
+    public function __invoke(Request $request, EventsReader $reader): Response
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
+        abort_unless($user->hasAnyRole(['Owner', 'Admin', 'Member']), 403);
         $reader = $reader->withServerIssues();
         $filters = ListFilters::read($request, [
             'q' => ['kind' => FilterKind::Search, 'label' => 'Filter by site or client', 'rules' => ['nullable', 'string', 'max:255']],
@@ -78,7 +78,6 @@ final class ActivityController extends Controller
             // Live reloads ask for the newest batch only; the loaded older batches stay as they are.
             head: Inertia::optional(static fn (): ActivityBatchData => new ActivityBatchData($batch(null)['groups'])),
             retention_days: $retentionDays,
-            clients: $sites->clients($user),
             filters: $filters->data(),
             expanded_id: $groupId,
             expanded_events: $expanded['events'] ?? [],

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Heptapod\Queries;
 
-use Heptapod\Data\Ui\ClientAvatarSiteData;
 use Heptapod\Data\Ui\ClientData;
 use Heptapod\Data\Ui\ClientMemberData;
 use Heptapod\Data\Ui\ClientSettingsPageData;
@@ -39,7 +38,7 @@ final readonly class ClientSettingsReader
         })->all();
 
         $client->load(Client::AvatarRelations);
-        $icons = $client->sites->filter(static fn (Site $site): bool => $site->icon_hash !== null)->sortBy('url')->map(static fn (Site $site): ClientAvatarSiteData => new ClientAvatarSiteData($site->id, $site->displayName(), is_string(parse_url($site->url, PHP_URL_HOST)) ? parse_url($site->url, PHP_URL_HOST) : $site->url))->values()->all();
+        $hasIconSites = $client->sites->contains(static fn (Site $site): bool => $site->icon_hash !== null);
 
         $timezones = \DateTimeZone::listIdentifiers();
         if ($client->timezone !== null && ! in_array($client->timezone, $timezones, true)) {
@@ -50,6 +49,8 @@ final readonly class ClientSettingsReader
         $siteCount = $siteCounts->count();
         $archivePausedCount = $siteCounts->whereNotNull('paused_by_archive_at')->count();
 
-        return new ClientSettingsPageData(ClientData::fromClient($client), array_values($members), array_values($icons), $timezones, array_values(array_filter($this->sites->clientChoices($user), static fn (ClientData $choice): bool => $choice->id !== $client->id)), $siteCount, $archivePausedCount);
+        $internal = $this->sites->scopedClients($user)->getQuery()->where('clients.is_internal', true)->where('clients.id', '!=', $client->id)->value('clients.id');
+
+        return new ClientSettingsPageData(ClientData::fromClient($client), array_values($members), $hasIconSites, $timezones, is_int($internal) ? $internal : null, $siteCount, $archivePausedCount);
     }
 }
