@@ -9,7 +9,7 @@ use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\RunPhase;
 use Heptapod\Data\Ui\RunsBoardData;
 use Heptapod\Data\Ui\RunsFilterData;
-use Heptapod\Data\Ui\RunsHistoryPageData;
+use Heptapod\Data\Ui\RunsHistoryData;
 use Heptapod\Data\Ui\RunsIndexPageData;
 use Heptapod\Http\ListPageSize;
 use Heptapod\Models\Check;
@@ -61,7 +61,7 @@ final class RunsController extends Controller
         $read = function () use (&$board, $reader, $user, $filters): RunsBoardData {
             return $board ??= $reader->board($user, $filters);
         };
-        $readHistory = function () use (&$history, $reader, $user, $filters, $since): RunsHistoryPageData {
+        $readHistory = function () use (&$history, $reader, $user, $filters, $since): RunsHistoryData {
             return $history ??= $reader->history($user, $filters->per_page, $filters->check, $filters->before, $filters->client, $filters->type?->value, $filters->state, $filters->show_same_result, since: $since, manualOnly: $filters->started_manually);
         };
 

@@ -111,7 +111,6 @@ const PagedPageLists = [
     'Heptapod\Data\Ui\IncidentNotificationPageData::$deliveries' => ['next_cursor', 'Button'],
     'Heptapod\Data\Ui\IncidentsIndexPageData::$incidents' => ['pagination', 'ListFooter'],
     'Heptapod\Data\Ui\MaintenanceIndexPageData::$windows' => ['next_page', 'ListFooter'],
-    'Heptapod\Data\Ui\RunsHistoryPageData::$runs' => ['next_cursor', 'ListFooter'],
     'Heptapod\Data\Ui\RunsIndexPageData::$runs' => ['next_cursor', 'ListFooter'],
     'Heptapod\Data\Ui\SitesIndexPageData::$sites' => ['pagination', 'ListFooter'],
     'Heptapod\Data\Ui\SitesIndexPageData::$sites_history' => ['pagination', 'ListFooter'],

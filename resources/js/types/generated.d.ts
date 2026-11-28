@@ -2024,7 +2024,7 @@ readonly period: '24h' | '7d',
 readonly per_page: number,
 readonly started_manually: boolean,
 };
-export type RunsHistoryPageData = {
+export type RunsHistoryData = {
 readonly runs: Heptapod.Data.Ui.RunRowData[],
 readonly next_cursor: string | null,
 };

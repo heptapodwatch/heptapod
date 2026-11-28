@@ -19,7 +19,7 @@ use Heptapod\Data\Ui\FinishedRunData;
 use Heptapod\Data\Ui\RunRowData;
 use Heptapod\Data\Ui\RunsBoardData;
 use Heptapod\Data\Ui\RunsFilterData;
-use Heptapod\Data\Ui\RunsHistoryPageData;
+use Heptapod\Data\Ui\RunsHistoryData;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\CheckRunAttempt;
@@ -40,7 +40,7 @@ final readonly class RunsReader
 
     public function __construct(private SitePolicy $policy, private CheckRunsReader $checkRuns, private CauseSummary $summaries, private CheckRunPresentations $presentations, private CheckRegistry $registry) {}
 
-    public function history(User $user, int $perPage, ?int $checkId = null, ?int $before = null, ?int $clientId = null, ?string $type = null, ?RunPhase $phase = null, bool $showSameResult = true, ?CarbonImmutable $since = null, bool $manualOnly = false): RunsHistoryPageData
+    public function history(User $user, int $perPage, ?int $checkId = null, ?int $before = null, ?int $clientId = null, ?string $type = null, ?RunPhase $phase = null, bool $showSameResult = true, ?CarbonImmutable $since = null, bool $manualOnly = false): RunsHistoryData
     {
         /** @var list<int> $historyIds */
         $historyIds = $this->visibleChecks($user, $checkId, $clientId, $type)->toBase()->pluck('checks.id')->all();
@@ -117,7 +117,7 @@ final readonly class RunsReader
                 $this->presentations->forRun($check, $recordedRun));
         }
 
-        return new RunsHistoryPageData($rows, $cursor === null ? null : (string) $cursor);
+        return new RunsHistoryData($rows, $cursor === null ? null : (string) $cursor);
     }
 
     public function board(User $user, RunsFilterData $filters): RunsBoardData
