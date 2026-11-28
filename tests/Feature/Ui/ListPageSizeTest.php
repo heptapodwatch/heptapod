@@ -20,8 +20,7 @@ function listPageSize(TestResponse $response, string $list): int
     $props = $response->inertiaProps();
 
     return match ($list) {
-        'runs' => $props['filters']['per_page'],
-        'maintenance' => $props['per_page'],
+        'runs', 'maintenance' => $props['per_page'],
         default => $props['pagination']['per_page'],
     };
 }
