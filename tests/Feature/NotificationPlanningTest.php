@@ -32,9 +32,11 @@ use Heptapod\Models\Event;
 use Heptapod\Models\Invitation;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\NotificationPreference;
+use Heptapod\Models\SystemIssue;
 use Heptapod\Models\User;
 use Heptapod\Notifications\TeamInvitation;
 use Heptapod\Settings\InstanceSettings;
+use Heptapod\SystemHealth\SystemIssueMailer;
 use Heptapod\Testing\ClaimedRun;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -360,7 +362,9 @@ it('keeps queued manual sends and account System mail when a channel is paused a
     $manual = Delivery::query()->create(['event_id' => $manualEvent->id, 'destination_id' => $channel->id, 'next_attempt_at' => now(),
         'suppression_evaluated_at' => now(), 'origin' => 'manual', 'actor_id' => $owner->id, 'actor_name' => $owner->name,
         'recipient_snapshot' => ['address' => $owner->email, 'name' => $owner->name, 'locale' => 'en']]);
-    $systemEvent = planningCheckEvent(CheckResult::Warning);
+    config(['mail.default' => 'smtp']);
+    $issue = SystemIssue::query()->create(['kind' => 'backup_failed', 'scope' => '', 'details' => [], 'opened_at' => now()]);
+    $systemEvent = app(SystemIssueMailer::class)->event($issue, 'system.issue_opened', CarbonImmutable::now('UTC'), []);
     $system = Delivery::query()->create(['event_id' => $systemEvent->id, 'destination_id' => $channel->id, 'next_attempt_at' => now(),
         'suppression_evaluated_at' => now(), 'category' => NotificationCategory::System]);
     $team = notificationRoute(NotificationDestination::factory()->create(), [NotificationCategory::Warning]);

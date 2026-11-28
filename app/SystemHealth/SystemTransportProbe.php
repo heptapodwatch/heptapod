@@ -44,7 +44,7 @@ final readonly class SystemTransportProbe
                 continue;
             }
             $channel = NotificationDestination::query()->findOrFail($delivery->destination_id);
-            $result = $this->channels->send('mail', ChannelRecipient::forChannel($channel->destinationConfig()), $this->mailer->notification($event, $channel));
+            $result = $this->channels->send('mail', ChannelRecipient::forChannel($channel->destinationConfig()), $this->mailer->notification($delivery, $event, $channel));
             $outcome = ($this->complete)($delivery->id, $delivery->claim_token ?? throw new \LogicException('Probe claim has no token.'), $result);
             if ($outcome !== 'rejected') {
                 return;

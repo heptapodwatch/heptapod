@@ -19,6 +19,8 @@ use Heptapod\Enums\HealthStatus;
 use Heptapod\Enums\NotificationCategory;
 use Heptapod\Enums\NotificationMode;
 use Heptapod\Enums\RecipientKind;
+use Heptapod\Events\Notifications\AlertRule;
+use Heptapod\Events\Notifications\DeliveryDecision;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Models\Delivery;
 use Heptapod\Models\Event;
@@ -33,7 +35,7 @@ use Illuminate\Support\Facades\DB;
  * System issue mail and messages in the delivery ledger (design §3.4). Recipients are account channels of Owners and
  * opted-in Admins plus team channels with the System cell on; never site routing, mutes or client channels.
  */
-final readonly class SystemIssueMailer
+final readonly class SystemIssueMailer implements AlertRule
 {
     /** Log-only mail is rechecked at this cadence, as system mail always was. */
     public const int RecheckSeconds = 300;
@@ -260,8 +262,28 @@ final readonly class SystemIssueMailer
         return array_values($rows);
     }
 
+    /**
+     * The send-time rule of System deliveries (design §3.4): no site, access, maintenance or quiet hours; account channels
+     * of Owners and opted-in Admins also skip pause and verification. Mail waits while the mailer only logs.
+     */
+    public function decide(Delivery $delivery, NotificationDestination $channel, Event $event, CarbonImmutable $at, bool $claimed): DeliveryDecision
+    {
+        $ineligible = self::ineligibility($channel);
+        if ($ineligible !== null) {
+            return DeliveryDecision::suppress($ineligible);
+        }
+        if ($channel->channel === 'mail' && ! self::canDeliver()) {
+            return DeliveryDecision::hold($at->addSeconds(self::RecheckSeconds), self::LogOnlyReason, setReason: true);
+        }
+        if ($delivery->last_reason === self::LogOnlyReason) {
+            $delivery->last_reason = null;
+        }
+
+        return DeliveryDecision::send();
+    }
+
     /** The localized notification for one System delivery. */
-    public function notification(Event $event, NotificationDestination $channel): SystemIssueNotification
+    public function notification(Delivery $delivery, Event $event, NotificationDestination $channel): SystemIssueNotification
     {
         $issue = SystemIssue::query()->findOrFail($event->system_issue_id);
         $recovered = $event->type === 'system.issue_resolved';

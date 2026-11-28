@@ -20,6 +20,7 @@ use Heptapod\Contracts\ServersAccess;
 use Heptapod\Enums\NotificationCategory;
 use Heptapod\Enums\NotificationMode;
 use Heptapod\Enums\RecipientKind;
+use Heptapod\Events\Notifications\AlertRule;
 use Heptapod\Events\Notifications\DeliveryDecision;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Events\Notifications\NotificationTiming;
@@ -37,7 +38,7 @@ use Illuminate\Support\Facades\DB;
  * channels of Owners and Admins and team channels without a client limit, with the Servers cell on; never site routing,
  * mutes or client channels. Like the Warning category they wait for quiet hours and may go to the digest.
  */
-final readonly class ServerIssueMailer implements ServerIssueAlerts
+final readonly class ServerIssueMailer implements AlertRule, ServerIssueAlerts
 {
     public const string OpenedType = 'server.issue_opened';
 
@@ -71,7 +72,7 @@ final readonly class ServerIssueMailer implements ServerIssueAlerts
     }
 
     /**
-     * The server alert part of DeliveryPlan, also for digest items: servers on, the channel may hear about servers, an
+     * The server alert part of the send-time rule, also for digest items: servers on, the channel may hear about servers, an
      * opening's issue is still open, and the server is not snoozed. A snooze holds an opening until it ends and silences
      * a recovery. Null when the alert may go.
      */
@@ -163,12 +164,16 @@ final readonly class ServerIssueMailer implements ServerIssueAlerts
     }
 
     /**
-     * The rest of DeliveryPlan for a server issue delivery that refusal() lets through: a recovery goes only after its
-     * opening was sent to this channel (an opening suppressed at its send is Pending again, so its recovery ends too), then
-     * verification and quiet hours.
+     * The send-time rule of a server issue delivery: refusal(), then a recovery goes only after its opening was sent to this
+     * channel (an opening suppressed at its send is Pending again, so its recovery ends too), then verification and quiet
+     * hours.
      */
-    public function plan(Delivery $delivery, NotificationDestination $destination, Event $event, CarbonImmutable $at): DeliveryDecision
+    public function decide(Delivery $delivery, NotificationDestination $channel, Event $event, CarbonImmutable $at, bool $claimed): DeliveryDecision
     {
+        $refusal = $this->refusal($event, $channel, $at);
+        if ($refusal instanceof DeliveryDecision) {
+            return $refusal;
+        }
         if ($event->type === self::ResolvedType) {
             $opening = DB::table('deliveries')->join('events', 'events.id', '=', 'deliveries.event_id')->where('events.server_issue_id', $event->server_issue_id)
                 ->where('events.type', self::OpenedType)->where('deliveries.destination_id', $delivery->destination_id)->value('deliveries.state');
@@ -179,10 +184,10 @@ final readonly class ServerIssueMailer implements ServerIssueAlerts
                 return DeliveryDecision::hold($at->addMinute());
             }
         }
-        if (! $destination->addressVerified()) {
+        if (! $channel->addressVerified()) {
             return DeliveryDecision::hold($at->addHour(), 'personal_email_unverified', setReason: true);
         }
-        $due = $this->timing->afterQuietHours(NotificationSchedule::forChannel($destination), $at);
+        $due = $this->timing->afterQuietHours(NotificationSchedule::forChannel($channel), $at);
         if ($due->greaterThan($at)) {
             return DeliveryDecision::hold($due);
         }
@@ -194,7 +199,7 @@ final readonly class ServerIssueMailer implements ServerIssueAlerts
     }
 
     /** The localized alert for one server issue delivery: the server issue mail, or its facts as lines elsewhere. */
-    public function notification(Event $event, NotificationDestination $channel): SystemIssueNotification
+    public function notification(Delivery $delivery, Event $event, NotificationDestination $channel): SystemIssueNotification
     {
         $recovered = $event->type === self::ResolvedType;
         $locale = $channel->effectiveLocale();
