@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Heptapod\Checks\History\AddonHistoryRetention;
 use Heptapod\Checks\Recording\RecordableRun;
 use Heptapod\Checks\Recording\TransactionalResultRecorder;
 use Heptapod\Contracts\CheckKey;
@@ -108,7 +109,7 @@ it('keeps the newest accepted empty health snapshot when pruning past raw retent
     expect(DB::table('application_health_snapshots')->where('check_id', $check->id)->whereNotNull('run_ended_at')->count())->toBe(2);
 
     $this->travelTo(CarbonImmutable::parse('2026-12-01T12:00:00Z'));
-    app(CheckRegistry::class)->get(CheckKey::ApplicationHealth)->persistence()->prune(CarbonImmutable::now()->subDays(31));
+    app(AddonHistoryRetention::class)->prune(CarbonImmutable::now()->subDays(31));
 
     expect(DB::table('application_health_snapshots')->where('check_id', $check->id)->pluck('run_id')->all())
         ->toBe([$secondRunId])

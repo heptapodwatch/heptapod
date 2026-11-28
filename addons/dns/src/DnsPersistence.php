@@ -6,6 +6,7 @@ namespace Heptapod\Addons\Dns;
 
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckContext;
+use Heptapod\Contracts\HistoryPrune;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunReference;
 use Illuminate\Support\Facades\DB;
@@ -306,11 +307,9 @@ final class DnsPersistence implements RunPersistence
         return ['dns_observations', 'dns_history_items'];
     }
 
-    public function prune(CarbonImmutable $before): void
+    public function historyPrunes(): array
     {
         // Baselines and reset generations outlive raw retention so old attempts cannot become current again.
-        $bound = $before->format('Y-m-d H:i:s.uP');
-        DB::table('dns_observations')->where('run_ended_at', '<', $bound)->delete();
-        DB::table('dns_history_items')->where('run_ended_at', '<', $bound)->delete();
+        return [new HistoryPrune('dns_observations'), new HistoryPrune('dns_history_items')];
     }
 }

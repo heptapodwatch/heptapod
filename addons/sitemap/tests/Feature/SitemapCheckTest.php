@@ -10,6 +10,7 @@ use Heptapod\Addons\Sitemap\SitemapPersistence;
 use Heptapod\Checks\CheckRunPresentations;
 use Heptapod\Checks\Execution\ClaimService;
 use Heptapod\Checks\Execution\RunOrigin;
+use Heptapod\Checks\History\AddonHistoryRetention;
 use Heptapod\Checks\Recording\RecordableRun;
 use Heptapod\Checks\Recording\TransactionalResultRecorder;
 use Heptapod\Contracts\CheckContext;
@@ -616,7 +617,7 @@ it('publishes new and resolved issues once from retained accepted baselines at u
         'new' => [['url' => 'http://fixtures.test/b', 'type' => 'sitemap.issue.unreachable', 'kind' => 'http_status', 'status' => 500]],
         'resolved' => [['url' => 'http://fixtures.test/a?page=2', 'type' => 'sitemap.issue.unreachable', 'kind' => 'http_status', 'status' => 404]],
     ]);
-    app(CheckRegistry::class)->get(CheckKey::Sitemap)->persistence()->prune(CarbonImmutable::now()->addDays(61));
+    app(AddonHistoryRetention::class)->prune(CarbonImmutable::now()->addDays(61));
     expect(DB::table('sitemap_snapshots')->count())->toBe(1);
     acceptSitemap(sitemapContext(['speed' => 'fastest'], $first));
     expect(Event::query()->where('type', 'sitemap.issues_changed')->count())->toBe(1);
@@ -694,7 +695,7 @@ it('preserves an open failure and baseline while showing incomplete deadline evi
         ->where('site.checks.0.result', 'failed')->where('site.checks.0.open_incident_id', $incident->id));
     expect($partial->evidence['sitemaps'])->toBe([]);
     expect(DB::table('sitemap_snapshots')->where('run_id', $partial->id)->exists())->toBeFalse();
-    $store->prune(CarbonImmutable::now()->addDay());
+    app(AddonHistoryRetention::class)->prune(CarbonImmutable::now()->addDay());
     expect(DB::table('sitemap_snapshots')->orderBy('run_id')->pluck('run_id')->all())->toBe([$first->id]);
     $mode = 'healthy';
     runSitemap($context);

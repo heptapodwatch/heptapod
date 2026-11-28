@@ -6,6 +6,7 @@ namespace Heptapod\Addons\ApplicationHealth;
 
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckContext;
+use Heptapod\Contracts\HistoryPrune;
 use Heptapod\Contracts\ListPaging;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\RunPersistence;
@@ -219,11 +220,8 @@ final readonly class ApplicationHealthPersistence implements RunPersistence, Sec
         return ['application_health_snapshots'];
     }
 
-    public function prune(CarbonImmutable $before): void
+    public function historyPrunes(): array
     {
-        $latest = DB::table('application_health_snapshots')->selectRaw('DISTINCT ON (check_id) id')
-            ->whereNotNull('run_ended_at')->orderBy('check_id')->orderByDesc('run_ended_at')->orderByDesc('run_id');
-        DB::table('application_health_snapshots')->where('run_ended_at', '<', $before->format('Y-m-d H:i:s.uP'))
-            ->whereNotIn('id', $latest)->delete();
+        return [new HistoryPrune('application_health_snapshots', baselinePer: 'check_id')];
     }
 }

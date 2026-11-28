@@ -9,6 +9,7 @@ use Heptapod\Addons\Cron\CronDefinitions;
 use Heptapod\Addons\Uptime\UptimeEvidence;
 use Heptapod\Addons\Uptime\UptimeMetrics;
 use Heptapod\Checks\Execution\ClaimService;
+use Heptapod\Checks\History\AddonHistoryRetention;
 use Heptapod\Checks\Recording\RecordableRun;
 use Heptapod\Checks\Recording\RecordedRun;
 use Heptapod\Checks\Recording\TransactionalResultRecorder;
@@ -381,7 +382,7 @@ it('records one certificate fingerprint change from the retained accepted baseli
     expect(acceptAddonObservation($check)->accepted)->toBeTrue()
         ->and(Event::query()->where('type', 'certificate_health.certificate_changed')->count())->toBe(0);
     $this->travel(61)->days();
-    app(CheckRegistry::class)->get(CheckKey::CertificateHealth)->persistence()->prune(CarbonImmutable::now()->subDays(31));
+    app(AddonHistoryRetention::class)->prune(CarbonImmutable::now()->subDays(31));
     $this->travelTo(CarbonImmutable::parse('2026-10-05T12:00:00Z'));
     $fake->respondWith('fixtures.test', new CertificateFetchResult([$newPem], 'fixtures.test', 443, true));
     $context = addonRecorderContext($check);

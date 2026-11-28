@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Heptapod\Addons\Lighthouse\HttpChromiumRenderer;
-use Heptapod\Addons\Lighthouse\LighthousePersistence;
+use Heptapod\Checks\History\AddonHistoryRetention;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
@@ -60,8 +60,7 @@ it('compares only accepted scores and records each below and above crossing once
     expect(Event::query()->where('type', 'lighthouse.score_threshold_crossed')->count())->toBe(0);
     lighthouseReply($fake, new ExternalTimeoutException('Service unavailable'));
     expect(runLighthouse($check)->result)->toBe(RunResult::Errored);
-    $store = app(LighthousePersistence::class);
-    $store->prune(CarbonImmutable::now()->addSecond());
+    app(AddonHistoryRetention::class)->prune(CarbonImmutable::now()->addSecond());
     expect(DB::table('lighthouse_reports')->count())->toBe(0);
 
     $b = $a;
@@ -220,9 +219,9 @@ it('fences publication by token and rolls back reports and baselines with the re
     expect(DB::table('lighthouse_reports')->count())->toBe(1)
         ->and(DB::table('lighthouse_reports')->value('claim_token'))->toBe($other)
         ->and(DB::table('lighthouse_reports')->value('run_ended_at'))->toContain('.123456');
-    $store->prune($at);
+    app(AddonHistoryRetention::class)->prune($at);
     expect(DB::table('lighthouse_reports')->count())->toBe(1);
-    $store->prune($at->addMicrosecond());
+    app(AddonHistoryRetention::class)->prune($at->addMicrosecond());
     expect(DB::table('lighthouse_reports')->count())->toBe(0)->and($store->baseline($check->id)['run_id'])->toBe($runId);
     expect(fn () => $store->stage($context, 'other', [[]]))->toThrow(InvalidArgumentException::class);
     expect(fn () => $store->stage($context, 'report', []))->toThrow(InvalidArgumentException::class);

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Heptapod\Checks\History;
 
 use Carbon\CarbonImmutable;
-use Heptapod\Contracts\CheckRegistry;
 use Heptapod\SystemHealth\CheckDataMaintenanceRecord;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -23,7 +22,7 @@ final readonly class CheckDataMaintenance
      */
     private const int RunsPerRollupStatement = 5000;
 
-    public function __construct(private CheckRegistry $registry, private AttemptHistoryProjection $history, private CheckDataMaintenanceRecord $record, private HistoryRetention $retention) {}
+    public function __construct(private AddonHistoryRetention $addonHistory, private AttemptHistoryProjection $history, private CheckDataMaintenanceRecord $record, private HistoryRetention $retention) {}
 
     /** @return list<array{partition: string, missing_buckets: int, command: string}> */
     public function maintain(CarbonImmutable $at, ?CarbonImmutable $from = null, ?CarbonImmutable $until = null): array
@@ -93,10 +92,13 @@ final readonly class CheckDataMaintenance
             unset($requiredPartitions[$partition['name']]);
             $start = $partition['start'];
             $end = $partition['end'];
-            if ($end->addMinutes(10)->lessThanOrEqualTo($at) && $this->unfinalisedBuckets($start, $end) > 0) {
-                $closed[] = ['start' => $start, 'end' => $end];
+            $expires = $end->lessThanOrEqualTo($cutoff);
+            // A finalised month stays final, so its whole-month proof runs only in the day after it closes and before its drop.
+            if ($end->addMinutes(10)->lessThanOrEqualTo($at) && ($expires || $end->greaterThan($at->subDay()))
+                && $this->unfinalisedBuckets($start, $end) > 0) {
+                $closed[$partition['name']] = ['start' => $start, 'end' => $end];
             }
-            if ($end->lessThanOrEqualTo($cutoff)) {
+            if ($expires) {
                 $expired[] = $partition;
             }
         }
@@ -104,7 +106,8 @@ final readonly class CheckDataMaintenance
             throw new RuntimeException('Required tables are not check_runs partitions: '.implode(', ', array_keys($requiredPartitions)));
         }
 
-        // Accepted attempts arrive within the 390-second lease budget. Closed months are finalised once after that margin.
+        // Accepted attempts arrive within the 390-second lease budget, so a bucket is final 10 minutes after it ends: both
+        // windows reach 3 hours back, and closed months are finalised once after that margin.
         // Each rollup statement commits on its own, so a failure keeps earlier buckets; it must not stop retention below.
         $rollupFailure = null;
         try {
@@ -114,7 +117,7 @@ final readonly class CheckDataMaintenance
                 }
             }
             foreach (['hourly' => 'hour', 'daily' => 'day'] as $period => $unit) {
-                $windowStart = $from ?? ($period === 'hourly' ? $at->subHours(3) : $at->subDay());
+                $windowStart = $from ?? $at->subHours(3);
                 $windowEnd = $until ?? $at->addMicrosecond();
                 $start = $period === 'hourly' ? $windowStart->utc()->startOfHour() : $windowStart->utc()->startOfDay();
                 $end = $period === 'hourly' ? $windowEnd->utc()->startOfHour() : $windowEnd->utc()->startOfDay();
@@ -130,19 +133,19 @@ final readonly class CheckDataMaintenance
 
         $skipped = [];
         foreach ($expired as $partition) {
-            $missing = $this->unfinalisedBuckets($partition['start'], $partition['end']);
+            // Only a month that was not final at the start of this run can still miss buckets after its rollup above.
+            $missing = isset($closed[$partition['name']]) ? $this->unfinalisedBuckets($partition['start'], $partition['end']) : 0;
             if ($missing > 0) {
                 $skipped[] = ['partition' => $partition['name'], 'missing_buckets' => $missing,
                     'command' => 'docker compose exec app php artisan heptapod:maintain-check-data --recompute-range='.$partition['start']->toIso8601String().','.$partition['end']->toIso8601String()];
             } else {
-                DB::transaction(function () use ($partition): void {
-                    foreach ($this->registry->keys() as $key) {
-                        $this->registry->get($key)->persistence()?->prune($partition['end']);
-                    }
+                $this->addonHistory->prune($partition['end']);
+                // An expired month receives no more runs, so its checks can be read before the lock.
+                /** @var list<object{check_id: int}> $affectedChecks */
+                $affectedChecks = DB::select('SELECT DISTINCT check_id FROM '.$partition['qualified_name'].' ORDER BY check_id');
+                DB::transaction(function () use ($partition, $affectedChecks): void {
                     // Fence only the physical predecessor change and set-based projection repair.
                     DB::statement('LOCK TABLE check_runs IN ACCESS EXCLUSIVE MODE');
-                    /** @var list<object{check_id: int}> $affectedChecks */
-                    $affectedChecks = DB::select('SELECT DISTINCT check_id FROM '.$partition['qualified_name'].' ORDER BY check_id');
                     DB::statement('DROP TABLE '.$partition['qualified_name']);
                     $this->history->repairAfterPruning(array_column($affectedChecks, 'check_id'), $partition['start'], $partition['end']);
                 });

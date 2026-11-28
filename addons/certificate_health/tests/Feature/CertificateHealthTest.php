@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
 use Heptapod\Addons\Channels\RenderedAlert;
+use Heptapod\Checks\History\AddonHistoryRetention;
 use Heptapod\Checks\Recording\RecordableRun;
 use Heptapod\Checks\Recording\ResultRecorder;
 use Heptapod\Contracts\CertificateFetcher;
@@ -223,7 +224,7 @@ it('prunes raw snapshots and dead attempts but keeps detected certificate histor
     $fresh = certificateContext('https://fixtures.test/fresh');
     $type->execute($fresh);
     $type->persistence()->discard($abandoned->runId, $abandoned->claimToken);
-    $type->persistence()->prune(CarbonImmutable::now()->subDays(31));
+    app(AddonHistoryRetention::class)->prune(CarbonImmutable::now()->subDays(31));
     expect(DB::table('certificate_health_snapshots')->orderBy('run_id')->pluck('run_id')->all())->toBe([$baseline->runId, $fresh->runId])->and(DB::table('detected_certificates')->count())->toBe(1);
     $resume = nextCertificateAttempt($context);
     expect($type->execute($resume)->result)->toBe(RunResult::Succeeded);

@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Heptapod\Contracts;
 
-use Carbon\CarbonImmutable;
-
 interface RunPersistence
 {
     /**
@@ -22,8 +20,13 @@ interface RunPersistence
     /** Remove this attempt's unpublished artifacts without touching an accepted attempt. Absent staging and repeated calls with the same run ID and token are valid no-ops. */
     public function discard(int $runId, string $claimToken): void;
 
-    /** Maintenance calls in the partition-drop transaction. Prune artifacts ended before this exclusive bound, but NEVER the last accepted addon baseline snapshot or stable component identities. */
-    public function prune(CarbonImmutable $before): void;
+    /**
+     * Tables raw retention prunes before it drops a run partition, batched by core (AddonHistoryRetention). Keep the last
+     * accepted addon baseline snapshot through a baseline; stable component identities are never listed.
+     *
+     * @return list<HistoryPrune>
+     */
+    public function historyPrunes(): array;
 
     /** @return list<string> Tables whose rows prune() removes, including rows removed by foreign-key cascades; database growth projects them with the raw result retention. */
     public function prunedTables(): array;

@@ -125,6 +125,28 @@ it('recomputes exact hourly and daily counts metrics and percentiles idempotentl
     expect(CheckRunRollupHourly::query()->count())->toBe(2);
 });
 
+it('rolls a result recorded after midnight within the lease into the previous day and then leaves that day alone', function (): void {
+    $midnight = CarbonImmutable::parse('2026-10-05T00:00:00Z');
+    $check = Check::factory()->create();
+    $this->travelTo($midnight);
+    CheckRun::factory()->create(['check_id' => $check->id, 'started_at' => $midnight->subHour(), 'ended_at' => $midnight->subHour()->addSecond(), 'metrics' => ['total_time_in_seconds' => 1]]);
+    $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
+    // The attempt ended before midnight; its result is accepted at the end of the 390-second lease.
+    $this->travelTo($midnight->addSeconds(390));
+    CheckRun::factory()->create(['check_id' => $check->id, 'started_at' => $midnight->subSeconds(2), 'ended_at' => $midnight->subSecond(), 'metrics' => ['total_time_in_seconds' => 3]]);
+
+    $this->travelTo($midnight->addHour());
+    $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
+    $day = CheckRunRollupDaily::query()->where('check_id', $check->id)->sole();
+    expect($day->bucket_start->equalTo($midnight->subDay()))->toBeTrue()
+        ->and($day->succeeded_count)->toBe(2)
+        ->and($day->metric_sums)->toBe(['total_time_in_seconds' => 4]);
+
+    $this->travelTo($midnight->addHours(5));
+    $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
+    expect($day->fresh()->computed_at->equalTo($midnight->addHour()))->toBeTrue();
+});
+
 it('drops only wholly expired months after rolling them up and keeps incident evidence and boundary-month runs', function (): void {
     $boundary = CarbonImmutable::parse('2026-03-31T00:00:00Z');
     $this->travelTo($boundary->subMicrosecond());
