@@ -182,13 +182,15 @@ final readonly class SystemIssueMailer implements AlertRule
     }
 
     /**
-     * One event per issue and phase (IssueAlerts::event()).
+     * One event per issue and phase (IssueAlerts::event()). Each evaluation pass and transport probe asks again, so an
+     * existing event is read without an insert.
      *
      * @param  array<string, bool>  $payload
      */
     public function event(SystemIssue $issue, string $type, CarbonImmutable $at, array $payload): Event
     {
-        return IssueAlerts::event('system_issue_id', $issue->id, $type, $at, $payload);
+        return Event::query()->where('system_issue_id', $issue->id)->where('type', $type)->first()
+            ?? IssueAlerts::event('system_issue_id', $issue->id, $type, $at, $payload);
     }
 
     /**
