@@ -337,3 +337,24 @@ it('generates no maintenance windows for a site whose deletion is pending', func
     expect(DB::table('maintenance_periods')->where('recurring_maintenance_period_id', $recurrences[0]->id)->exists())->toBeFalse()
         ->and(DB::table('maintenance_periods')->where('recurring_maintenance_period_id', $recurrences[1]->id)->exists())->toBeTrue();
 });
+
+it('leaves behind a site marked for deletion between the archive reading the sites and moving it, and completes', function (): void {
+    $owner = User::factory()->owner()->create();
+    $source = Client::factory()->create();
+    $target = Client::factory()->create();
+    $first = Site::factory()->for($source)->create();
+    $second = Site::factory()->for($source)->create();
+    // The deletion of the second site starts while the first one moves, after the archive listed both.
+    Site::updated(static function (Site $site) use ($first, $second): void {
+        if ($site->id === $first->id && $site->wasChanged('client_id')) {
+            DB::table('sites')->where('id', $second->id)->update(['paused_at' => now(), 'marked_for_deletion_at' => now()]);
+        }
+    });
+
+    $this->actingAs($owner)->post('/clients/'.$source->id.'/archive', ['site_action' => 'move', 'client_id' => $target->id])->assertSessionHasNoErrors();
+
+    expect($first->refresh()->client_id)->toBe($target->id)
+        ->and($second->refresh()->client_id)->toBe($source->id)
+        ->and($source->refresh()->archived_at)->not->toBeNull();
+    $this->get('/clients/'.$source->id.'/move-blockers')->assertOk()->assertJsonPath('sites', []);
+});

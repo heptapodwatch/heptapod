@@ -71,7 +71,10 @@ final readonly class ArchiveClient
         $moved = 0;
         foreach ($sites->get() as $site) {
             try {
-                ($this->move)($user, $site, $targetClientId);
+                // A site marked for deletion since the list was read stays behind too (checked under the move's locks).
+                if (($this->move)($user, $site, $targetClientId, leaveDeleting: true)->client_id !== $targetClientId) {
+                    continue;
+                }
             } catch (ValidationException $exception) {
                 // Only a target archived meanwhile is the picker's error; any other refusal is about this site.
                 if (Client::query()->getQuery()->where('id', $targetClientId)->whereNotNull('archived_at')->exists()) {

@@ -65,7 +65,9 @@ final readonly class ImportOhDearMonitor
             return $this->skipped($monitor, 'monitor:unsupported', __('import.unsupported_monitor', ['type' => $monitor->type]));
         }
         $site = Site::query()->where('oh_dear_id', $monitor->id)->first();
-        // A site whose deletion is pending is neither updated nor imported again; its URL is free once it is gone.
+        // A site whose deletion is pending is neither updated nor imported again; its URL is free once it is gone. A
+        // deletion that starts after this read is accepted: what the import writes belongs to the marked site, and the
+        // final DeleteSite removes it with the site.
         if ($site !== null && $site->marked_for_deletion_at !== null) {
             return $this->skipped($monitor, 'site:deleting', __('import.notice.site_deleting'));
         }

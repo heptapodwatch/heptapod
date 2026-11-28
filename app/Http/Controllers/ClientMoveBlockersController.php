@@ -17,7 +17,8 @@ final class ClientMoveBlockersController extends Controller
     {
         Gate::authorize('archive', $client);
         $sites = Site::query();
-        $sites->getQuery()->where('client_id', $client->id)->orderBy('id');
+        // A site whose deletion is pending stays with the client and moves nowhere (ArchiveClient), so it blocks nothing.
+        $sites->getQuery()->where('client_id', $client->id)->whereNull('marked_for_deletion_at')->orderBy('id');
         $sites = $sites->get(['id', 'url', 'friendly_name']);
         /** @var list<int> $siteIds */
         $siteIds = $sites->modelKeys();
