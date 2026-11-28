@@ -118,9 +118,12 @@ return [
     /*
      * When set to true, the method for checking permissions will be registered on the gate.
      * Set this to false if you want to implement custom logic for checking permissions.
+     *
+     * Heptapod has roles but no permissions: access is Heptapod\Enums\Capability. A registered check would let a
+     * permission named like a capability pass that capability's Gate.
      */
 
-    'register_permission_check_method' => true,
+    'register_permission_check_method' => false,
 
     /*
      * When set to true, Laravel\Octane\Events\OperationTerminated event listener will be registered

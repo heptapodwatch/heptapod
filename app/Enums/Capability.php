@@ -40,8 +40,9 @@ enum Capability: string
     }
 
     /**
-     * The PHP form of the reach rule; the SQL forms for lists and batches are SitePolicy::visibleSites, visibleClients and
-     * viewableUsers. A client-limited API token reaches only its client, a restricted Member only the assigned clients.
+     * The PHP form of the reach rule, on the account as loaded. The SQL forms are SitePolicy::visibleSites and
+     * visibleClients for lists, and viewableUsers for batches and for site authorization, which reads the stored account.
+     * A client-limited API token reaches only its client, a restricted Member only the assigned clients.
      */
     private static function reaches(User $user, int $clientId): bool
     {

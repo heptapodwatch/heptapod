@@ -208,8 +208,18 @@ final class SitePolicy
         });
     }
 
+    /**
+     * Capability::ViewClient read from the stored account, not the one loaded at sign-in: access revoked while the
+     * request runs (deactivation, role or scope change) already hides the site.
+     */
     private function accessible(User $user, int $clientId): Response
     {
-        return Capability::ViewClient->allows($user, $clientId) ? Response::allow() : Response::denyAsNotFound();
+        $constraint = $user->tokenClientConstraint();
+        if ($constraint !== null && $constraint !== $clientId) {
+            return Response::denyAsNotFound();
+        }
+        $users = DB::table('users')->where('users.id', $user->id);
+
+        return $this->viewableUsers($users, 'users', $clientId)->exists() ? Response::allow() : Response::denyAsNotFound();
     }
 }
