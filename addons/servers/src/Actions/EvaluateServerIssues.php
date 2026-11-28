@@ -94,10 +94,11 @@ final readonly class EvaluateServerIssues
      */
     public function noReports(CarbonImmutable $now): void
     {
-        if (! $this->instance->serving($now)) {
+        $instance = $this->instance->current($now);
+        if (! $instance->serving) {
             return;
         }
-        $availableSince = $this->instance->servingSince();
+        $availableSince = $instance->since;
         $default = config()->integer('servers.thresholds.no_report_minutes');
         /** @var list<int> $due */
         $due = DB::table('servers')->whereNotNull('last_report_at')

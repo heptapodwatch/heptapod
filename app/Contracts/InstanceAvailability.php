@@ -12,12 +12,6 @@ use Carbon\CarbonImmutable;
  */
 interface InstanceAvailability
 {
-    /**
-     * False in maintenance mode or after a gap without /up; true without a heartbeat (no healthcheck, or none for so long
-     * that it expired), where nothing tells the instance's downtime apart.
-     */
-    public function serving(CarbonImmutable $now): bool;
-
-    /** The start of the current serving period: the first /up after maintenance or a gap. Null without a heartbeat. */
-    public function servingSince(): ?CarbonImmutable;
+    /** One reading of the heartbeat: both fields come from the same record. */
+    public function current(CarbonImmutable $now): InstanceServing;
 }
