@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\DB;
  * longer than GapSeconds between two samples (a missed report) breaks a streak. Only the server's newest sample (by
  * observed_at) is evaluated, so a late sample is stored but never closes or opens an issue. "No report" is about receipt:
  * it opens on the scheduled pass once the last receipt is older than the server's "No report after" and resolves at the
- * receipt of the next sample; it counts silence only while the instance could receive reports (ingestHeartbeat()).
+ * receipt of the next sample; it skips downtime of the instance that its /up heartbeat sees (ingestHeartbeat()).
  * An issue never resolves before it opened (server_issues_resolved_after_opening).
  *
  * @phpstan-type Metrics array{cpu: array{cores: int}, load: array{5: int|float}, memory: array{total_bytes: int, available_bytes: int}, filesystems: list<array{mount: string, total_bytes: int, free_bytes: int}>}
@@ -41,23 +41,27 @@ final readonly class EvaluateServerIssues
     /** Cache entry {seen_at, available_since} (ISO 8601 or null) written by ingestHeartbeat(). */
     public const string IngestKey = 'heptapod:servers:ingest';
 
+    /** Without /up for this long the heartbeat is gone and "No report" counts as without one: it never stops for good. */
+    public const int IngestTtlSeconds = 15 * 60;
+
     public function __construct(private ServerIssueAlerts $alerts) {}
 
     /**
      * On every /up of the web (the container healthcheck): reports can be received now, unless the app is in maintenance,
-     * where /up still answers. Maintenance, or a gap longer than GapSeconds since the previous /up, starts a new period.
+     * where /up still answers. Maintenance, or a gap longer than GapSeconds since the previous /up, starts a new period;
+     * a shorter web restart goes unseen and is covered by the agent's 30-second retry within the threshold.
      */
     public function ingestHeartbeat(CarbonImmutable $now, bool $maintenance): void
     {
         if ($maintenance) {
-            Cache::forever(self::IngestKey, ['seen_at' => null, 'available_since' => null]);
+            Cache::put(self::IngestKey, ['seen_at' => null, 'available_since' => null], self::IngestTtlSeconds);
 
             return;
         }
         $ingest = $this->ingest();
         $continues = $ingest !== null && $ingest['seen_at'] instanceof CarbonImmutable && $ingest['seen_at']->diffInSeconds($now) <= self::GapSeconds;
         $since = ($continues ? $ingest['available_since'] : null) ?? $now;
-        Cache::forever(self::IngestKey, ['seen_at' => $now->utc()->toIso8601String(), 'available_since' => $since->utc()->toIso8601String()]);
+        Cache::put(self::IngestKey, ['seen_at' => $now->utc()->toIso8601String(), 'available_since' => $since->utc()->toIso8601String()], self::IngestTtlSeconds);
     }
 
     /**
@@ -108,8 +112,9 @@ final readonly class EvaluateServerIssues
     /**
      * The scheduled pass: "No report" for every server whose newest report is older than its "No report after", opened
      * at the moment it became due. Reads the servers through their row, so the servers table bounds it. Silence while
-     * the web was down or in maintenance is not the agent's: no pass then, and an agent silent since before the instance
-     * came back gets at least ResumeGraceMinutes from then. Before the first /up (no heartbeat at all) it counts as always.
+     * the heartbeat says maintenance or is older than GapSeconds is not the agent's: no pass then, and an agent silent
+     * since before the instance came back gets at least ResumeGraceMinutes from then. Without a heartbeat (none yet, or
+     * expired after IngestTtlSeconds) it counts as always.
      */
     public function noReports(CarbonImmutable $now): void
     {
