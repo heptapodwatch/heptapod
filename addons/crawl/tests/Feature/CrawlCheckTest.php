@@ -20,6 +20,7 @@ use Heptapod\Addons\Crawl\CrawlTargetUnavailable;
 use Heptapod\Addons\Crawl\LinkClassificationPolicy;
 use Heptapod\Addons\Crawl\MixedContentFinding;
 use Heptapod\Addons\Crawl\NotCrawlableReason;
+use Heptapod\Addons\Crawl\QueueCrawler;
 use Heptapod\Checks\Execution\CheckExecutor;
 use Heptapod\Checks\Execution\ClaimService;
 use Heptapod\Checks\Execution\RunOrigin;
@@ -255,15 +256,24 @@ it('treats query delimiters literally and keeps forced matches ahead of exclusio
     $excluded = $root.'/archive/2026/11/item?edition=1';
     $similar = $root.'/archive/2026/11/itemXedition=1';
     $forcedImage = $root.'/archive/2026/11/image.png?edition=1';
+    $feed = $root.'/feed/';
+    $queryWithSlash = $root.'/a/?q=1';
+    $unicode = $root.'/caf%C3%A9/';
     $check = crawlCheck(url: $root, config: [
         'respect_robots' => false,
         'types' => ['link', 'image'],
-        'do_not_crawl_urls' => ['https://fixtures.test/pattern-scope/archive/*item?edition=1', $forcedImage],
+        'do_not_crawl_urls' => ['https://fixtures.test/pattern-scope/archive/*item?edition=1', $forcedImage, '*/feed/', '*/a/?q=*', '*/café/'],
         'force_crawl_urls' => ['*/archive/*/image.png?edition=1'],
     ]);
     $fake = (new FakeOutboundHttp)
-        ->respondWith(crawlHttpRequest($root), new FetchResult(200, '<a href="'.$excluded.'">Excluded</a><a href="'.$similar.'">Similar</a><img src="'.$forcedImage.'">', ['Content-Type' => ['text/html']]))
+        ->respondWith(crawlHttpRequest($root), new FetchResult(200,
+            '<a href="'.$excluded.'">Excluded</a><a href="'.$similar.'">Similar</a><img src="'.$forcedImage.'">'
+            .'<a href="'.$feed.'">Feed</a><a href="'.$queryWithSlash.'">Query</a><a href="'.$root.'/café/">Café</a>',
+            ['Content-Type' => ['text/html']]))
         ->respondWith(crawlHttpRequest($excluded), new FetchResult(200, 'Excluded'))
+        ->respondWith(crawlHttpRequest($feed), new FetchResult(200, 'Feed'))
+        ->respondWith(crawlHttpRequest($queryWithSlash), new FetchResult(200, 'Query'))
+        ->respondWith(crawlHttpRequest($unicode), new FetchResult(200, 'Cafe'))
         ->respondWith(crawlHttpRequest($similar), new FetchResult(200, 'Similar'))
         ->respondWith(crawlHttpRequest($forcedImage), new FetchResult(200, 'Image'));
     app()->instance(OutboundHttp::class, $fake);
@@ -271,9 +281,32 @@ it('treats query delimiters literally and keeps forced matches ahead of exclusio
     recordCrawl(crawlContext($check));
 
     $requested = array_map(static fn (array $call): string => $call['request']->url, $fake->requests);
-    expect($requested)->toContain($root, $similar, $forcedImage)->not->toContain($excluded);
+    expect($requested)->toEqualCanonicalizing([$root, $similar, $forcedImage]);
     expect($check->refresh()->latest_run_result)->toBe(CheckResult::Succeeded);
 });
+
+it('preserves legacy full-URL scope matches except for retired glob operators', function (string $pattern, string $url, bool $expected, ?bool $legacy = null): void {
+    $crawler = QueueCrawler::create('https://example.com')->scopePatterns([$pattern], [$pattern]);
+
+    expect(fnmatch($pattern, $url))->toBe($legacy ?? $expected);
+    expect($crawler->matchesNeverCrawl($url))->toBe($expected);
+    expect($crawler->matchesAlwaysCrawl($url))->toBe($expected);
+})->with([
+    'WordPress feed' => ['*/feed/', 'https://example.com/news/feed/', true],
+    'WordPress tag' => ['*/tag/*/', 'https://example.com/tag/seasonal/', true],
+    'WordPress admin' => ['https://example.com/wp-admin/*', 'https://example.com/wp-admin/edit.php', true],
+    'WordPress lookalike' => ['*/wp-admin/*', 'https://example.com/wp-admin-copy/edit.php', false],
+    'query after slash' => ['*/a/?q=*', 'https://example.com/a/?q=pear', true],
+    'exact query' => ['https://example.com/search?q=pear', 'https://example.com/search?q=pear', true],
+    'different exact query' => ['https://example.com/search?q=pear', 'https://example.com/search?q=peach', false],
+    'query lookalike' => ['*/a/?q=*', 'https://example.com/a/xq=pear', false, true],
+    'wildcard scheme and subpaths' => ['*://example.com/archive/*/index.html', 'https://example.com/archive/2026/11/index.html', true],
+    'encoded path' => ['*/caf%C3%A9/', 'https://example.com/caf%C3%A9/', true],
+    'exact full URL' => ['https://example.com/about', 'https://example.com/about', true],
+    'exact different host' => ['https://example.com/about', 'https://www.example.com/about', false],
+    'retired single-character wildcard' => ['*/images/photo?.jpg', 'https://example.com/images/photo1.jpg', false, true],
+    'retired character range' => ['*/images/photo[0-9].jpg', 'https://example.com/images/photo1.jpg', false, true],
+]);
 
 it('moves existing exclusions into crawl scope without losing patterns or other settings', function (): void {
     $check = crawlCheck(config: ['do_not_crawl_urls' => ['*/first/*', '*/shared/*'], 'exclude_patterns' => ['*/shared/*', '*/legacy/*'], 'max_depth' => 1]);

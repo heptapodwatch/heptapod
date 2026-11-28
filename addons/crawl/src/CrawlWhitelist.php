@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Heptapod\Addons\Crawl;
 
 use Heptapod\Contracts\SecretRedactor;
-use Illuminate\Support\Str;
 use League\Uri\Contracts\UriException;
 use League\Uri\Uri;
 
@@ -23,14 +22,15 @@ final class CrawlWhitelist
     public function __construct(array $entries)
     {
         foreach ($entries as $entry) {
-            if (! self::valid($entry) || ($canonical = self::canonical($entry)) === null) {
+            if (! self::valid($entry)) {
                 $this->ignoredInvalid = true;
 
                 continue;
             }
             if (str_contains($entry, '*')) {
-                $this->patterns[] = $canonical;
-            } else {
+                $pattern = $this->normalizePattern($entry);
+                $this->patterns[] = '#\A'.str_replace('\*', '.*', preg_quote($pattern, '#')).'\z#s';
+            } elseif (($canonical = self::canonical($entry)) !== null) {
                 $this->exact[$canonical] = true;
             }
         }
@@ -74,29 +74,49 @@ final class CrawlWhitelist
     /** A pattern wins over an exact entry: removing the exact entry would not restore the finding. */
     public function match(string $url): ?string
     {
-        if (($this->exact === [] && $this->patterns === []) || ($target = self::canonical(BrowserUrl::comparableRedacted($url))) === null) {
+        if (($this->exact === [] && $this->patterns === []) || ($normalized = BrowserUrl::normalize(BrowserUrl::comparableRedacted($url))) === null) {
             return null;
         }
-        if (array_any($this->patterns, static fn (string $pattern): bool => Str::is($pattern, $target))) {
-            return 'pattern';
+        $canonical = self::trimPath($normalized);
+        foreach ($this->patterns as $pattern) {
+            if (preg_match($pattern, $normalized) === 1 || ($normalized !== $canonical && preg_match($pattern, $canonical) === 1)) {
+                return 'pattern';
+            }
         }
 
-        return isset($this->exact[$target]) ? 'exact' : null;
+        return isset($this->exact[$canonical]) ? 'exact' : null;
     }
 
     public static function canonical(string $url): ?string
     {
-        try {
-            $normalized = BrowserUrl::normalize($url);
-            if ($normalized === null) {
-                return str_contains($url, '*') ? str_replace(' ', '%20', explode('#', $url, 2)[0]) : null;
-            }
-            $uri = Uri::new($normalized);
-        } catch (UriException|\InvalidArgumentException) {
-            return str_contains($url, '*') ? str_replace(' ', '%20', explode('#', $url, 2)[0]) : null;
-        }
-        $path = $uri->getPath();
+        $normalized = BrowserUrl::normalize($url);
 
-        return $uri->withPath($path === '' || $path === '/' ? '/' : rtrim($path, '/'))->toString();
+        return $normalized === null ? null : self::trimPath($normalized);
+    }
+
+    private function normalizePattern(string $pattern): string
+    {
+        $normalized = BrowserUrl::normalize($pattern);
+        if ($normalized !== null) {
+            return $normalized;
+        }
+
+        // A leading wildcard need not be a URL, but its path and query still use URL encoding.
+        $schemeWildcard = str_starts_with($pattern, '*://');
+        try {
+            $uri = Uri::new($schemeWildcard ? substr($pattern, 2) : $pattern)->withFragment(null);
+
+            return ($schemeWildcard ? '*:' : '').$uri->toString();
+        } catch (UriException) {
+            return str_replace(' ', '%20', explode('#', $pattern, 2)[0]);
+        }
+    }
+
+    private static function trimPath(string $normalized): string
+    {
+        $uri = Uri::new($normalized);
+        $path = rtrim($uri->getPath(), '/');
+
+        return $uri->withPath($path === '' ? '/' : $path)->toString();
     }
 }

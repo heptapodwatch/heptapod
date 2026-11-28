@@ -1,5 +1,6 @@
 {
     "uptime.settings.request": "Anfrage",
+    "uptime.settings.headers": "Anfrage-Header",
     "uptime.settings.response": "Antwort",
     "uptime.status_codes_help": "Ein Statuscode pro Zeile; 2* steht für 200–299.",
     "uptime.label": "Erreichbarkeit",

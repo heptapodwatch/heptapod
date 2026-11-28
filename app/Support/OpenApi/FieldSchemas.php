@@ -64,6 +64,9 @@ final readonly class FieldSchemas
         foreach ($this->registry->keys() as $key) {
             $definition = $this->registry->get($key)->definition();
             $schema = self::partial($this->object($definition->configSchema->fields, false, ''));
+            if ($key === CheckKey::BrokenLinks && isset($schema['properties']['exclude_patterns'])) {
+                $schema['properties']['exclude_patterns']['deprecated'] = true;
+            }
             $schema['properties'] += [
                 'failed_notification_threshold' => ['type' => $key === CheckKey::Uptime ? ['integer', 'null'] : 'integer',
                     'minimum' => AlertSensitivity::MinStoredMinutes, 'maximum' => AlertSensitivity::MaxStoredMinutes,

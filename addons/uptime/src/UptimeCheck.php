@@ -105,7 +105,7 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
                 'valid_status_codes' => new Field(FieldType::List, ['sometimes', 'min:1'], items: new Field(FieldType::String, ['required', 'regex:/^[1-5][0-9*]{0,2}$/']), presentation: new FieldPresentation('Accepted HTTP statuses', 'uptime.status_codes_help', group: $response), default: ['2*']),
                 'max_redirect_count' => new Field(FieldType::Integer, ['sometimes', 'min:0'], presentation: new FieldPresentation('Maximum redirects', group: $request), default: 5),
                 'expected_final_redirect_url' => new Field(FieldType::Secret, ['sometimes', 'nullable', 'url:http,https'], presentation: new FieldPresentation('Final redirect URL', group: $response), default: null),
-                'http_client_headers' => new Field(FieldType::List, ['sometimes'], items: $headers, presentation: new FieldPresentation('Headers', group: $request), default: []),
+                'http_client_headers' => new Field(FieldType::List, ['sometimes'], items: $headers, presentation: new FieldPresentation('uptime.settings.headers', group: $request), default: []),
             ]),
             new Schema([
                 'dns_time_in_seconds' => $number,
