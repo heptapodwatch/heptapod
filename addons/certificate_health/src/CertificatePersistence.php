@@ -6,9 +6,11 @@ namespace Heptapod\Addons\CertificateHealth;
 
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckContext;
+use Heptapod\Contracts\HistoryPrune;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\StagedSnapshots;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
@@ -144,15 +146,11 @@ final class CertificatePersistence implements RunPersistence
         return ['certificate_health_snapshots'];
     }
 
-    public function prune(CarbonImmutable $before): void
+    public function historyPrunes(): array
     {
         // Preserve the certificate-bearing baseline even after errors or a long pause.
-        $baselines = DB::table('certificate_health_snapshots')
-            ->selectRaw('DISTINCT ON (check_id) id')
-            ->whereNotNull('run_ended_at')->whereNotNull('snapshot->certificate_details->fingerprint')
-            ->orderBy('check_id')->orderByDesc('run_ended_at')->orderByDesc('run_id');
-        DB::table('certificate_health_snapshots')->where('run_ended_at', '<', $before->format('Y-m-d H:i:s.uP'))
-            ->whereNotIn('id', $baselines)->delete();
+        return [new HistoryPrune('certificate_health_snapshots', baselinePer: 'check_id',
+            baselineFilters: [static fn (Builder $accepted): Builder => $accepted->whereNotNull('snapshot->certificate_details->fingerprint')])];
     }
 
     public function discard(int $runId, string $claimToken): void

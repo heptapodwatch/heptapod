@@ -25,6 +25,7 @@ use Heptapod\Addons\Crawl\QueueCrawler;
 use Heptapod\Checks\Execution\CheckExecutor;
 use Heptapod\Checks\Execution\ClaimService;
 use Heptapod\Checks\Execution\RunOrigin;
+use Heptapod\Checks\History\AddonHistoryRetention;
 use Heptapod\Checks\Recording\RecordableRun;
 use Heptapod\Checks\Recording\TransactionalResultRecorder;
 use Heptapod\Contracts\CheckContext;
@@ -664,8 +665,7 @@ it('emits new findings once against retained accepted baselines at unchanged sev
         ->and($check->refresh()->latest_run_result)->toBe(CheckResult::Failed);
     recordCrawl(crawlContext($check));
     expect(Event::query()->where('type', $eventType)->count())->toBe(1);
-    $store = app(CrawlPersistence::class);
-    $store->prune(CarbonImmutable::now()->addDays(61));
+    app(AddonHistoryRetention::class)->prune(CarbonImmutable::now()->addDays(61));
     expect(DB::table('crawl_snapshots')->where('check_id', $check->id)->count())->toBe(1);
     $event = Event::query()->where('type', $eventType)->first();
     expect(json_encode($event->payload))->not->toContain('private-token', 'http://', 'https://');

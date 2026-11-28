@@ -11,7 +11,7 @@ use Heptapod\Models\CheckRunRollupDaily;
 use Heptapod\Models\CheckRunRollupHourly;
 use Illuminate\Support\Facades\DB;
 
-it('shows warnings as online errors as completed and missing buckets as no data with sample weighted daily metrics', function (): void {
+it('counts every result as completed and reads missing buckets as empty with sample weighted daily metrics', function (): void {
     $day = CarbonImmutable::now('UTC')->startOfDay();
     $this->travelTo($day->addHours(3));
     $check = Check::factory()->create();
@@ -27,17 +27,14 @@ it('shows warnings as online errors as completed and missing buckets as no data 
     expect($hours)->toHaveCount(3)
         ->and($hours[0]['bucket_start']->equalTo($day))->toBeTrue()
         ->and($hours[0]['completed_count'])->toBe(4)
-        ->and($hours[0]['uptime_percentage'])->toBe(50.0)
         ->and($hours[0]['metric_averages'])->toBe(['total_time_in_seconds' => 3.0])
         ->and($hours[1]['completed_count'])->toBe(0)
-        ->and($hours[1]['uptime_percentage'])->toBeNull()
         ->and($hours[1]['metric_sums'])->toBe([])
         ->and($hours[1]['metric_averages'])->toBe([])
         ->and($hours[1]['metric_p95'])->toBe([])
-        ->and($hours[2]['uptime_percentage'])->toBe(0.0);
+        ->and($hours[2]['failed_count'])->toBe(1);
     $daily = $reader->read($check->id, 'daily', $day, $day->addDay())[0];
     expect($daily['completed_count'])->toBe(5)
-        ->and($daily['uptime_percentage'])->toBe(40.0)
         ->and($daily['metric_averages']['total_time_in_seconds'])->toBe(27.25);
     expect($daily['metric_p95']['total_time_in_seconds'])->toEqualWithDelta(85.75, 0.00001);
     expect($reader->read($check->id, 'hourly', $day, $day))->toBe([]);

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Heptapod\Addons\Sitemap;
 
-use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRunPresentationPartData;
@@ -17,6 +16,7 @@ use Heptapod\Contracts\Findings\FindingsView;
 use Heptapod\Contracts\Findings\UnavailableFindingsSnapshot;
 use Heptapod\Contracts\FindingsExportProvider;
 use Heptapod\Contracts\FindingsQueryProvider;
+use Heptapod\Contracts\HistoryPrune;
 use Heptapod\Contracts\Http\AutomatedCheckBlockReason;
 use Heptapod\Contracts\Http\FetchFailureKind;
 use Heptapod\Contracts\ListPaging;
@@ -24,6 +24,7 @@ use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\StagedSnapshots;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Validator;
@@ -380,13 +381,11 @@ final readonly class SitemapPersistence implements FindingsExportProvider, Findi
         return ['sitemap_snapshots', 'sitemap_findings'];
     }
 
-    public function prune(CarbonImmutable $before): void
+    public function historyPrunes(): array
     {
-        $latest = DB::table('sitemap_snapshots')->selectRaw('DISTINCT ON (check_id) id')
-            ->whereNotNull('run_ended_at')->orderBy('check_id')->orderByDesc('run_ended_at')->orderByDesc('run_id');
-        $baselines = (clone $latest)->whereNotNull('comparison_issues')->whereJsonDoesntContain('snapshot->issues', [['type' => 'sitemap.issue.time_limit']]);
-        DB::table('sitemap_snapshots')->where('run_ended_at', '<', $before->format('Y-m-d H:i:s.uP'))
-            ->whereNotIn('id', $latest)->whereNotIn('id', $baselines)->delete();
+        return [new HistoryPrune('sitemap_snapshots', baselinePer: 'check_id', baselineFilters: [
+            static fn (Builder $accepted): Builder => $accepted,
+            static fn (Builder $accepted): Builder => $accepted->whereNotNull('comparison_issues')->whereJsonDoesntContain('snapshot->issues', [['type' => 'sitemap.issue.time_limit']])])];
     }
 
     public function discard(int $runId, string $claimToken): void

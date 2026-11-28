@@ -16,6 +16,7 @@ use Heptapod\Contracts\Findings\FindingsView;
 use Heptapod\Contracts\Findings\UnavailableFindingsSnapshot;
 use Heptapod\Contracts\FindingsExportProvider;
 use Heptapod\Contracts\FindingsQueryProvider;
+use Heptapod\Contracts\HistoryPrune;
 use Heptapod\Contracts\ListPaging;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\RunPersistence;
@@ -614,10 +615,8 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
         return ['crawl_snapshots', 'crawl_findings', 'mixed_content_findings', 'crawl_collections'];
     }
 
-    public function prune(CarbonImmutable $before): void
+    public function historyPrunes(): array
     {
-        $baselines = DB::table('crawl_snapshots')->selectRaw('DISTINCT ON (check_id) id')->whereNotNull('run_ended_at')->orderBy('check_id')->orderByDesc('run_ended_at')->orderByDesc('run_id');
-        DB::table('crawl_snapshots')->where('run_ended_at', '<', $before->format('Y-m-d H:i:s.uP'))->whereNotIn('id', $baselines)->delete();
-        DB::table('crawl_collections')->where('collected_at', '<', $before->format('Y-m-d H:i:s.uP'))->delete();
+        return [new HistoryPrune('crawl_snapshots', baselinePer: 'check_id'), new HistoryPrune('crawl_collections', 'collected_at', 'site_id')];
     }
 }

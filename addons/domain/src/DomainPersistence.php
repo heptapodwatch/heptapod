@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Heptapod\Addons\Domain;
 
-use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckContext;
+use Heptapod\Contracts\HistoryPrune;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\StagedSnapshots;
@@ -79,12 +79,10 @@ final class DomainPersistence implements RunPersistence
         return ['domain_snapshots'];
     }
 
-    public function prune(CarbonImmutable $before): void
+    public function historyPrunes(): array
     {
         // The last accepted observation survives errors and raw-run retention.
-        $baselines = DB::table('domain_snapshots')->selectRaw('DISTINCT ON (check_id) id')
-            ->whereNotNull('run_ended_at')->orderBy('check_id')->orderByDesc('run_ended_at')->orderByDesc('run_id');
-        DB::table('domain_snapshots')->where('run_ended_at', '<', $before->format('Y-m-d H:i:s.uP'))->whereNotIn('id', $baselines)->delete();
+        return [new HistoryPrune('domain_snapshots', baselinePer: 'check_id')];
     }
 
     public function discard(int $runId, string $claimToken): void

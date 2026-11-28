@@ -7,6 +7,7 @@ use Heptapod\Actions\CreateSite;
 use Heptapod\Addons\Domain\BoundedWhoisClient;
 use Heptapod\Checks\Execution\ClaimService;
 use Heptapod\Checks\Execution\RunOrigin;
+use Heptapod\Checks\History\AddonHistoryRetention;
 use Heptapod\Checks\Recording\RecordableRun;
 use Heptapod\Checks\Recording\ResultRecorder;
 use Heptapod\Contracts\CheckContext;
@@ -177,8 +178,7 @@ it('emits accepted registration and expiry changes once across errors and retent
     expect(executeDomainJob($check)->result)->toBe(RunResult::Succeeded);
     expect(Event::query()->where('type', 'like', 'domain.%')->count())->toBe(0);
     $baseline = DB::table('domain_snapshots')->orderByDesc('run_id')->value('run_id');
-    $store = app(CheckRegistry::class)->get(CheckKey::Domain)->persistence();
-    $store->prune(CarbonImmutable::now()->addDays(61));
+    app(AddonHistoryRetention::class)->prune(CarbonImmutable::now()->addDays(61));
     expect(DB::table('domain_snapshots')->pluck('run_id')->all())->toBe([$baseline]);
     $this->travel(1)->seconds();
     $fake->respondWith('example.com', new ExternalTimeoutException('Registry timed out'));

@@ -65,13 +65,17 @@ it('boots the shipped worker cap and refuses the old 832m profile by name', func
         ->assertFailed();
 });
 
-it('refuses an added permanent worker or a raised crawl concurrency without a matching budget', function (): void {
+it('refuses an added permanent worker or a raised fast or crawl concurrency without a matching budget', function (): void {
     file_put_contents($this->cgroup.'/memory.max', shippedHorizonCapBytes()."\n");
     // Defaults only: Horizon still deploys a supervisor that no environment plan names.
     config(['horizon.defaults.reports' => ['connection' => 'redis', 'queue' => ['reports'], 'maxProcesses' => 1]]);
     $this->artisan('heptapod:worker-memory')->expectsOutputToContain('HORIZON_MEMORY_LIMIT')->assertFailed();
 
     config(['horizon.defaults' => array_diff_key(config('horizon.defaults'), ['reports' => true])]);
+    config(['horizon.defaults.checks-fast.maxProcesses' => 3, 'horizon.defaults.checks-fast.minProcesses' => 3]);
+    $this->artisan('heptapod:worker-memory')->expectsOutputToContain('HEPTAPOD_FAST_CONCURRENCY=3, HEPTAPOD_CRAWL_CONCURRENCY=1')->assertFailed();
+
+    config(['horizon.defaults.checks-fast.maxProcesses' => 2, 'horizon.defaults.checks-fast.minProcesses' => 2]);
     config(['horizon.defaults.checks-heavy.maxProcesses' => 2, 'horizon.defaults.checks-heavy.minProcesses' => 2]);
     $this->artisan('heptapod:worker-memory')->expectsOutputToContain('HEPTAPOD_CRAWL_CONCURRENCY=2')->assertFailed();
 });

@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\DailyRollupReader;
+use Heptapod\Contracts\HistoryPrune;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\StagedSnapshots;
@@ -131,10 +132,10 @@ final readonly class LighthousePersistence implements RunPersistence
         return ['lighthouse_reports'];
     }
 
-    public function prune(CarbonImmutable $before): void
+    public function historyPrunes(): array
     {
         // Baseline scores live separately and survive raw-report retention.
-        DB::table('lighthouse_reports')->where('run_ended_at', '<', $before->format('Y-m-d H:i:s.uP'))->delete();
+        return [new HistoryPrune('lighthouse_reports')];
     }
 
     public function discard(int $runId, string $claimToken): void

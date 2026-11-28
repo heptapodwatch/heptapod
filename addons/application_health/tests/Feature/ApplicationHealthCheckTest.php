@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Heptapod\Checks\History\AddonHistoryRetention;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\CheckResult;
@@ -266,7 +267,7 @@ it('keeps vanished component identities and change baselines after raw retention
     respondApplicationHealth($check, ['finishedAt' => time(), 'checkResults' => []]);
     runApplicationHealth($check);
     expect(DB::table('application_health_components')->value('active'))->toBeFalse();
-    app(CheckRegistry::class)->get(CheckKey::ApplicationHealth)->persistence()->prune(CarbonImmutable::now()->addDay());
+    app(AddonHistoryRetention::class)->prune(CarbonImmutable::now()->addDay());
     expect(DB::table('application_health_snapshots')->count())->toBe(1);
     respondApplicationHealth($check, applicationHealthPayload('ok', 'Disk usage at 71%'));
 

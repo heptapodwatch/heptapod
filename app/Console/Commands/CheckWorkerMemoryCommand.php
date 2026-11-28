@@ -41,13 +41,14 @@ final class CheckWorkerMemoryCommand extends Command
             return self::SUCCESS;
         }
         $capMiB = intdiv((int) $limit, 1024 * 1024);
-        $crawlWorkers = WorkerMemoryBudget::crawlWorkers($supervisors);
+        $crawlWorkers = WorkerMemoryBudget::queueWorkers($supervisors, 'checks-crawl');
+        $fastWorkers = WorkerMemoryBudget::queueWorkers($supervisors, 'checks-fast');
         if ($capMiB < $required) {
-            $this->error("HORIZON_MEMORY_LIMIT is {$capMiB}m; HEPTAPOD_CRAWL_CONCURRENCY={$crawlWorkers} with HEPTAPOD_CRAWL_MEMORY_LIMIT_MB={$crawlLimit} needs at least {$required}m. Set HORIZON_MEMORY_LIMIT={$required}m or more in .env.prod.");
+            $this->error("HORIZON_MEMORY_LIMIT is {$capMiB}m; HEPTAPOD_FAST_CONCURRENCY={$fastWorkers}, HEPTAPOD_CRAWL_CONCURRENCY={$crawlWorkers} with HEPTAPOD_CRAWL_MEMORY_LIMIT_MB={$crawlLimit} needs at least {$required}m. Set HORIZON_MEMORY_LIMIT={$required}m or more in .env.prod.");
 
             return self::FAILURE;
         }
-        $this->info("Worker memory cap {$capMiB} MiB covers the {$required} MiB budget (HEPTAPOD_CRAWL_CONCURRENCY={$crawlWorkers}, HEPTAPOD_CRAWL_MEMORY_LIMIT_MB={$crawlLimit}).");
+        $this->info("Worker memory cap {$capMiB} MiB covers the {$required} MiB budget (HEPTAPOD_FAST_CONCURRENCY={$fastWorkers}, HEPTAPOD_CRAWL_CONCURRENCY={$crawlWorkers}, HEPTAPOD_CRAWL_MEMORY_LIMIT_MB={$crawlLimit}).");
 
         return self::SUCCESS;
     }

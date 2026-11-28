@@ -164,10 +164,9 @@ final readonly class HistoryReader
                     $ms($bucket['metric_averages'][$metric] ?? null), $ms($bucket['metric_p95'][$metric] ?? null));
             }
         }
-        $recent = $this->history->summarize($this->history->recentForChecks([$checkId], $now->subMinutes(15), $now));
-        $average = $recent['metric_averages'][$metric] ?? null;
+        $average = $this->history->recentResponseTimes([$checkId], $now->subMinutes(15), $now)[$checkId];
 
-        return new ResponseTimeSeriesData($range, $points, $average === null ? null : round(1000 * $average, 2));
+        return new ResponseTimeSeriesData($range, $points, $average === null ? null : round($average, 2));
     }
 
     /** @param non-empty-list<string> $metrics */

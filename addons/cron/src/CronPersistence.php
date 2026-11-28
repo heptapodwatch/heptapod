@@ -7,6 +7,7 @@ namespace Heptapod\Addons\Cron;
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\CronPingUrl;
+use Heptapod\Contracts\HistoryPrune;
 use Heptapod\Contracts\ListPaging;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\RunPersistence;
@@ -150,12 +151,9 @@ final readonly class CronPersistence implements RunPersistence
         return ['cron_run_tasks', 'cron_pings'];
     }
 
-    public function prune(CarbonImmutable $before): void
+    public function historyPrunes(): array
     {
-        $baselines = DB::table('cron_run_tasks')->selectRaw('DISTINCT ON (cron_check_id) run_id')
-            ->whereNotNull('run_ended_at')->orderBy('cron_check_id')->orderByDesc('run_ended_at')->orderByDesc('run_id');
-        DB::table('cron_run_tasks')->where('run_ended_at', '<', $before->format('Y-m-d H:i:s.uP'))->whereNotIn('run_id', $baselines)->delete();
-        DB::table('cron_pings')->where('received_at', '<', $before->format('Y-m-d H:i:s.uP'))->delete();
+        return [new HistoryPrune('cron_run_tasks', idColumn: 'run_id', baselinePer: 'cron_check_id'), new HistoryPrune('cron_pings', 'received_at')];
     }
 
     public function discard(int $runId, string $claimToken): void

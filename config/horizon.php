@@ -8,6 +8,10 @@ $crawlConcurrency = filter_var(env('HEPTAPOD_CRAWL_CONCURRENCY', 1), FILTER_VALI
 if ($crawlConcurrency === false) {
     throw new InvalidArgumentException('HEPTAPOD_CRAWL_CONCURRENCY must be a positive integer.');
 }
+$fastConcurrency = filter_var(env('HEPTAPOD_FAST_CONCURRENCY', 2), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+if ($fastConcurrency === false) {
+    throw new InvalidArgumentException('HEPTAPOD_FAST_CONCURRENCY must be a positive integer.');
+}
 
 return [
 
@@ -213,8 +217,8 @@ return [
             'connection' => 'redis',
             'queue' => ['checks-fast'],
             'balance' => false,
-            'minProcesses' => 2,
-            'maxProcesses' => 2,
+            'minProcesses' => $fastConcurrency,
+            'maxProcesses' => $fastConcurrency,
             'memory' => 128,
             'tries' => 1,
             'timeout' => ExecutionBudget::HorizonTimeout,

@@ -13,16 +13,16 @@ use InvalidArgumentException;
 use RuntimeException;
 
 /**
- * @phpstan-type SeriesBucket array{bucket_start: CarbonImmutable, succeeded_count: int, warning_count: int, failed_count: int, errored_count: int, completed_count: int, uptime_percentage: ?float, metric_sums: array<string, int|float>, metric_counts: array<string, int|float>, metric_averages: array<string, float>}
+ * @phpstan-type SeriesBucket array{bucket_start: CarbonImmutable, succeeded_count: int, warning_count: int, failed_count: int, errored_count: int, completed_count: int, metric_sums: array<string, int|float>, metric_counts: array<string, int|float>, metric_averages: array<string, float>}
  */
 final class RollupReader implements DailyRollupReader
 {
     /**
-     * UTC bucket starts in [from, until); bounds must be aligned. Empty buckets have null uptime and no metrics.
+     * UTC bucket starts in [from, until); bounds must be aligned. Empty buckets have zero counts and no metrics.
      * Numeric object leaves use dotted paths (e.g. curl.total_time). p95 applies only to this bucket, never an arbitrary range.
      *
      * @return list<array{bucket_start: CarbonImmutable, succeeded_count: int, warning_count: int, failed_count: int,
-     *     errored_count: int, completed_count: int, uptime_percentage: ?float, metric_sums: array<string, int|float>,
+     *     errored_count: int, completed_count: int, metric_sums: array<string, int|float>,
      *     metric_counts: array<string, int|float>, metric_averages: array<string, float>, metric_p95: array<string, int|float>}>
      */
     public function read(int $checkId, string $period, CarbonImmutable $from, CarbonImmutable $until): array
@@ -70,7 +70,6 @@ final class RollupReader implements DailyRollupReader
                 'succeeded_count' => $row->succeeded_count, 'warning_count' => $row->warning_count,
                 'failed_count' => $row->failed_count, 'errored_count' => $row->errored_count,
                 'completed_count' => $completed,
-                'uptime_percentage' => $completed === 0 ? null : 100.0 * ($row->succeeded_count + $row->warning_count) / $completed,
                 'metric_sums' => $sums, 'metric_counts' => $counts, 'metric_averages' => $averages,
                 'metric_p95' => $this->numericObject($row->metric_p95),
             ];
@@ -84,7 +83,7 @@ final class RollupReader implements DailyRollupReader
      * Hour buckets remain UTC-aligned; each stored hourly rollup belongs to exactly one calendar bucket.
      * Merge sums/counts, never averages of averages; timestamps identify the actual bucket starts.
      *
-     * @return list<array{bucket_start: CarbonImmutable, succeeded_count: int, warning_count: int, failed_count: int, errored_count: int, completed_count: int, uptime_percentage: ?float, metric_sums: array<string, int|float>, metric_counts: array<string, int|float>, metric_averages: array<string, float>}>
+     * @return list<array{bucket_start: CarbonImmutable, succeeded_count: int, warning_count: int, failed_count: int, errored_count: int, completed_count: int, metric_sums: array<string, int|float>, metric_counts: array<string, int|float>, metric_averages: array<string, float>}>
      */
     public function series(int $checkId, string $period, CarbonImmutable $from, CarbonImmutable $until, string $timezone = 'UTC', string $startField = 'filter.start'): array
     {
@@ -252,23 +251,19 @@ final class RollupReader implements DailyRollupReader
     }
 
     /**
-     * The list response chart is 80px wide: 18-minute buckets retain peaks and every non-OK observation.
-     * Unlike public minute history, this projection does not flatten unrelated addon metrics.
+     * 5-minute timing peaks that retain every non-OK observation. Unlike public minute history, this projection does not
+     * flatten unrelated addon metrics.
      *
      * @param  list<int>  $checkIds
      * @return array<int, list<array{bucket_start: CarbonImmutable, maximum_ms: ?float, metric_maxima: array<string, int|float|null>, failed_count: int, errored_count: int, warning_count: int}>>
      */
-    public function responsePeaks(array $checkIds, CarbonImmutable $from, CarbonImmutable $until, int $bucketMinutes = 18, bool $combine = false): array
+    public function responsePeaks(array $checkIds, CarbonImmutable $from, CarbonImmutable $until): array
     {
         $this->validateRecentWindow($from, $until);
-        if (! in_array($bucketMinutes, [5, 18], true)) {
-            throw new InvalidArgumentException('Response charts require 5- or 18-minute peak buckets.');
-        }
         if ($checkIds === []) {
             return [];
         }
         $placeholders = implode(',', array_fill(0, count($checkIds), '?'));
-        $group = $combine ? '0' : 'check_id';
         $timings = [];
         foreach (['dns_time_in_seconds', 'tcp_time_in_seconds', 'ssl_handshake_time_in_seconds', 'remote_server_processing_time_in_seconds', 'download_time_in_seconds', 'total_time_in_seconds'] as $name) {
             $timings[] = "'{$name}', max((metrics->>'{$name}')::double precision) FILTER (WHERE jsonb_typeof(metrics->'{$name}') = 'number')";
@@ -276,7 +271,7 @@ final class RollupReader implements DailyRollupReader
         $metrics = implode(', ', $timings);
         /** @var list<object{check_id: int, bucket_start: string, maximum_ms: float|null, metric_maxima: string, failed_count: int, errored_count: int, warning_count: int}> $rows */
         $rows = DB::select(<<<SQL
-            SELECT {$group} AS check_id, date_bin(interval '{$bucketMinutes} minutes', ended_at, ?::timestamptz)::text AS bucket_start,
+            SELECT check_id, date_bin(interval '5 minutes', ended_at, ?::timestamptz)::text AS bucket_start,
                 1000 * max((metrics->>'total_time_in_seconds')::double precision)
                     FILTER (WHERE jsonb_typeof(metrics->'total_time_in_seconds') = 'number') AS maximum_ms,
                 jsonb_build_object({$metrics})::text AS metric_maxima,
@@ -286,7 +281,7 @@ final class RollupReader implements DailyRollupReader
             FROM check_runs WHERE check_id IN ({$placeholders}) AND ended_at >= ? AND ended_at < ?
             GROUP BY 1, 2 ORDER BY 1, 2
             SQL, [$from, ...$checkIds, $from, $until]);
-        $groups = array_fill_keys($combine ? [0] : $checkIds, []);
+        $groups = array_fill_keys($checkIds, []);
         foreach ($rows as $row) {
             /** @var array<string, int|float|null> $maxima */
             $maxima = json_decode($row->metric_maxima, true, flags: JSON_THROW_ON_ERROR);
@@ -303,7 +298,7 @@ final class RollupReader implements DailyRollupReader
     /**
      * Raw partition reads are bounded to 24h and retention; the indexed owner/time predicate excludes other windows.
      *
-     * @return list<array{bucket_start: CarbonImmutable, succeeded_count: int, warning_count: int, failed_count: int, errored_count: int, completed_count: int, uptime_percentage: ?float, metric_sums: array<string, int|float>, metric_counts: array<string, int|float>, metric_averages: array<string, float>}>
+     * @return list<array{bucket_start: CarbonImmutable, succeeded_count: int, warning_count: int, failed_count: int, errored_count: int, completed_count: int, metric_sums: array<string, int|float>, metric_counts: array<string, int|float>, metric_averages: array<string, float>}>
      */
     public function recent(int $checkId, CarbonImmutable $from, CarbonImmutable $until): array
     {
@@ -315,61 +310,25 @@ final class RollupReader implements DailyRollupReader
      * Empty checks have no samples, not a synthetic successful observation.
      *
      * @param  list<int>  $checkIds
-     * @return array<int, list<array{bucket_start: CarbonImmutable, succeeded_count: int, warning_count: int, failed_count: int, errored_count: int, completed_count: int, uptime_percentage: ?float, metric_sums: array<string, int|float>, metric_counts: array<string, int|float>, metric_averages: array<string, float>}>>
+     * @return array<int, list<array{bucket_start: CarbonImmutable, succeeded_count: int, warning_count: int, failed_count: int, errored_count: int, completed_count: int, metric_sums: array<string, int|float>, metric_counts: array<string, int|float>, metric_averages: array<string, float>}>>
      */
     public function recentMany(array $checkIds, CarbonImmutable $from, CarbonImmutable $until): array
-    {
-        return $this->recentGroups($checkIds, $from, $until, 'check_id');
-    }
-
-    /**
-     * One aggregate minute series across authorized checks, with weighted metrics and no combined p95.
-     *
-     * @param  list<int>  $checkIds
-     * @return list<SeriesBucket>
-     */
-    public function recentForChecks(array $checkIds, CarbonImmutable $from, CarbonImmutable $until): array
-    {
-        $groups = $this->recentGroups($checkIds, $from, $until, '0');
-
-        return $groups[0] ?? [];
-    }
-
-    /**
-     * @param  list<int>  $checkIds
-     * @return array<int, list<SeriesBucket>>
-     */
-    public function recentByClient(array $checkIds, CarbonImmutable $from, CarbonImmutable $until): array
-    {
-        return $this->recentGroups($checkIds, $from, $until, 'client_id');
-    }
-
-    /**
-     * @param  list<int>  $checkIds
-     * @return array<int, list<SeriesBucket>>
-     */
-    private function recentGroups(array $checkIds, CarbonImmutable $from, CarbonImmutable $until, string $group): array
     {
         $this->validateRecentWindow($from, $until);
         if ($checkIds === []) {
             return [];
         }
         $placeholders = implode(',', array_fill(0, count($checkIds), '?'));
-        if (! in_array($group, ['0', 'check_id', 'client_id'], true)) {
-            throw new InvalidArgumentException('Unknown recent history grouping.');
-        }
-        $groupExpression = $group === 'client_id' ? 'sites.client_id' : ($group === '0' ? '0' : 'check_runs.check_id');
-        $joins = $group === 'client_id' ? 'JOIN checks ON checks.id = check_runs.check_id JOIN sites ON sites.id = checks.site_id' : '';
         /** @var list<object{check_id: int, bucket_start: string, succeeded_count: int, warning_count: int, failed_count: int, errored_count: int, metric_sums: string, metric_counts: string}> $rows */
         // Recursive JSON cardinality estimates trigger JIT compilation even for one day of minute samples.
-        $rows = DB::transaction(function () use ($groupExpression, $joins, $placeholders, $checkIds, $from, $until): array {
+        $rows = DB::transaction(function () use ($placeholders, $checkIds, $from, $until): array {
             /** @var object{enabled: string} $jit */
             $jit = DB::selectOne("SELECT current_setting('jit') AS enabled");
             DB::statement('SET LOCAL jit = off');
             $rows = DB::select(<<<SQL
             WITH RECURSIVE samples AS MATERIALIZED (
-                SELECT {$groupExpression} AS check_id, result, metrics, date_trunc('minute', ended_at, 'UTC') AS bucket FROM check_runs {$joins}
-                WHERE check_runs.check_id IN ({$placeholders}) AND ended_at >= ? AND ended_at < ?
+                SELECT check_id, result, metrics, date_trunc('minute', ended_at, 'UTC') AS bucket FROM check_runs
+                WHERE check_id IN ({$placeholders}) AND ended_at >= ? AND ended_at < ?
             ), counts AS (
                 SELECT check_id, bucket, count(*) FILTER (WHERE result = 'succeeded')::int AS succeeded_count,
                     count(*) FILTER (WHERE result = 'warning')::int AS warning_count, count(*) FILTER (WHERE result = 'failed')::int AS failed_count,
@@ -392,41 +351,12 @@ final class RollupReader implements DailyRollupReader
 
             return $rows;
         });
-        $groups = array_fill_keys($group === '0' ? [0] : ($group === 'check_id' ? $checkIds : []), []);
+        $groups = array_fill_keys($checkIds, []);
         foreach ($rows as $row) {
             $groups[$row->check_id][] = $row;
         }
 
         return array_map($this->projectSeries(...), $groups);
-    }
-
-    /**
-     * @param  list<SeriesBucket>  $buckets
-     * @return array{uptime_percentage: ?float, metric_averages: array<string, float>}
-     */
-    public function summarize(array $buckets): array
-    {
-        $completed = 0;
-        $online = 0;
-        $sums = [];
-        $counts = [];
-        foreach ($buckets as $bucket) {
-            $completed += $bucket['completed_count'];
-            $online += $bucket['succeeded_count'] + $bucket['warning_count'];
-            foreach ($bucket['metric_sums'] as $name => $sum) {
-                if (! isset($bucket['metric_counts'][$name]) || $bucket['metric_counts'][$name] <= 0) {
-                    throw new RuntimeException('Rollup metric sum has no positive sample count: '.$name);
-                }
-                $sums[$name] = ($sums[$name] ?? 0) + $sum;
-                $counts[$name] = ($counts[$name] ?? 0) + $bucket['metric_counts'][$name];
-            }
-        }
-        $averages = [];
-        foreach ($sums as $name => $sum) {
-            $averages[$name] = (float) ($sum / $counts[$name]);
-        }
-
-        return ['uptime_percentage' => $completed === 0 ? null : 100.0 * $online / $completed, 'metric_averages' => $averages];
     }
 
     private function validateRecentWindow(CarbonImmutable $from, CarbonImmutable $until): void
@@ -442,7 +372,7 @@ final class RollupReader implements DailyRollupReader
 
     /**
      * @param  list<object{bucket_start: string, succeeded_count: int, warning_count: int, failed_count: int, errored_count: int, metric_sums: string, metric_counts: string}>  $rows
-     * @return list<array{bucket_start: CarbonImmutable, succeeded_count: int, warning_count: int, failed_count: int, errored_count: int, completed_count: int, uptime_percentage: ?float, metric_sums: array<string, int|float>, metric_counts: array<string, int|float>, metric_averages: array<string, float>}>
+     * @return list<array{bucket_start: CarbonImmutable, succeeded_count: int, warning_count: int, failed_count: int, errored_count: int, completed_count: int, metric_sums: array<string, int|float>, metric_counts: array<string, int|float>, metric_averages: array<string, float>}>
      */
     private function projectSeries(array $rows): array
     {
@@ -460,8 +390,7 @@ final class RollupReader implements DailyRollupReader
             }
             $series[] = ['bucket_start' => CarbonImmutable::parse($row->bucket_start)->utc(), 'succeeded_count' => $row->succeeded_count,
                 'warning_count' => $row->warning_count, 'failed_count' => $row->failed_count, 'errored_count' => $row->errored_count,
-                'completed_count' => $completed, 'uptime_percentage' => $completed === 0 ? null : 100.0 * ($row->succeeded_count + $row->warning_count) / $completed,
-                'metric_sums' => $sums, 'metric_counts' => $counts, 'metric_averages' => $averages];
+                'completed_count' => $completed, 'metric_sums' => $sums, 'metric_counts' => $counts, 'metric_averages' => $averages];
         }
 
         return $series;

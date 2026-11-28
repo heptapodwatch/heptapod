@@ -44,7 +44,7 @@ if [ "$1" = compose ]; then
     case "$*" in
         *'php artisan backup:run'*) [ "${FAIL_BACKUP:-false}" = false ] || exit 42 ;;
         *'run --rm --no-deps -T --entrypoint sh horizon'*'heptapod:worker-memory'*)
-            [ "${STUB_WORKER_MEMORY_FAIL:-false}" = false ] || { echo 'HORIZON_MEMORY_LIMIT is 832m; HEPTAPOD_CRAWL_CONCURRENCY=1 with HEPTAPOD_CRAWL_MEMORY_LIMIT_MB=768 needs at least 1990m.' >&2; exit 1; } ;;
+            [ "${STUB_WORKER_MEMORY_FAIL:-false}" = false ] || { echo 'HORIZON_MEMORY_LIMIT is 832m; HEPTAPOD_FAST_CONCURRENCY=2, HEPTAPOD_CRAWL_CONCURRENCY=1 with HEPTAPOD_CRAWL_MEMORY_LIMIT_MB=768 needs at least 1990m.' >&2; exit 1; } ;;
         *'printf "HEPTAPOD_STORAGE_DISK='*)
             if [ "${STUB_MISSING_BACKUP:-false}" = true ]; then echo 'OPS missing recorded archive' >&2; exit 42; fi
             printf 'HEPTAPOD_STORAGE_DISK=local\nBACKUP_DISK=backups\nBACKUP_PATH=/backups\nRECORDED_BACKUP_SHA256=%064d\n' 3 ;;

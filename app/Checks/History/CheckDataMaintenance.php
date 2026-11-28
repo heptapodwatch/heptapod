@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Heptapod\Checks\History;
 
 use Carbon\CarbonImmutable;
-use Heptapod\Contracts\CheckRegistry;
 use Heptapod\SystemHealth\CheckDataMaintenanceRecord;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -23,7 +22,7 @@ final readonly class CheckDataMaintenance
      */
     private const int RunsPerRollupStatement = 5000;
 
-    public function __construct(private CheckRegistry $registry, private AttemptHistoryProjection $history, private CheckDataMaintenanceRecord $record, private HistoryRetention $retention) {}
+    public function __construct(private AddonHistoryRetention $addonHistory, private AttemptHistoryProjection $history, private CheckDataMaintenanceRecord $record, private HistoryRetention $retention) {}
 
     /** @return list<array{partition: string, missing_buckets: int, command: string}> */
     public function maintain(CarbonImmutable $at, ?CarbonImmutable $from = null, ?CarbonImmutable $until = null): array
@@ -84,33 +83,41 @@ final readonly class CheckDataMaintenance
             DB::statement("CREATE TABLE IF NOT EXISTS {$name} PARTITION OF check_runs FOR VALUES FROM ('{$start->toIso8601String()}') TO ('{$end->toIso8601String()}')");
         }
 
-        $closed = [];
-        $expired = [];
         /** @var int $retentionDays */
         $retentionDays = config('monitoring.raw_retention_days');
         $cutoff = $at->utc()->subDays($retentionDays);
-        foreach ($this->partitions() as $partition) {
+        $partitions = $this->partitions();
+        $closed = [];
+        $expired = [];
+        foreach ($partitions as $partition) {
             unset($requiredPartitions[$partition['name']]);
-            $start = $partition['start'];
-            $end = $partition['end'];
-            if ($end->addMinutes(10)->lessThanOrEqualTo($at) && $this->unfinalisedBuckets($start, $end) > 0) {
-                $closed[] = ['start' => $start, 'end' => $end];
-            }
-            if ($end->lessThanOrEqualTo($cutoff)) {
+            if ($partition['end']->lessThanOrEqualTo($cutoff)) {
                 $expired[] = $partition;
+            } elseif ($partition['end']->addMinutes(10)->lessThanOrEqualTo($at)) {
+                $closed[] = $partition;
             }
         }
         if ($requiredPartitions !== []) {
             throw new RuntimeException('Required tables are not check_runs partitions: '.implode(', ', array_keys($requiredPartitions)));
         }
 
-        // Accepted attempts arrive within the 390-second lease budget. Closed months are finalised once after that margin.
-        // Each rollup statement commits on its own, so a failure keeps earlier buckets; it must not stop retention below.
+        // Accepted attempts arrive within the 390-second lease budget. A closed month is proven final after that margin and
+        // proven again later, so an outage or a later edit is still rolled up. The closed, unexpired months end within the
+        // raw retention, so they are at most K = intdiv(retention days, 28) + 1 consecutive months with distinct month
+        // numbers mod K. A run proves the one whose month number matches the hour mod K, so hourly runs prove every closed
+        // month at least once in any K consecutive hours, however months close or expire. Every month about to be dropped
+        // is rolled up here too. Each rollup statement commits on its own, so a failure keeps earlier buckets; it must not
+        // stop retention below.
         $rollupFailure = null;
         try {
-            foreach ($closed as $partition) {
-                foreach (['hourly' => 'hour', 'daily' => 'day'] as $period => $unit) {
-                    $this->rollup($period, $unit, $at, $partition['start'], $partition['end']);
+            $rotationMonths = intdiv($retentionDays, 28) + 1;
+            $rotation = array_filter($closed, static fn (array $partition): bool => ($partition['start']->year * 12 + $partition['start']->month) % $rotationMonths
+                === intdiv($at->getTimestamp(), 3600) % $rotationMonths);
+            foreach ([...$expired, ...$rotation] as $partition) {
+                if ($this->unfinalisedBuckets($partition['start'], $partition['end']) > 0) {
+                    foreach (['hourly' => 'hour', 'daily' => 'day'] as $period => $unit) {
+                        $this->rollup($period, $unit, $at, $partition['start'], $partition['end']);
+                    }
                 }
             }
             foreach (['hourly' => 'hour', 'daily' => 'day'] as $period => $unit) {
@@ -129,25 +136,32 @@ final readonly class CheckDataMaintenance
         }
 
         $skipped = [];
+        $dropped = [];
         foreach ($expired as $partition) {
+            // The proof that authorizes the drop runs here, after every rollup and backfill above.
             $missing = $this->unfinalisedBuckets($partition['start'], $partition['end']);
             if ($missing > 0) {
                 $skipped[] = ['partition' => $partition['name'], 'missing_buckets' => $missing,
                     'command' => 'docker compose exec app php artisan heptapod:maintain-check-data --recompute-range='.$partition['start']->toIso8601String().','.$partition['end']->toIso8601String()];
-            } else {
-                DB::transaction(function () use ($partition): void {
-                    foreach ($this->registry->keys() as $key) {
-                        $this->registry->get($key)->persistence()?->prune($partition['end']);
-                    }
-                    // Fence only the physical predecessor change and set-based projection repair.
-                    DB::statement('LOCK TABLE check_runs IN ACCESS EXCLUSIVE MODE');
-                    /** @var list<object{check_id: int}> $affectedChecks */
-                    $affectedChecks = DB::select('SELECT DISTINCT check_id FROM '.$partition['qualified_name'].' ORDER BY check_id');
-                    DB::statement('DROP TABLE '.$partition['qualified_name']);
-                    $this->history->repairAfterPruning(array_column($affectedChecks, 'check_id'), $partition['start'], $partition['end']);
-                });
+
+                continue;
             }
+            // An expired month receives no more runs, so its checks can be read before the lock.
+            /** @var list<object{check_id: int}> $affectedChecks */
+            $affectedChecks = DB::select('SELECT DISTINCT check_id FROM '.$partition['qualified_name'].' ORDER BY check_id');
+            DB::transaction(function () use ($partition, $affectedChecks): void {
+                // Fence only the physical predecessor change and set-based projection repair.
+                DB::statement('LOCK TABLE check_runs IN ACCESS EXCLUSIVE MODE');
+                DB::statement('DROP TABLE '.$partition['qualified_name']);
+                $this->history->repairAfterPruning(array_column($affectedChecks, 'check_id'), $partition['start'], $partition['end']);
+            });
+            $dropped[$partition['name']] = true;
         }
+        // Addon history goes with its raw month: up to the last month boundary on or before the cutoff, never past a raw
+        // month that is still retained. Pruning only after the drops means a failed drop keeps its month's addon history; a
+        // failed prune is repeated by every later run.
+        $retained = array_values(array_filter($partitions, static fn (array $partition): bool => ! isset($dropped[$partition['name']])));
+        $this->addonHistory->prune($cutoff->startOfMonth()->min($retained[0]['start']));
 
         $retention = $this->retention->pruneHourly($at, $policy);
         Log::info('Hourly rollup retention completed.', $retention);
@@ -198,31 +212,33 @@ final readonly class CheckDataMaintenance
             }
             $result[] = ['name' => $partition->name, 'qualified_name' => $partition->qualified_name, 'start' => $start, 'end' => $end];
         }
+        usort($result, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
 
         return $result;
     }
 
     private function unfinalisedBuckets(CarbonImmutable $start, CarbonImmutable $end): int
     {
+        // Bounds bound into the run scan let the planner prune to one partition and estimate it from its statistics.
+        $bounds = [$start->format('Y-m-d H:i:s.uP'), $end->format('Y-m-d H:i:s.uP')];
         /** @var object{missing_buckets: int} $proof */
         $proof = DB::selectOne(<<<'SQL'
-            WITH bounds AS (SELECT ?::timestamptz AS start, ?::timestamptz AS stop),
-            observations AS MATERIALIZED (
-                SELECT check_id, ended_at FROM check_runs CROSS JOIN bounds WHERE ended_at >= start AND ended_at < stop
+            WITH observations AS MATERIALIZED (
+                SELECT check_id, ended_at FROM check_runs WHERE ended_at >= ?::timestamptz AND ended_at < ?::timestamptz
             ), hours AS (SELECT DISTINCT check_id, date_trunc('hour', ended_at, 'UTC') AS bucket FROM observations),
             days AS (SELECT DISTINCT check_id, date_trunc('day', ended_at, 'UTC') AS bucket FROM observations)
             SELECT (
-                SELECT count(*) FROM hours CROSS JOIN bounds LEFT JOIN check_run_rollups_hourly rollup
+                SELECT count(*) FROM hours LEFT JOIN check_run_rollups_hourly rollup
                     ON rollup.check_id = hours.check_id AND rollup.bucket_start = bucket
                 WHERE computed_at IS NULL OR computed_at < bucket + interval '1 hour 10 minutes'
-                    OR computed_at < stop + interval '10 minutes'
+                    OR computed_at < ?::timestamptz + interval '10 minutes'
             ) + (
-                SELECT count(*) FROM days CROSS JOIN bounds LEFT JOIN check_run_rollups_daily rollup
+                SELECT count(*) FROM days LEFT JOIN check_run_rollups_daily rollup
                     ON rollup.check_id = days.check_id AND rollup.bucket_start = bucket
                 WHERE computed_at IS NULL OR computed_at < bucket + interval '1 day 10 minutes'
-                    OR computed_at < stop + interval '10 minutes'
+                    OR computed_at < ?::timestamptz + interval '10 minutes'
             ) AS missing_buckets
-            SQL, [$start->format('Y-m-d H:i:s.uP'), $end->format('Y-m-d H:i:s.uP')]);
+            SQL, [...$bounds, $bounds[1], $bounds[1]]);
 
         return $proof->missing_buckets;
     }

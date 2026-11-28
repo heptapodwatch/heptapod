@@ -445,7 +445,7 @@ final readonly class SiteDetailReader
     {
         $until = CarbonImmutable::now('UTC');
         $samples = $timingPeaks
-            ? $this->rollupReader->responsePeaks([$checkId], $until->subDay(), $until, 5)[$checkId]
+            ? $this->rollupReader->responsePeaks([$checkId], $until->subDay(), $until)[$checkId]
             : $this->rollupReader->recentMany([$checkId], $until->subDay(), $until)[$checkId];
         $points = [];
         foreach ($samples as $bucket) {
