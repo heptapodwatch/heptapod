@@ -93,8 +93,8 @@ foreach ([['GET', '/servers'], ['GET', '/servers/1'], ['POST', '/agent/v1/report
     verify($serversGuest->getStatusCode() === 404 && $serversGuest->getHeader('Location') === [], "Switched-off servers: guest {$method} {$path} must answer a raw 404: ".$serversGuest->getStatusCode());
 }
 // The servers API, as a client without cookies sees it: switched off, every method answers before routing exactly like an
-// unknown API path, so the addon cannot be detected. Compared: the status, the body (its own path written as {path}) and the
-// set of header names. Values that differ between any two requests (the API entry throttle's remaining count, Content-Length
+// unknown API path, so the addon cannot be detected. Compared: the status, the body (its own path written as {path}) and every
+// header with its values. Values that differ between any two requests (the API entry throttle's remaining count, Content-Length
 // with the path's length) are checked on their own; Date and the body framing are left out. Every api/* request counts against the 60-per-minute
 // API entry throttle of this one client address, so each method's unknown-path answer is read once per round.
 $apiCall = fn (string $method, string $path, array $headers = []): ResponseInterface => $http->request($method, $path,
@@ -106,11 +106,11 @@ $apiSeen = static function (ResponseInterface $response, string $path): array {
     $remaining = $headers['x-ratelimit-remaining'][0] ?? '';
     verify($limit === '60' && ctype_digit($remaining) && (int) $remaining < 60 && ($headers['content-length'] ?? [(string) strlen($body)]) === [(string) strlen($body)]
         && ! isset($headers['location']), "API {$path}: throttle headers, Content-Length or a redirect wrong: {$limit}/{$remaining} ".($headers['content-length'][0] ?? '-'));
-    // Date and the body framing (Content-Length or chunked) belong to the response, not the route: compared by value above or not at all.
-    $names = array_keys(array_diff_key($headers, ['date' => true, 'content-length' => true, 'transfer-encoding' => true]));
-    sort($names);
+    // Date, the body framing (Content-Length or chunked) and the remaining count belong to the request, not the route: checked above or not at all.
+    $stable = array_diff_key($headers, ['date' => true, 'content-length' => true, 'transfer-encoding' => true, 'x-ratelimit-remaining' => true]);
+    ksort($stable);
 
-    return [$response->getStatusCode(), $names, str_replace(ltrim($path, '/'), '{path}', $body)];
+    return [$response->getStatusCode(), $stable, str_replace(ltrim($path, '/'), '{path}', $body)];
 };
 $serverApiOperations = [['GET', '/api/servers'], ['GET', '/api/servers/1'], ['GET', '/api/servers/1/issues'], ['POST', '/api/servers/1/snooze'], ['POST', '/api/servers/1/unsnooze']];
 $serverApiSwitchedOff = function (string $when) use ($apiCall, $apiSeen, $serverApiOperations): void {
@@ -125,7 +125,7 @@ $serverApiSwitchedOff = function (string $when) use ($apiCall, $apiSeen, $server
         $key = $method.($headers === [] ? '' : ' bearer');
         $unknown[$key] ??= $apiSeen($apiCall($method, '/api/no-such-ops-route', $headers), '/api/no-such-ops-route');
         verify($seen[0] === 404 && $seen === $unknown[$key],
-            "Switched-off servers API ({$when}): {$key} {$path} must answer exactly like an unknown API path: ".$seen[0].' '.implode(',', $seen[1]));
+            "Switched-off servers API ({$when}): {$key} {$path} must answer exactly like an unknown API path: ".$seen[0].' '.implode(',', array_keys($seen[1])));
     }
 };
 $serverApiSwitchedOff('before first use');
