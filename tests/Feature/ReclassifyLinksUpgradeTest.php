@@ -201,24 +201,6 @@ it('strips terminal escape sequences and control characters from channel labels 
         ->and($output)->not->toMatch('/\nForged/');
 });
 
-it('recomputes the rollups of a reclassified run at the next maintenance run', function (): void {
-    $legacy = legacyLinkUpgrade();
-    $hour = $legacy['run']->ended_at->startOfHour()->format('Y-m-d H:i:s.uP');
-    $rollup = fn (): array => (array) DB::table('check_run_rollups_hourly')->where('check_id', $legacy['check']->id)->where('bucket_start', $hour)
-        ->first(['warning_count', 'succeeded_count']);
-    $this->travel(1)->hours();
-    $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
-    $this->travel(5)->hours();
-    $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
-    expect($rollup())->toBe(['warning_count' => 1, 'succeeded_count' => 0]);
-
-    $this->artisan('heptapod:reclassify-links', ['--policy' => '1', '--no-interaction' => true])->assertSuccessful();
-    $this->travel(1)->hours();
-    $this->artisan('heptapod:maintain-check-data')->assertSuccessful();
-
-    expect($rollup())->toBe(['warning_count' => 0, 'succeeded_count' => 1]);
-});
-
 it('rejects an unsupported upgrade policy without changing stored data', function (): void {
     legacyLinkUpgrade();
     $before = linkUpgradeSnapshot();

@@ -22,7 +22,7 @@ final readonly class CheckDataMaintenance
      */
     private const int RunsPerRollupStatement = 5000;
 
-    public function __construct(private AddonHistoryRetention $addonHistory, private CheckRunCoverage $coverage, private AttemptHistoryProjection $history, private CheckDataMaintenanceRecord $record, private HistoryRetention $retention) {}
+    public function __construct(private AddonHistoryRetention $addonHistory, private AttemptHistoryProjection $history, private CheckDataMaintenanceRecord $record, private HistoryRetention $retention) {}
 
     /** @return list<array{partition: string, missing_buckets: int, command: string}> */
     public function maintain(CarbonImmutable $at, ?CarbonImmutable $from = null, ?CarbonImmutable $until = null): array
@@ -34,7 +34,7 @@ final readonly class CheckDataMaintenance
 
         // The session lock serializes maintenance only; partition creation commits before raw scans.
         // The outcome is recorded before the unlock, so overlapping runs count consecutive failures in run order.
-        DB::select('SELECT pg_advisory_lock(?)', [CheckRunCoverage::MaintenanceLock]);
+        DB::select('SELECT pg_advisory_lock(73410201)');
         try {
             $started = hrtime(true);
             try {
@@ -49,7 +49,7 @@ final readonly class CheckDataMaintenance
 
             return $skipped;
         } finally {
-            DB::select('SELECT pg_advisory_unlock(?)', [CheckRunCoverage::MaintenanceLock]);
+            DB::select('SELECT pg_advisory_unlock(73410201)');
         }
     }
 
@@ -87,39 +87,39 @@ final readonly class CheckDataMaintenance
         $retentionDays = config('monitoring.raw_retention_days');
         $cutoff = $at->utc()->subDays($retentionDays);
         $partitions = $this->partitions();
-        if ($from instanceof CarbonImmutable && $until instanceof CarbonImmutable) {
-            $this->coverage->forget($from, $until);
-        }
-        $finalised = $this->coverage->finalisedPartitions();
-        // The oldest closed month not yet proven final; one per run bounds the run, and a later run takes the next one.
-        $closed = null;
+        $closed = [];
         $expired = [];
         foreach ($partitions as $partition) {
             unset($requiredPartitions[$partition['name']]);
-            if ($closed === null && ! isset($finalised[$partition['start']->toIso8601String()]) && $partition['end']->addMinutes(10)->lessThanOrEqualTo($at)) {
-                $closed = $partition;
-            }
             if ($partition['end']->lessThanOrEqualTo($cutoff)) {
                 $expired[] = $partition;
+            } elseif ($partition['end']->addMinutes(10)->lessThanOrEqualTo($at)) {
+                $closed[] = $partition;
             }
         }
         if ($requiredPartitions !== []) {
             throw new RuntimeException('Required tables are not check_runs partitions: '.implode(', ', array_keys($requiredPartitions)));
         }
 
-        // Accepted attempts arrive within the 390-second lease budget, so a bucket is final 10 minutes after it ends: the
-        // windows reach 3 hours back, or back to the end of the last covered run after an outage, and a closed month is
-        // finalised once after that margin. Each rollup statement commits on its own, so a failure keeps earlier buckets;
-        // it must not stop retention below.
+        // Accepted attempts arrive within the 390-second lease budget. A closed month is proven final after that margin and
+        // proven again later, so an outage or a later edit is still rolled up. Each run proves one closed month, rotating by
+        // the hour, plus every month about to be dropped. Each rollup statement commits on its own, so a failure keeps
+        // earlier buckets; it must not stop retention below.
         $rollupFailure = null;
+        $proven = [];
         try {
-            if ($closed !== null) {
-                $this->finalise($closed, $at);
-                $finalised = $this->coverage->finalisedPartitions();
+            $rotation = $closed === [] ? [] : [$closed[intdiv($at->getTimestamp(), 3600) % count($closed)]];
+            foreach ([...$expired, ...$rotation] as $partition) {
+                if ($this->unfinalisedBuckets($partition['start'], $partition['end']) > 0) {
+                    foreach (['hourly' => 'hour', 'daily' => 'day'] as $period => $unit) {
+                        $this->rollup($period, $unit, $at, $partition['start'], $partition['end']);
+                    }
+                } else {
+                    $proven[$partition['name']] = true;
+                }
             }
-            $coveredUntil = $this->coverage->coveredUntil();
             foreach (['hourly' => 'hour', 'daily' => 'day'] as $period => $unit) {
-                $windowStart = $from ?? $coveredUntil?->min($at->subHours(3)) ?? $at->subHours(3);
+                $windowStart = $from ?? ($period === 'hourly' ? $at->subHours(3) : $at->subDay());
                 $windowEnd = $until ?? $at->addMicrosecond();
                 $start = $period === 'hourly' ? $windowStart->utc()->startOfHour() : $windowStart->utc()->startOfDay();
                 $end = $period === 'hourly' ? $windowEnd->utc()->startOfHour() : $windowEnd->utc()->startOfDay();
@@ -127,9 +127,6 @@ final readonly class CheckDataMaintenance
                     $end = $period === 'hourly' ? $end->addHour() : $end->addDay();
                 }
                 $this->rollup($period, $unit, $at, $start, $end);
-            }
-            if (! $from instanceof CarbonImmutable) {
-                $this->coverage->cover($at->subMinutes(10));
             }
         } catch (Throwable $exception) {
             $rollupFailure = $exception;
@@ -139,13 +136,9 @@ final readonly class CheckDataMaintenance
         $skipped = [];
         $dropped = [];
         foreach ($expired as $partition) {
-            // A month without its finalisation is finalised by a later run, one month per run, and dropped then.
-            if (! isset($finalised[$partition['start']->toIso8601String()])) {
-                continue;
-            }
-            $missing = $this->unfinalisedBuckets($partition['start'], $partition['end']);
+            // Proven again only when the proof above did not already find the month final.
+            $missing = isset($proven[$partition['name']]) ? 0 : $this->unfinalisedBuckets($partition['start'], $partition['end']);
             if ($missing > 0) {
-                $this->coverage->forget($partition['start'], $partition['end']);
                 $skipped[] = ['partition' => $partition['name'], 'missing_buckets' => $missing,
                     'command' => 'docker compose exec app php artisan heptapod:maintain-check-data --recompute-range='.$partition['start']->toIso8601String().','.$partition['end']->toIso8601String()];
 
@@ -159,7 +152,6 @@ final readonly class CheckDataMaintenance
                 DB::statement('LOCK TABLE check_runs IN ACCESS EXCLUSIVE MODE');
                 DB::statement('DROP TABLE '.$partition['qualified_name']);
                 $this->history->repairAfterPruning(array_column($affectedChecks, 'check_id'), $partition['start'], $partition['end']);
-                $this->coverage->forget($partition['start'], $partition['end']);
             });
             $dropped[$partition['name']] = true;
         }
@@ -220,26 +212,6 @@ final readonly class CheckDataMaintenance
         usort($result, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
 
         return $result;
-    }
-
-    /**
-     * Proves a closed month final, rolling it up first when a bucket is missing or older than its margin, and records the
-     * finalisation only after a proof without missing buckets.
-     *
-     * @param  array{name: string, qualified_name: string, start: CarbonImmutable, end: CarbonImmutable}  $partition
-     */
-    private function finalise(array $partition, CarbonImmutable $at): void
-    {
-        $missing = $this->unfinalisedBuckets($partition['start'], $partition['end']);
-        if ($missing > 0) {
-            foreach (['hourly' => 'hour', 'daily' => 'day'] as $period => $unit) {
-                $this->rollup($period, $unit, $at, $partition['start'], $partition['end']);
-            }
-            $missing = $this->unfinalisedBuckets($partition['start'], $partition['end']);
-        }
-        if ($missing === 0) {
-            $this->coverage->finalise($partition['start'], $partition['end'], $at);
-        }
     }
 
     private function unfinalisedBuckets(CarbonImmutable $start, CarbonImmutable $end): int
