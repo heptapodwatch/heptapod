@@ -7,8 +7,6 @@ namespace Heptapod\Enums;
 /** Why an alert mail is built from retained event facts instead of the live check's mail evidence. */
 enum RetainedAlert
 {
-    /** The check was removed after the claim: the site remains, the check's details do not. */
-    case CheckRemoved;
     /** The check's add-on is not installed, so nothing can present its evidence. */
     case EvidenceUnavailable;
     /** A reminder that no addon declares (non-uptime reminders predate the uptime-only rule). */

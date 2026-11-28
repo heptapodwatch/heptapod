@@ -138,7 +138,6 @@
     "emails.retained_at": "Alert time",
     "emails.retained_closed_at": "Closed at",
     "emails.retained_no_incident": "no incident",
-    "emails.check_removed_note": "This check has been removed, so its details are no longer retained.",
     "emails.evidence_unavailable_note": "The add-on for this check is not installed, so its details cannot be shown.",
     "emails.retained_reminder_note": "A reminder for the same open incident. Open the incident to see the current check results.",
     "emails.administrative_note": "Monitoring stopped, so the incident was closed. No check confirmed that the problem is fixed.",

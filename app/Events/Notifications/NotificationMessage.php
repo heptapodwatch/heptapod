@@ -32,13 +32,13 @@ final readonly class NotificationMessage
     /** Alerts whose live mail evidence cannot be shown honestly get the retained-facts mail; null means the add-on evidence mail. */
     private function retainedAlert(Event $event, AlertSeverity $severity): ?RetainedAlert
     {
-        $type = $event->check->type ?? $event->check_type;
+        // DeliveryPlan sends no alert whose check was removed, and an incident (the preview's subject) goes with its check.
+        $type = ($event->check ?? throw new \LogicException('An alert mail is built for an existing check.'))->type;
 
         return match (true) {
             // Stopped monitoring and a check with nothing left to check close the incident without a measured recovery.
             $event->type === 'incident.resolved' && isset(EventFacts::fromEvent($event)->summaryParams['resolution_key']) => RetainedAlert::ClosedWithoutRecovery,
-            $event->check === null => RetainedAlert::CheckRemoved,
-            ! in_array($type, $this->registry->keys(), true) || ! $this->registry->get($event->check->type) instanceof MailEvidenceProvider => RetainedAlert::EvidenceUnavailable,
+            ! in_array($type, $this->registry->keys(), true) || ! $this->registry->get($type) instanceof MailEvidenceProvider => RetainedAlert::EvidenceUnavailable,
             // New reminders are uptime outages only; a retained non-uptime or check-error reminder keeps a reminder tone.
             $event->type === 'incident.still_down' && ($type !== CheckKey::Uptime || $severity !== AlertSeverity::Down) => RetainedAlert::Reminder,
             default => null,

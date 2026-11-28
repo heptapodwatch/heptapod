@@ -21,6 +21,7 @@ use Heptapod\Enums\IncidentResolutionReason;
 use Heptapod\Enums\NotificationCategory;
 use Heptapod\Enums\RetainedAlert;
 use Heptapod\Events\EventFacts;
+use Heptapod\Models\Check;
 use Heptapod\Models\Event;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\Site;
@@ -46,11 +47,11 @@ final readonly class RetainedEventMail
         $label = $site->displayName();
         $client = $site->client ?? throw new \LogicException('A retained alert site must have a client.');
         $clientName = $client->displayName($locale);
-        $checkType = $event->check->type ?? $event->check_type ?? throw new \LogicException('A retained alert must keep its check type.');
+        // DeliveryPlan sends no alert whose check was removed, and an incident (the preview's subject) goes with its check.
+        $check = $event->check ?? throw new \LogicException('A retained alert keeps its live check.');
+        $checkType = $check->type;
         $facts = EventFacts::fromEvent($event);
-        // Whether the check's add-on is installed is independent of whether its site or check still exists.
         $addonInstalled = in_array($checkType, $this->registry->keys(), true);
-        // How the incident was closed is a fact of the event; a deleted site or removed check only limits what is still shown.
         // Only ResolveInactiveCheckIncidents records a resolution_reason: monitoring stopped or the site moved to another client.
         // Any other closure with a resolution_key was reported by the check itself because nothing is left to check (cron without tasks).
         $closure = null;
@@ -68,7 +69,7 @@ final readonly class RetainedEventMail
         };
 
         $rows = [['label' => __('emails.retained_check', locale: $locale), 'value' => new Cell($subject)]];
-        $reason = $this->reason($event, $facts, $closure === 'administrative', $addonInstalled, $site, $locale);
+        $reason = $this->reason($facts, $closure === 'administrative', $addonInstalled, $site, $check, $locale);
         if ($reason !== null) {
             $rows[] = ['label' => __($closure !== null ? 'emails.retained_closed_because' : 'emails.retained_reason', locale: $locale), 'value' => new Cell($reason)];
         }
@@ -78,7 +79,6 @@ final readonly class RetainedEventMail
         $rows[] = ['label' => __($closure !== null ? 'emails.retained_closed_at' : 'emails.retained_at', locale: $locale), 'value' => new Cell($time($event->occurred_at))];
         $notes = $closure === null ? [] : ['emails.'.$closure.'_note'];
         $availability = match ($kind) {
-            RetainedAlert::CheckRemoved => 'emails.check_removed_note',
             RetainedAlert::EvidenceUnavailable => 'emails.evidence_unavailable_note',
             RetainedAlert::Reminder => 'emails.retained_reminder_note',
             RetainedAlert::ComponentDetailsPruned => 'emails.details_not_retained',
@@ -98,8 +98,7 @@ final readonly class RetainedEventMail
         $params = ['site' => $label, 'check' => $subject];
         $headline = __('emails.retained_headline.'.$state, $params, $locale);
         $incidentUrl = $event->incident_id !== null ? route('incidents.show', ['incident' => $event->incident_id]) : null;
-        $checkUrl = $event->check_id !== null ? route('sites.checks.show', ['site' => $site->id, 'check' => $event->check_id]) : null;
-        $siteUrl = route('sites.show', ['site' => $site->id]);
+        $checkUrl = route('sites.checks.show', ['site' => $site->id, 'check' => $check->id]);
 
         return new MailModel(locale: $locale, subject: __('emails.retained_subject.'.$state, $params, $locale), preheader: $headline,
             headline: $headline, footerWhy: $footer['why'], instance: $this->settings->name.' · '.parse_url(config()->string('app.url'), PHP_URL_HOST),
@@ -116,9 +115,8 @@ final readonly class RetainedEventMail
             stateMeta: $event->incident_id === null ? __('emails.retained_no_incident', locale: $locale) : '#'.$event->incident_id,
             blocks: $blocks,
             primary: $incidentUrl !== null ? ['label' => __('emails.open_incident', ['id' => $event->incident_id], $locale), 'url' => $incidentUrl]
-                : ($checkUrl !== null ? ['label' => __('emails.open_check', locale: $locale), 'url' => $checkUrl]
-                    : ['label' => __('emails.open_site', locale: $locale), 'url' => $siteUrl]),
-            secondary: $incidentUrl !== null && $checkUrl !== null ? ['label' => __('emails.open_check', locale: $locale), 'url' => $checkUrl] : null,
+                : ['label' => __('emails.open_check', locale: $locale), 'url' => $checkUrl],
+            secondary: $incidentUrl !== null ? ['label' => __('emails.open_check', locale: $locale), 'url' => $checkUrl] : null,
             routingLabel: __($footer['labelKey'], locale: $locale), routingUrl: $footer['url'],
             avatarPng: $avatar['png'], avatarCid: $avatar['cid'], avatarTile: $avatar['tile'], design: $this->settings->mail_design);
     }
@@ -141,7 +139,7 @@ final readonly class RetainedEventMail
         };
     }
 
-    private function reason(Event $event, EventFacts $facts, bool $monitoringStopped, bool $addonInstalled, Site $site, string $locale): ?string
+    private function reason(EventFacts $facts, bool $monitoringStopped, bool $addonInstalled, Site $site, Check $check, string $locale): ?string
     {
         if ($monitoringStopped) {
             $key = $facts->summaryParams['resolution_key'] ?? null;
@@ -159,8 +157,7 @@ final readonly class RetainedEventMail
             return $addonInstalled ? throw new \LogicException('Retained summary translation missing: '.$facts->summaryKey) : null;
         }
         // Recorder payloads are redacted; the site and check secrets are applied again as the alert builder does.
-        $contextSite = $site;
-        $params = SecretRedactor::redactStringValues($facts->summaryParams, RedactionContext::forSite($contextSite, $event->check));
+        $params = SecretRedactor::redactStringValues($facts->summaryParams, RedactionContext::forSite($site, $check));
         $text = __($facts->summaryKey, SummaryParameters::localizedMeasurements($params, $locale), $locale);
 
         return is_string($text) ? rtrim($text, '.') : throw new \LogicException('A retained summary must translate to text.');

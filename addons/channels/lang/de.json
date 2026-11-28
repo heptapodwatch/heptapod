@@ -138,7 +138,6 @@
     "emails.retained_at": "Zeitpunkt des Alarms",
     "emails.retained_closed_at": "Geschlossen am",
     "emails.retained_no_incident": "keine Störung",
-    "emails.check_removed_note": "Diese Prüfung wurde entfernt, daher werden ihre Details nicht mehr vorgehalten.",
     "emails.evidence_unavailable_note": "Das Add-on für diese Prüfung ist nicht installiert, daher können ihre Details nicht angezeigt werden.",
     "emails.retained_reminder_note": "Eine Erinnerung für dieselbe offene Störung. Öffnen Sie die Störung, um die aktuellen Prüfergebnisse zu sehen.",
     "emails.administrative_note": "Die Überwachung wurde beendet, daher wurde die Störung geschlossen. Keine Prüfung hat bestätigt, dass das Problem behoben ist.",
