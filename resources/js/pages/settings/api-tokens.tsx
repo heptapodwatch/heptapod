@@ -14,11 +14,12 @@ import { SheetForm } from '@/components/sheet-form';
 import { Sheet } from '@/components/ui/sheet';
 import { PageHeader } from '@/components/page-header';
 import { Head, router } from '@inertiajs/react';
-import { KeyRound, Copy, Plus } from 'lucide-react';
+import { KeyRound, Plus } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { EvidenceBlock } from '@/components/evidence-block';
 import { ShownOnceSecret } from '@/components/shown-once-secret';
+import { CopyButton } from '@/components/copy-button';
 import InputError, { fieldErrorProps } from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,7 +33,6 @@ import {
 import { DateTimeField } from '@/components/ui/date-time-field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useClipboard } from '@/hooks/use-clipboard';
 import { useFormat } from '@/hooks/use-format';
 import { ListFooter } from '@/components/list-footer';
 import {
@@ -476,9 +476,6 @@ function SecretDialog({
 }) {
     const { t } = useTranslation();
     const format = useFormat();
-    const [copied, copy] = useClipboard();
-    const [failed, setFailed] = useState(false);
-    const copyNoteId = useId();
     return (
         <Dialog
             open
@@ -496,22 +493,7 @@ function SecretDialog({
                     </DialogDescription>
                 </DialogHeader>
                 <ShownOnceSecret label={t('Token')} value={secret.value} />
-                <div className="space-y-1.5">
-                    <Button
-                        aria-describedby={failed ? copyNoteId : undefined}
-                        onClick={async () =>
-                            setFailed(!(await copy(secret.value)))
-                        }
-                    >
-                        <Copy className="size-4" />
-                        {t(copied ? 'Copied' : 'Copy')}
-                    </Button>
-                    <ActionNoteSlot id={copyNoteId}>
-                        {failed && (
-                            <InputError message="Copy failed. Select the token and copy it manually." />
-                        )}
-                    </ActionNoteSlot>
-                </div>
+                <CopyButton value={secret.value} variant="default" />
                 <EvidenceBlock
                     wrap
                     title={t('Token details')}

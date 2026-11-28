@@ -455,9 +455,12 @@ it('sorts the list by each key, problems first, and refuses an unknown key', fun
     $this->actingAs(manageUser('Owner'));
     // busy: fullest disk, most RAM, highest load; quiet: no report; idle: reporting, calm; new: awaiting its first report.
     reportingServer('busy', filesystems: ['/' => [100, 5]], load: 6.0, available: 5);
-    reportingServer('idle', filesystems: ['/' => [100, 80]], load: 0.2, available: 80);
-    reportingServer('quiet', filesystems: ['/' => [100, 50]], at: now()->subMinutes(10)->toImmutable(), load: 1.0, available: 50);
+    $idle = reportingServer('idle', filesystems: ['/' => [100, 80]], load: 0.2, available: 80);
+    $quiet = reportingServer('quiet', filesystems: ['/' => [100, 50]], at: now()->subMinutes(10)->toImmutable(), load: 1.0, available: 50);
     Server::named('new')->issueToken();
+    // Linked sites: quiet 2, idle 1, the others none.
+    $this->post("/servers/{$quiet->id}/sites", ['site_ids' => Site::factory()->count(2)->create()->pluck('id')->all()]);
+    $this->post("/servers/{$idle->id}/sites", ['site_ids' => [Site::factory()->create()->id]]);
 
     $this->get('/servers?sort='.$sort)->assertInertia(fn (Assert $page): Assert => $page->where('sort', $sort)
         ->where('servers', fn ($servers): bool => collect($servers)->pluck('name')->all() === $order));
@@ -470,6 +473,7 @@ it('sorts the list by each key, problems first, and refuses an unknown key', fun
     'disk reversed, no values still last' => ['-disk', ['idle', 'quiet', 'busy', 'new']],
     'RAM' => ['memory', ['busy', 'quiet', 'idle', 'new']],
     'load per vCPU' => ['load', ['busy', 'quiet', 'idle', 'new']],
+    'linked sites, most first' => ['sites', ['quiet', 'idle', 'busy', 'new']],
     'last report, oldest first' => ['last_report', ['quiet', 'busy', 'idle', 'new']],
 ]);
 

@@ -6,7 +6,6 @@
     "export.format.txt": "Text",
     "export.csv_no_copy": "CSV ist eine Datei für Tabellenkalkulationen. Zum Kopieren dienen Markdown oder Text.",
     "export.include": "Umfang",
-    "export.copied": "Kopiert",
     "export.download": "Herunterladen",
     "export.failed": "Der Export ist fehlgeschlagen. Versuchen Sie es erneut.",
     "export.capped": "Enthält die ersten :shown von :total Zeilen.",

@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { InfoTooltip } from '@/components/info-tooltip';
+import { CopyButton } from '@/components/copy-button';
+import { InfoTooltip, TapTooltip } from '@/components/info-tooltip';
 import { StatusBadge } from '@/components/monitoring';
 import { ScoreRing, type ScoreRingTone } from '@/components/score-ring';
+import { TruncatedText } from '@/components/truncated-text';
 import { TableCell } from '@/components/ui/table';
 import { useFormat } from '@/hooks/use-format';
 import { cn } from '@/lib/utils';
@@ -61,6 +63,69 @@ export function ServerStateBadge({
         />
     );
 }
+
+/**
+ * The server's first reported IP in a quiet pill that copies it, "+N" for the others (listed in the tooltip), and the
+ * host name when it says more than the server's name. Nothing before the first report.
+ */
+export function ServerAddress({
+    server,
+}: {
+    server: Pick<ServerRow, 'name' | 'hostname' | 'ips'>;
+}) {
+    const { t } = useTranslation();
+    const [ip, ...more] = server.ips;
+    const hostname =
+        server.hostname !== null && server.hostname !== server.name
+            ? server.hostname
+            : null;
+    if (ip === undefined && hostname === null) return null;
+    return (
+        <span className="flex max-w-full min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 font-mono text-xs tabular-nums">
+            {ip !== undefined && (
+                // The whole pill copies; below sm its hit area grows to 40 px without making the pill taller.
+                <CopyButton
+                    value={ip}
+                    iconLabel={t('servers.copy_ip')}
+                    variant="outline"
+                    size="xs"
+                    className="relative min-h-0 min-w-0 rounded-md bg-muted pr-1.5 pl-2 font-mono font-normal text-muted-foreground before:absolute before:inset-x-0 before:top-1/2 before:h-10 before:-translate-y-1/2 has-[>svg]:pl-2 sm:before:hidden"
+                >
+                    {ip}
+                </CopyButton>
+            )}
+            {more.length > 0 && (
+                <TapTooltip
+                    content={more.join(', ')}
+                    label={t('servers.ips_more_label', {
+                        count: more.length,
+                        ips: more.join(', '),
+                    })}
+                    className="relative rounded-sm text-foreground-faint before:absolute before:-inset-x-2 before:top-1/2 before:h-10 before:-translate-y-1/2 hover:text-foreground sm:before:hidden"
+                >
+                    {t('servers.ips_more', { count: more.length })}
+                </TapTooltip>
+            )}
+            {hostname !== null && (
+                <TruncatedText
+                    content={hostname}
+                    label={t('servers.facts.hostname')}
+                >
+                    <span className="max-w-full min-w-0 truncate text-foreground-faint">
+                        <span className="sr-only">
+                            {t('servers.facts.hostname')}:{' '}
+                        </span>
+                        {hostname}
+                    </span>
+                </TruncatedText>
+            )}
+        </span>
+    );
+}
+
+/** The 5-minute load that opens "High load": the per-vCPU threshold times the server's vCPU count. */
+export const loadThreshold = (values: ServerValues, thresholds: Thresholds) =>
+    thresholds.load_per_core * values.cores;
 
 export function usePercent() {
     const { number } = useFormat();
@@ -155,7 +220,7 @@ function useServerShares(
 function useServerLoad(values: ServerValues, thresholds: Thresholds) {
     const { t } = useTranslation();
     const format = useFormat();
-    const threshold = thresholds.load_per_core * values.cores;
+    const threshold = loadThreshold(values, thresholds);
     const load = (value: number) =>
         format.number(value, {
             minimumFractionDigits: 1,

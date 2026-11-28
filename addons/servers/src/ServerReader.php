@@ -31,6 +31,7 @@ final readonly class ServerReader
         'disk' => '-disk_used',
         'memory' => '-memory_used',
         'load' => '-load_per_core',
+        'sites' => '-site_count',
         'last_report' => 'last_report_at',
     ];
 

@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Form } from '@inertiajs/react';
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
-import { Check, Copy, ScanLine } from 'lucide-react';
+import { ScanLine } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AlertError from '@/components/alert-error';
 import { FormSecondaryAction } from '@/components/form-section';
@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/input-otp';
 import { Spinner } from '@/components/ui/spinner';
 import { useAppearance } from '@/hooks/use-appearance';
-import { useClipboard } from '@/hooks/use-clipboard';
+import { CopyButton } from '@/components/copy-button';
 import { OTP_MAX_LENGTH } from '@/hooks/use-two-factor-auth';
 import { confirm } from '@/routes/two-factor';
 
@@ -68,8 +68,6 @@ function TwoFactorSetupStep({
 }) {
     const { t } = useTranslation();
     const { resolvedAppearance } = useAppearance();
-    const [copiedText, copy] = useClipboard();
-    const IconComponent = copiedText === manualSetupKey ? Check : Copy;
 
     return (
         <>
@@ -129,15 +127,10 @@ function TwoFactorSetupStep({
                                     autoComplete="off"
                                     className="font-mono"
                                 />
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    aria-label={t('Copy setup key')}
-                                    onClick={() => copy(manualSetupKey)}
-                                >
-                                    <IconComponent aria-hidden="true" />
-                                </Button>
+                                <CopyButton
+                                    value={manualSetupKey}
+                                    iconLabel={t('Copy setup key')}
+                                />
                             </>
                         )}
                     </div>

@@ -4,7 +4,7 @@ import { ImportChannelSection } from '@/components/import-channel-section';
 import { ImportOperationBadge } from '@/components/import-operation-badge';
 import { ImportAlertTimingSummary } from '@/components/import-alert-timing-summary';
 import { Head, Link, router } from '@inertiajs/react';
-import { useState, type ComponentProps } from 'react';
+import { type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FormSection } from '@/components/form-section';
 import InputError from '@/components/input-error';
@@ -20,7 +20,7 @@ import {
     httpErrorStatus,
     useHttpRequest,
 } from '@/hooks/use-http-request';
-import { useClipboard } from '@/hooks/use-clipboard';
+import { CopyButton } from '@/components/copy-button';
 import { toast } from 'sonner';
 import { useLiveReload } from '@/hooks/use-live';
 import { useFormat } from '@/hooks/use-format';
@@ -70,9 +70,6 @@ const statusRuns = {
 >;
 
 function CopyUrl({ url }: { url: string }) {
-    const { t } = useTranslation();
-    const [, copy] = useClipboard();
-    const [copied, setCopied] = useState(false);
     return (
         <div className="flex min-w-0 items-center gap-2">
             <TruncatedText content={url}>
@@ -80,19 +77,7 @@ function CopyUrl({ url }: { url: string }) {
                     {url}
                 </code>
             </TruncatedText>
-            <Button
-                type="button"
-                variant="outline"
-                onClick={async () => {
-                    if (await copy(url)) {
-                        setCopied(true);
-                    } else {
-                        toast.warning(t('errors.clipboard_unavailable'));
-                    }
-                }}
-            >
-                {t(copied ? 'Copied' : 'Copy')}
-            </Button>
+            <CopyButton value={url} inline />
         </div>
     );
 }

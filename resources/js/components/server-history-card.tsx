@@ -12,6 +12,7 @@ import { SegmentedControl } from '@/components/segmented-control';
 import {
     diskThreshold,
     diskUsedPercent,
+    loadThreshold,
     memoryUsedPercent,
     usePercent,
 } from '@/components/server-values';
@@ -32,7 +33,7 @@ import {
 } from '@/components/ui/chart';
 import { useFormat } from '@/hooks/use-format';
 
-type Metric = 'disk' | 'memory' | 'cpu';
+type Metric = 'disk' | 'memory' | 'cpu' | 'load';
 type History = Heptapod.Addons.Servers.Data.ServerPageData['history'];
 type Thresholds = Heptapod.Addons.Servers.Data.ServerThresholdsData;
 type Point = { at: number; [series: string]: number | null };
@@ -44,9 +45,10 @@ const metricTitle: Record<Metric, string> = {
     disk: 'servers.history.disk',
     memory: 'servers.history.memory',
     cpu: 'servers.history.cpu',
+    load: 'servers.history.load',
 };
 
-/** The metric whose current value is nearest its alert threshold; CPU has none. */
+/** The metric whose current value is nearest its alert threshold (disk or RAM); CPU has none. */
 function nearestThreshold(
     values: Heptapod.Addons.Servers.Data.ServerValuesData | null,
     thresholds: Thresholds,
@@ -65,7 +67,7 @@ function nearestThreshold(
         : 'disk';
 }
 
-/** One card for the 14-day peaks: Disk · Memory · CPU switch the chart and its threshold line. */
+/** One card for the 14-day peaks: Disk · Memory · CPU · Load switch the chart and its threshold line. */
 export function ServerHistoryCard({
     history,
     values,
@@ -106,21 +108,41 @@ export function ServerHistoryCard({
         new Set(diskLines.map((line) => line.y)).size <= 1
             ? (diskLines[0]?.y ?? thresholds.disk_percent)
             : undefined;
+    // The plotted load is absolute, like its threshold; the axis and threshold show one decimal, a sample up to two.
+    const loadAlert =
+        values === null ? null : loadThreshold(values, thresholds);
+    const loadValue = (value: number, maximumFractionDigits = 1) =>
+        format.number(value, {
+            minimumFractionDigits: 1,
+            maximumFractionDigits,
+        });
+    const formatValue = metric === 'load' ? loadValue : percent;
+    const formatSample = (value: number) =>
+        metric === 'load' ? loadValue(value, 2) : percent(value);
     const thresholdLines =
         metric === 'cpu'
             ? []
-            : metric === 'memory'
-              ? [{ y: thresholds.memory_percent, color: 'var(--status-down)' }]
-              : shared === undefined
-                ? diskLines
-                : [{ y: shared, color: 'var(--status-down)' }];
+            : metric === 'load'
+              ? loadAlert === null
+                  ? []
+                  : [{ y: loadAlert, color: 'var(--status-down)' }]
+              : metric === 'memory'
+                ? [
+                      {
+                          y: thresholds.memory_percent,
+                          color: 'var(--status-down)',
+                      },
+                  ]
+                : shared === undefined
+                  ? diskLines
+                  : [{ y: shared, color: 'var(--status-down)' }];
     const thresholdText =
-        metric === 'cpu'
+        thresholdLines.length === 0
             ? null
             : metric === 'disk' && shared === undefined
               ? t('servers.history.thresholds')
               : t('servers.history.threshold', {
-                    percent: percent(thresholdLines[0]!.y),
+                    value: formatValue(thresholdLines[0]!.y),
                 });
     const config: ChartConfig =
         metric === 'disk'
@@ -140,12 +162,19 @@ export function ServerHistoryCard({
                         color: 'var(--chart-2)',
                     },
                 }
-              : {
-                    cpu: {
-                        label: t('servers.gauge.cpu'),
-                        color: 'var(--chart-2)',
-                    },
-                };
+              : metric === 'load'
+                ? {
+                      load: {
+                          label: t('servers.gauge.load'),
+                          color: 'var(--chart-2)',
+                      },
+                  }
+                : {
+                      cpu: {
+                          label: t('servers.gauge.cpu'),
+                          color: 'var(--chart-2)',
+                      },
+                  };
     const title = t(metricTitle[metric]);
     const minutes = history.step_seconds < 3600;
     return (
@@ -167,6 +196,7 @@ export function ServerHistoryCard({
                         { value: 'disk', label: t(metricTitle.disk) },
                         { value: 'memory', label: t(metricTitle.memory) },
                         { value: 'cpu', label: t(metricTitle.cpu) },
+                        { value: 'load', label: t(metricTitle.load) },
                     ]}
                 />
                 {data.length === 0 ? (
@@ -206,9 +236,11 @@ export function ServerHistoryCard({
                                 tickLine={false}
                                 axisLine={false}
                                 width={48}
-                                domain={[0, 100]}
+                                domain={
+                                    metric === 'load' ? [0, 'auto'] : [0, 100]
+                                }
                                 tickFormatter={(value: number) =>
-                                    percent(value)
+                                    formatValue(value)
                                 }
                             />
                             {thresholdLines.map((line, index) => (
@@ -226,34 +258,14 @@ export function ServerHistoryCard({
                                     <ChartTooltipContent
                                         {...tooltip}
                                         subject={title}
-                                        formatter={(value, name, item) => (
+                                        formatter={(value, name) => (
                                             <span key={String(name)}>
                                                 {config[String(name)]?.label}:{' '}
                                                 <span className="font-mono tabular-nums">
-                                                    {percent(Number(value))}
+                                                    {formatSample(
+                                                        Number(value),
+                                                    )}
                                                 </span>
-                                                {metric === 'cpu' && (
-                                                    <>
-                                                        {' · '}
-                                                        {t(
-                                                            'servers.gauge.load',
-                                                        )}
-                                                        :{' '}
-                                                        <span className="font-mono tabular-nums">
-                                                            {format.number(
-                                                                Number(
-                                                                    (
-                                                                        item.payload as Point
-                                                                    ).load,
-                                                                ),
-                                                                {
-                                                                    minimumFractionDigits: 1,
-                                                                    maximumFractionDigits: 2,
-                                                                },
-                                                            )}
-                                                        </span>
-                                                    </>
-                                                )}
                                             </span>
                                         )}
                                         labelFormatter={(value) =>

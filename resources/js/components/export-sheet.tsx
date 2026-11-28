@@ -1,7 +1,8 @@
 import { usePage } from '@inertiajs/react';
-import { ClipboardCheck, Download } from 'lucide-react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { Download } from 'lucide-react';
+import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CopyButton } from '@/components/copy-button';
 import { FormSecondaryAction } from '@/components/form-section';
 import InputError from '@/components/input-error';
 import { SegmentedControl } from '@/components/segmented-control';
@@ -94,7 +95,6 @@ export function ExportButton({
     const [open, setOpen] = useState(false);
     const [format, setFormat] = useState<ExportFormat>('csv');
     const [scopeKey, setScopeKey] = useState(scopes[0]?.key ?? '');
-    const [copied, setCopied] = useState(false);
     const [busy, setBusy] = useState(false);
     const [exportError, setExportError] = useState<string | null>(null);
     const [manualText, setManualText] = useState<string | null>(null);
@@ -102,11 +102,6 @@ export function ExportButton({
     const formatter = useFormat();
     const id = useId();
     const scope = scopes.find((item) => item.key === scopeKey) ?? scopes[0];
-    useEffect(() => {
-        if (!copied) return;
-        const timer = window.setTimeout(() => setCopied(false), 2000);
-        return () => window.clearTimeout(timer);
-    }, [copied]);
     if (scope === undefined) return null;
     const overLimit = scope.count !== undefined && scope.count > rowLimit;
     const csvRefused = format === 'csv' && overLimit && scope.csvLimited;
@@ -120,7 +115,6 @@ export function ExportButton({
                     : (scopes[0]?.key ?? ''),
             );
         }
-        setCopied(false);
         setExportError(null);
         setOpen(true);
     };
@@ -186,38 +180,24 @@ export function ExportButton({
         }
     };
 
-    const copy = async () => {
+    const fetchText = () => {
         remember();
         setExportError(null);
-        let failureMessage: string | null = null;
-        const text = requestExport()
-            .then((response) => response.text())
-            .catch((error: unknown) => {
-                failureMessage =
-                    error instanceof ExportFetchError
-                        ? error.message
-                        : t('export.failed');
-                throw error;
-            });
+        return requestExport().then((response) => response.text());
+    };
+
+    // Without a clipboard the fetched text opens preselected; a server refusal stays inline.
+    const copyManually = async (text: string | Promise<string>) => {
         try {
-            if (!navigator.clipboard) throw new Error('No clipboard');
-            // A promised ClipboardItem keeps the click's user activation (Safari) while the server answers.
-            await navigator.clipboard.write([
-                new ClipboardItem({
-                    'text/plain': text.then(
-                        (value) => new Blob([value], { type: 'text/plain' }),
-                    ),
-                }),
-            ]);
-            setCopied(true);
-        } catch {
-            const value = await text.catch(() => null);
-            if (value === null) {
-                setExportError(failureMessage ?? t('export.failed'));
-                return;
-            }
+            const value = await text;
             setOpen(false);
             setManualText(value);
+        } catch (error: unknown) {
+            setExportError(
+                error instanceof ExportFetchError
+                    ? error.message
+                    : t('export.failed'),
+            );
         }
     };
 
@@ -249,19 +229,13 @@ export function ExportButton({
                             >
                                 {t('Cancel')}
                             </FormSecondaryAction>
-                            <FormSecondaryAction
+                            <CopyButton
+                                // A new format or scope starts unconfirmed.
+                                key={`${format}-${scope.key}`}
+                                value={fetchText}
+                                onRefused={(text) => void copyManually(text)}
                                 disabled={format === 'csv' || busy}
-                                onClick={() => void copy()}
-                            >
-                                {copied ? (
-                                    <>
-                                        <ClipboardCheck aria-hidden />
-                                        {t('export.copied')}
-                                    </>
-                                ) : (
-                                    t('Copy')
-                                )}
-                            </FormSecondaryAction>
+                            />
                             <Button type="submit" disabled={csvRefused || busy}>
                                 {t('export.download')}
                             </Button>
@@ -279,7 +253,6 @@ export function ExportButton({
                                     value={format}
                                     onValueChange={(next) => {
                                         setFormat(next as ExportFormat);
-                                        setCopied(false);
                                         setExportError(null);
                                     }}
                                     options={formats.map((option) => ({
@@ -305,7 +278,6 @@ export function ExportButton({
                                     value={scope.key}
                                     onValueChange={(next) => {
                                         setScopeKey(next);
-                                        setCopied(false);
                                         setExportError(null);
                                     }}
                                 >

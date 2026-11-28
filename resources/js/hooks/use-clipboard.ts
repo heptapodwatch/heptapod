@@ -1,31 +1,46 @@
 // Credit: https://usehooks-ts.com/
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-export type CopiedValue = string | null;
-export type CopyFn = (text: string) => Promise<boolean>;
-export type UseClipboardReturn = [CopiedValue, CopyFn];
+/** Copies text, or text the server is still producing; false when the browser refuses the clipboard. */
+export type CopyFn = (text: string | Promise<string>) => Promise<boolean>;
 
-export function useClipboard(): UseClipboardReturn {
-    const [copiedText, setCopiedText] = useState<CopiedValue>(null);
+/** Whether the last copy succeeded (reset after 2 s, so a repeated copy confirms again) and the copy function. */
+export function useClipboard(): [boolean, CopyFn] {
+    const [copied, setCopied] = useState(false);
+    useEffect(() => {
+        if (!copied) return;
+        const timer = window.setTimeout(() => setCopied(false), 2000);
+        return () => window.clearTimeout(timer);
+    }, [copied]);
 
     const copy: CopyFn = async (text) => {
+        setCopied(false);
         if (!navigator?.clipboard) {
-            setCopiedText(null);
             return false;
         }
 
         try {
-            await navigator.clipboard.writeText(text);
-            setCopiedText(text);
+            if (typeof text === 'string') {
+                await navigator.clipboard.writeText(text);
+            } else {
+                // A promised ClipboardItem keeps the click's user activation (Safari) while the server answers.
+                await navigator.clipboard.write([
+                    new ClipboardItem({
+                        'text/plain': text.then(
+                            (value) =>
+                                new Blob([value], { type: 'text/plain' }),
+                        ),
+                    }),
+                ]);
+            }
+            setCopied(true);
 
             return true;
         } catch {
             // Permission/unavailable clipboard is an expected boundary failure; callers show manual-copy guidance.
-            setCopiedText(null);
-
             return false;
         }
     };
 
-    return [copiedText, copy];
+    return [copied, copy];
 }
