@@ -6,7 +6,6 @@ import { useTranslation } from 'react-i18next';
 import { AbsoluteTime } from '@/components/absolute-time';
 import { siteComboboxOptions, siteHost } from '@/components/entity-combobox';
 import { EvidenceFacts } from '@/components/evidence-facts';
-import { FormSecondaryAction } from '@/components/form-section';
 import { InfoTooltip } from '@/components/info-tooltip';
 import InputError, {
     fieldErrorId,
@@ -306,7 +305,6 @@ export function ServerSettingsSheet({
         >
             <SheetForm
                 title={t('servers.settings.title')}
-                description={t('servers.settings.description')}
                 aria-busy={form.processing}
                 onSubmit={(event) => {
                     event.preventDefault();
@@ -315,19 +313,12 @@ export function ServerSettingsSheet({
                         onSuccess: () => onOpenChange(false),
                     });
                 }}
-                footer={
-                    <>
-                        <FormSecondaryAction
-                            disabled={form.processing}
-                            onClick={() => onOpenChange(false)}
-                        >
-                            {t('Cancel')}
-                        </FormSecondaryAction>
-                        <Button type="submit" disabled={form.processing}>
-                            {t('Save')}
-                        </Button>
-                    </>
-                }
+                actions={{
+                    kind: 'edit',
+                    dirty: form.isDirty,
+                    busy: form.processing,
+                    onCancel: () => onOpenChange(false),
+                }}
             >
                 <EvidenceFacts
                     rows={[
@@ -784,26 +775,18 @@ export function LinkSitesSheet({
                         },
                     );
                 }}
-                footer={
-                    <>
-                        <FormSecondaryAction
-                            disabled={processing}
-                            onClick={() => onOpenChange(false)}
-                        >
-                            {t('Cancel')}
-                        </FormSecondaryAction>
-                        <Button
-                            type="submit"
-                            disabled={processing || siteIds.length === 0}
-                        >
-                            {siteIds.length === 0
-                                ? t('servers.link.submit_none')
-                                : t('servers.link.submit', {
-                                      count: siteIds.length,
-                                  })}
-                        </Button>
-                    </>
-                }
+                actions={{
+                    kind: 'action',
+                    label:
+                        siteIds.length === 0
+                            ? t('servers.link.submit_none')
+                            : t('servers.link.submit', {
+                                  count: siteIds.length,
+                              }),
+                    valid: siteIds.length > 0,
+                    busy: processing,
+                    onCancel: () => onOpenChange(false),
+                }}
             >
                 {failed ? (
                     <InputError message={t('servers.link.loading_failed')} />

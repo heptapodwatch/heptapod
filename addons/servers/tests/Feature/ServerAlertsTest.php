@@ -443,10 +443,10 @@ it('offers the Servers row to Owners, Admins and team channels, locked off for a
     expect(collect($this->actingAs($member)->getJson(route('settings.notifications.data'))->json('grid'))->pluck('category'))->not->toContain('servers');
     expect(collect($this->actingAs($owner)->getJson(route('settings.notifications.team.data'))->json('grid'))->pluck('category'))->toContain('servers');
 
-    $this->actingAs($owner)->putJson(route('notification-channels.preferences', $team), ['preferences' => ['servers' => 'digest']])->assertSuccessful();
-    $this->actingAs($owner)->putJson(route('notification-channels.preferences', $limited), ['preferences' => ['servers' => 'immediate']])
+    $this->actingAs($owner)->patchJson(route('notification-channels.update', $team), ['preferences' => ['servers' => 'digest']])->assertOk();
+    $this->actingAs($owner)->patchJson(route('notification-channels.update', $limited), ['preferences' => ['servers' => 'immediate']])
         ->assertUnprocessable()->assertJsonValidationErrors(['preferences.servers']);
-    $this->actingAs($member)->putJson(route('notification-channels.preferences', systemIssueAccountChannel($member)), ['preferences' => ['servers' => 'immediate']])
+    $this->actingAs($member)->patchJson(route('notification-channels.update', systemIssueAccountChannel($member)), ['preferences' => ['servers' => 'immediate']])
         ->assertUnprocessable()->assertJsonValidationErrors(['preferences.servers']);
     expect(DB::table('notification_preferences')->where('category', 'servers')->whereIn('destination_id', [$team->id, $limited->id])->orderBy('destination_id')->pluck('mode', 'destination_id')->all())
         ->toBe([$limited->id => 'off', $team->id => 'digest']);
@@ -605,7 +605,7 @@ it('keeps a snoozed server out of the digest and holds its alerts when the chann
     expect(DB::table('events')->where('type', 'notification.digest')->count())->toBe(0)
         ->and(alertsWebhookBodies())->toBe([]);
 
-    $this->actingAs($owner)->putJson(route('notification-channels.preferences', $digest), ['preferences' => ['servers' => 'immediate']])->assertSuccessful();
+    $this->actingAs($owner)->patchJson(route('notification-channels.update', $digest), ['preferences' => ['servers' => 'immediate']])->assertOk();
     dispatchNotifications();
     expect(alertsDeliveries('opened')[$digest->id])->toMatchObject(['state' => 'pending', 'digest' => false, 'last_reason' => 'deferred_by_snooze'])
         ->and(alertsWebhookBodies())->toBe([]);

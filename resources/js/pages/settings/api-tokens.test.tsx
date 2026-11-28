@@ -146,7 +146,7 @@ it.each([
             </TooltipProvider>,
         );
         fireEvent.click(
-            screen.getAllByRole('button', { name: /Create token/ })[0]!,
+            screen.getAllByRole('button', { name: /Add token/ })[0]!,
         );
         fireEvent.change(screen.getByLabelText('Name'), {
             target: { value: 'Agent' },
@@ -156,6 +156,7 @@ it.each([
                 'All clients you can access, including future clients',
             ),
         );
+        fireEvent.click(screen.getByLabelText('Deploy automation'));
         fireEvent.click(screen.getByLabelText('Custom date'));
         const expiry = screen.getByLabelText('Expires at');
         fireEvent.change(expiry, { target: { value: typed } });
@@ -173,9 +174,7 @@ it('issues exactly the edited checklist with the chosen client access and a 30-d
             <ApiTokens tokensPage={page} />
         </TooltipProvider>,
     );
-    fireEvent.click(
-        screen.getAllByRole('button', { name: /Create token/ })[0]!,
-    );
+    fireEvent.click(screen.getAllByRole('button', { name: /Add token/ })[0]!);
     fireEvent.change(screen.getByLabelText('Name'), {
         target: { value: 'Deploy' },
     });
@@ -270,9 +269,7 @@ it('offers no server abilities for a token limited to one client and drops the c
             <ApiTokens tokensPage={servers} />
         </TooltipProvider>,
     );
-    fireEvent.click(
-        screen.getAllByRole('button', { name: /Create token/ })[0]!,
-    );
+    fireEvent.click(screen.getAllByRole('button', { name: /Add token/ })[0]!);
     fireEvent.click(screen.getByLabelText('Full access'));
     const serverArea = () =>
         screen.queryByRole('group', { name: 'api_tokens.area.servers' });

@@ -114,7 +114,12 @@ One summary: the state ring, the health headline and one meta line. While monito
 
 ## Containers
 
-Create and edit of a record use `SheetForm`. A centred `Dialog` is only for a confirmation, a shown-once secret or a read-only preview.
+Create and edit of a record use `SheetForm`: one job and one draft, never stacked editors. A centred `Dialog` is only for a confirmation, a shown-once secret or a read-only preview.
+
+- Title a sheet “Add [thing]”, “[Thing] settings”, the record name, or a specific action such as “Invite teammate”. Use one consequence sentence or none; the create action repeats the title, and edits use “Save”.
+- Enable Save only for a changed draft; if a known prerequisite or restriction disables it, say why. Leave validation to the server when it can show the error at the field rather than duplicating its rules in the sheet. Read-only sheets say why and offer only Close.
+- Desktop puts confirmed Remove left and Cancel and the primary action right; phone puts the primary action first. Page-level destruction stays in the page menu.
+- In a channel sheet, More → Edit expands the connection card in place; connection, delivery preferences and site exceptions share one draft and Save. Collapse retains the draft; Send test uses the connection shown, draft when expanded and saved when collapsed.
 
 ## Native controls
 

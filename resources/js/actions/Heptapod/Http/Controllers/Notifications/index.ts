@@ -1,7 +1,6 @@
 import NotificationChannelsController from './NotificationChannelsController'
 import NotificationChannelEnabledController from './NotificationChannelEnabledController'
 import NotificationChannelTestController from './NotificationChannelTestController'
-import NotificationPreferencesController from './NotificationPreferencesController'
 import NotificationSiteMutesController from './NotificationSiteMutesController'
 import NotificationScheduleController from './NotificationScheduleController'
 import NotificationExplanationController from './NotificationExplanationController'
@@ -14,7 +13,6 @@ const Notifications = {
     NotificationChannelsController: Object.assign(NotificationChannelsController, NotificationChannelsController),
     NotificationChannelEnabledController: Object.assign(NotificationChannelEnabledController, NotificationChannelEnabledController),
     NotificationChannelTestController: Object.assign(NotificationChannelTestController, NotificationChannelTestController),
-    NotificationPreferencesController: Object.assign(NotificationPreferencesController, NotificationPreferencesController),
     NotificationSiteMutesController: Object.assign(NotificationSiteMutesController, NotificationSiteMutesController),
     NotificationScheduleController: Object.assign(NotificationScheduleController, NotificationScheduleController),
     NotificationExplanationController: Object.assign(NotificationExplanationController, NotificationExplanationController),

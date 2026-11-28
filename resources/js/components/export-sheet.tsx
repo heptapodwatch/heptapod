@@ -3,7 +3,6 @@ import { Download } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CopyButton } from '@/components/copy-button';
-import { FormSecondaryAction } from '@/components/form-section';
 import InputError from '@/components/input-error';
 import { SegmentedControl } from '@/components/segmented-control';
 import { SheetForm } from '@/components/sheet-form';
@@ -221,14 +220,13 @@ export function ExportButton({
                         event.preventDefault();
                         void download();
                     }}
-                    footer={
-                        <>
-                            <FormSecondaryAction
-                                disabled={busy}
-                                onClick={() => setOpen(false)}
-                            >
-                                {t('Cancel')}
-                            </FormSecondaryAction>
+                    actions={{
+                        kind: 'action',
+                        label: t('export.download'),
+                        valid: !csvRefused,
+                        busy,
+                        onCancel: () => setOpen(false),
+                        secondary: (
                             <CopyButton
                                 // A new format or scope starts unconfirmed.
                                 key={`${format}-${scope.key}`}
@@ -236,11 +234,8 @@ export function ExportButton({
                                 onRefused={(text) => void copyManually(text)}
                                 disabled={format === 'csv' || busy}
                             />
-                            <Button type="submit" disabled={csvRefused || busy}>
-                                {t('export.download')}
-                            </Button>
-                        </>
-                    }
+                        ),
+                    }}
                 >
                     <div className="space-y-6">
                         <div className="space-y-2">

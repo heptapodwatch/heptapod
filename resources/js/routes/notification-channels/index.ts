@@ -148,7 +148,7 @@ update.form = updateForm
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::destroy
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:62
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:64
 * @route '/notification-channels/{channel}'
 */
 export const destroy = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -163,7 +163,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::destroy
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:62
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:64
 * @route '/notification-channels/{channel}'
 */
 destroy.url = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -196,7 +196,7 @@ destroy.url = (args: { channel: number | { id: number } } | [channel: number | {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::destroy
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:62
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:64
 * @route '/notification-channels/{channel}'
 */
 destroy.delete = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -206,7 +206,7 @@ destroy.delete = (args: { channel: number | { id: number } } | [channel: number 
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::destroy
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:62
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:64
 * @route '/notification-channels/{channel}'
 */
 const destroyForm = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -221,7 +221,7 @@ const destroyForm = (args: { channel: number | { id: number } } | [channel: numb
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::destroy
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:62
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:64
 * @route '/notification-channels/{channel}'
 */
 destroyForm.delete = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -328,7 +328,7 @@ enabled.form = enabledForm
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelTestController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationChannelTestController.php:18
+* @see app/Http/Controllers/Notifications/NotificationChannelTestController.php:20
 * @route '/notification-channels/{channel}/test'
 */
 export const test = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -343,7 +343,7 @@ test.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelTestController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationChannelTestController.php:18
+* @see app/Http/Controllers/Notifications/NotificationChannelTestController.php:20
 * @route '/notification-channels/{channel}/test'
 */
 test.url = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -376,7 +376,7 @@ test.url = (args: { channel: number | { id: number } } | [channel: number | { id
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelTestController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationChannelTestController.php:18
+* @see app/Http/Controllers/Notifications/NotificationChannelTestController.php:20
 * @route '/notification-channels/{channel}/test'
 */
 test.post = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -386,7 +386,7 @@ test.post = (args: { channel: number | { id: number } } | [channel: number | { i
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelTestController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationChannelTestController.php:18
+* @see app/Http/Controllers/Notifications/NotificationChannelTestController.php:20
 * @route '/notification-channels/{channel}/test'
 */
 const testForm = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -396,7 +396,7 @@ const testForm = (args: { channel: number | { id: number } } | [channel: number 
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelTestController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationChannelTestController.php:18
+* @see app/Http/Controllers/Notifications/NotificationChannelTestController.php:20
 * @route '/notification-channels/{channel}/test'
 */
 testForm.post = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -406,103 +406,12 @@ testForm.post = (args: { channel: number | { id: number } } | [channel: number |
 
 test.form = testForm
 
-/**
-* @see \Heptapod\Http\Controllers\Notifications\NotificationPreferencesController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationPreferencesController.php:18
-* @route '/notification-channels/{channel}/preferences'
-*/
-export const preferences = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
-    url: preferences.url(args, options),
-    method: 'put',
-})
-
-preferences.definition = {
-    methods: ["put"],
-    url: '/notification-channels/{channel}/preferences',
-} satisfies RouteDefinition<["put"]>
-
-/**
-* @see \Heptapod\Http\Controllers\Notifications\NotificationPreferencesController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationPreferencesController.php:18
-* @route '/notification-channels/{channel}/preferences'
-*/
-preferences.url = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
-    if (typeof args === 'string' || typeof args === 'number') {
-        args = { channel: args }
-    }
-
-    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-        args = { channel: args.id }
-    }
-
-    if (Array.isArray(args)) {
-        args = {
-            channel: args[0],
-        }
-    }
-
-    args = applyUrlDefaults(args)
-
-    const parsedArgs = {
-        channel: typeof args.channel === 'object'
-        ? args.channel.id
-        : args.channel,
-    }
-
-    return preferences.definition.url
-            .replace('{channel}', parsedArgs.channel.toString())
-            .replace(/\/+$/, '') + queryParams(options)
-}
-
-/**
-* @see \Heptapod\Http\Controllers\Notifications\NotificationPreferencesController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationPreferencesController.php:18
-* @route '/notification-channels/{channel}/preferences'
-*/
-preferences.put = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
-    url: preferences.url(args, options),
-    method: 'put',
-})
-
-/**
-* @see \Heptapod\Http\Controllers\Notifications\NotificationPreferencesController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationPreferencesController.php:18
-* @route '/notification-channels/{channel}/preferences'
-*/
-const preferencesForm = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: preferences.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'PUT',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'post',
-})
-
-/**
-* @see \Heptapod\Http\Controllers\Notifications\NotificationPreferencesController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationPreferencesController.php:18
-* @route '/notification-channels/{channel}/preferences'
-*/
-preferencesForm.put = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
-    action: preferences.url(args, {
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'PUT',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'post',
-})
-
-preferences.form = preferencesForm
-
 const notificationChannels = {
     store: Object.assign(store, store),
     update: Object.assign(update, update),
     destroy: Object.assign(destroy, destroy),
     enabled: Object.assign(enabled, enabled),
     test: Object.assign(test, test),
-    preferences: Object.assign(preferences, preferences),
     siteMutes: Object.assign(siteMutes, siteMutes),
 }
 

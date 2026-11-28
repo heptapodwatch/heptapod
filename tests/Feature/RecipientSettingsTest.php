@@ -8,6 +8,7 @@ use Heptapod\Actions\EnsureAccountChannel;
 use Heptapod\Actions\Notifications\UpdateNotificationPreferences;
 use Heptapod\Actions\SetNotificationDestinationEnabled;
 use Heptapod\Addons\Channels\CommunityChannel;
+use Heptapod\Addons\Channels\TemplateMail;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\Notifications\ChannelRegistry;
@@ -101,6 +102,42 @@ it('round-trips the check type selection, preserves it on unrelated edits and cl
     $this->getJson(route('settings.notifications.team.data'))->assertOk()->assertJsonPath('channels.0.check_types', null);
 });
 
+it('saves a connection, delivery preference and site exception together, or none if the draft is refused', function (): void {
+    $site = Site::factory()->create();
+    $this->actingAs(recipientUser('Owner'));
+    $id = $this->postJson(route('notification-channels.store'), ['recipient_kind' => 'team', 'channel' => 'mail', 'label' => 'Before',
+        'locale' => 'en', 'config' => ['email' => 'saved@example.test']])->assertCreated()->json('id');
+    $url = route('notification-channels.update', $id);
+
+    $this->patchJson($url, ['label' => 'Draft', 'config' => ['email' => 'draft@example.test'],
+        'preferences' => ['outage' => 'digest'], 'mute_site_ids' => [$site->id]])->assertUnprocessable()->assertJsonValidationErrors('preferences.outage');
+    expect(NotificationDestination::query()->findOrFail($id)->label)->toBe('Before');
+    expect(recipientGrid($id)['outage'])->toBe('immediate');
+    $this->assertDatabaseMissing('notification_site_mutes', ['destination_id' => $id, 'site_id' => $site->id]);
+
+    $this->patchJson($url, ['label' => 'After', 'config' => ['email' => 'new@example.test'],
+        'preferences' => ['outage' => 'off'], 'mute_site_ids' => [$site->id]])->assertOk();
+    $channel = NotificationDestination::query()->findOrFail($id);
+    expect($channel->label)->toBe('After')->and($channel->destinationConfig()->string('email'))->toBe('new@example.test');
+    expect(recipientGrid($id)['outage'])->toBe('off');
+    $this->assertDatabaseHas('notification_site_mutes', ['destination_id' => $id, 'site_id' => $site->id]);
+});
+
+it('sends a test to the unsaved draft email without replacing the saved connection or reporting it tested', function (): void {
+    Mail::fake();
+    $this->actingAs(recipientUser('Owner'));
+    $id = $this->postJson(route('notification-channels.store'), ['recipient_kind' => 'team', 'channel' => 'mail', 'label' => 'Ops',
+        'locale' => 'en', 'config' => ['email' => 'saved@example.test']])->assertCreated()->json('id');
+    $url = route('notification-channels.test', $id);
+
+    $this->postJson($url, ['draft' => ['config' => ['email' => 'draft@example.test']]])->assertOk()->assertJsonPath('status', 'sent');
+
+    Mail::assertSent(TemplateMail::class, static fn (TemplateMail $mail): bool => $mail->hasTo('draft@example.test'));
+    $channel = NotificationDestination::query()->findOrFail($id);
+    expect($channel->destinationConfig()->string('email'))->toBe('saved@example.test');
+    expect($channel->last_outcome)->toBeNull();
+});
+
 it('creates team, own and client channels with the design defaults and refuses a second mail address for a user', function (): void {
     $owner = recipientUser('Owner');
     $member = recipientUser('Member');
@@ -149,7 +186,7 @@ it('lets only the people who manage a recipient change its channels', function (
         'config' => ['email' => 'x@example.test']])->assertForbidden();
     $this->postJson(route('notification-channels.store'), ['recipient_kind' => 'client', 'client_id' => $hiddenClient->id, 'channel' => 'mail',
         'label' => 'x', 'config' => ['email' => 'x@example.test']])->assertNotFound();
-    $this->putJson(route('notification-channels.preferences', $team), ['preferences' => ['outage' => 'off']])->assertForbidden();
+    $this->patchJson(route('notification-channels.update', $team), ['preferences' => ['outage' => 'off']])->assertForbidden();
     $this->deleteJson(route('notification-channels.destroy', $team))->assertForbidden();
     $this->getJson(route('settings.notifications.team.data'))->assertForbidden();
     $this->getJson(route('clients.notifications.data', $client))->assertNotFound();
@@ -290,11 +327,11 @@ it('validates grid modes, keeps System locked for an Owner and hidden from Membe
     $clientChannel = NotificationDestination::factory()->create(['recipient_kind' => RecipientKind::Client, 'client_id' => $client->id, 'locale' => null]);
     $this->actingAs($owner);
 
-    $this->putJson(route('notification-channels.preferences', $ownerAccount), ['preferences' => ['outage' => 'digest']])->assertUnprocessable();
-    $this->putJson(route('notification-channels.preferences', $ownerAccount), ['preferences' => ['report' => 'immediate']])->assertUnprocessable();
-    $this->putJson(route('notification-channels.preferences', $ownerAccount), ['preferences' => ['system' => 'off']])->assertUnprocessable();
-    $this->putJson(route('notification-channels.preferences', $clientChannel), ['preferences' => ['system' => 'immediate']])->assertUnprocessable();
-    $this->putJson(route('notification-channels.preferences', $clientChannel), ['preferences' => ['outage' => 'immediate', 'warning' => 'digest']])->assertNoContent();
+    $this->patchJson(route('notification-channels.update', $ownerAccount), ['preferences' => ['outage' => 'digest']])->assertUnprocessable();
+    $this->patchJson(route('notification-channels.update', $ownerAccount), ['preferences' => ['report' => 'immediate']])->assertUnprocessable();
+    $this->patchJson(route('notification-channels.update', $ownerAccount), ['preferences' => ['system' => 'off']])->assertUnprocessable();
+    $this->patchJson(route('notification-channels.update', $clientChannel), ['preferences' => ['system' => 'immediate']])->assertUnprocessable();
+    $this->patchJson(route('notification-channels.update', $clientChannel), ['preferences' => ['outage' => 'immediate', 'warning' => 'digest']])->assertOk();
     expect(recipientGrid($clientChannel->id))->toMatchArray(['outage' => 'immediate', 'warning' => 'digest', 'system' => 'off']);
     expect(Activity::query()->where('event', 'notification.preferences_updated')->sole()->subject_id)->toBe($clientChannel->id);
 
@@ -318,11 +355,11 @@ it('validates grid modes, keeps System locked for an Owner and hidden from Membe
     // A person adds only non-mail channels (their mail is the account email); the team and clients get every type.
     expect(collect($ownerPage->json('channel_types'))->pluck('key'))->not->toContain('mail')->toContain('webhook')
         ->and(collect($this->getJson(route('clients.notifications.data', $client))->json('channel_types'))->pluck('key'))->toContain('mail');
-    $this->putJson(route('notification-channels.preferences', $ownSlack), ['preferences' => ['system' => 'off']])->assertNoContent();
+    $this->patchJson(route('notification-channels.update', $ownSlack), ['preferences' => ['system' => 'off']])->assertOk();
     expect(collect($this->getJson(route('clients.notifications.data', $client))->json('grid'))->pluck('category'))->not->toContain('system', 'report');
     $this->actingAs($member);
     expect(collect($this->getJson(route('settings.notifications.data'))->json('grid'))->pluck('category'))->not->toContain('system');
-    $this->putJson(route('notification-channels.preferences', $memberAccount), ['preferences' => ['system' => 'immediate']])->assertUnprocessable();
+    $this->patchJson(route('notification-channels.update', $memberAccount), ['preferences' => ['system' => 'immediate']])->assertUnprocessable();
 });
 
 it('reconciles open outages when an outage cell turns on and when a site mute is removed', function (): void {
@@ -333,10 +370,10 @@ it('reconciles open outages when an outage cell turns on and when a site mute is
         'alert_after_minutes' => 10, 'alert_recovery_checks' => 3]);
     $this->actingAs($owner);
 
-    $this->putJson(route('notification-channels.preferences', $channel), ['preferences' => ['warning' => 'immediate']])->assertNoContent();
+    $this->patchJson(route('notification-channels.update', $channel), ['preferences' => ['warning' => 'immediate']])->assertOk();
     expect($incident->fresh()->routing_reconcile_requested_at)->toBeNull();
     $this->putJson(route('notification-channels.site-mutes.store', [$channel, $check->site_id]))->assertNoContent();
-    $this->putJson(route('notification-channels.preferences', $channel), ['preferences' => ['outage' => 'immediate']])->assertNoContent();
+    $this->patchJson(route('notification-channels.update', $channel), ['preferences' => ['outage' => 'immediate']])->assertOk();
     expect($incident->fresh()->routing_reconcile_requested_at)->not->toBeNull();
     Incident::query()->whereKey($incident->id)->update(['routing_reconcile_requested_at' => null]);
 
@@ -375,7 +412,7 @@ it('sends waiting digest items on their immediate schedule when a Digest cell be
     expect($warningItem->next_attempt_at->toIso8601String())->toBe('2026-10-29T08:00:00+00:00');
 
     $this->travelTo(CarbonImmutable::parse('2026-10-28T23:00:00Z'));
-    $this->actingAs($owner)->putJson(route('notification-channels.preferences', $channel), ['preferences' => ['warning' => 'immediate']])->assertNoContent();
+    $this->actingAs($owner)->patchJson(route('notification-channels.update', $channel), ['preferences' => ['warning' => 'immediate']])->assertOk();
 
     // A warning respects quiet hours; the check error item stays in the digest because its cell did not change.
     expect($warningItem->fresh()->digest)->toBeFalse()->and($warningItem->fresh()->next_attempt_at->toIso8601String())->toBe('2026-10-29T07:00:00+00:00');
@@ -566,7 +603,7 @@ it('exposes the grid each channel started with as its defaults, for every recipi
     $this->actingAs($owner);
     $team = $this->postJson(route('notification-channels.store'), ['recipient_kind' => 'team', 'channel' => 'mail', 'label' => 'Ops',
         'locale' => 'en', 'config' => ['email' => 'ops@example.test']])->assertCreated()->json('id');
-    $this->putJson(route('notification-channels.preferences', $team), ['preferences' => ['warning' => 'digest']])->assertNoContent();
+    $this->patchJson(route('notification-channels.update', $team), ['preferences' => ['warning' => 'digest']])->assertOk();
     $factoryMade = NotificationDestination::factory()->create();
     $now = 'immediate';
 
@@ -642,7 +679,7 @@ it('commits preferences and site mutes atomically and rolls both back on refusal
     ]);
     $before = recipientGrid($clientChannel->id);
 
-    $this->actingAs($admin)->putJson(route('notification-channels.preferences', $clientChannel), [
+    $this->actingAs($admin)->patchJson(route('notification-channels.update', $clientChannel), [
         'preferences' => ['outage' => 'immediate', 'warning' => 'digest'],
         'mute_site_ids' => [$ownSite->id, $otherSite->id],
     ])->assertUnprocessable();
@@ -650,17 +687,17 @@ it('commits preferences and site mutes atomically and rolls both back on refusal
     expect(recipientGrid($clientChannel->id))->toBe($before)
         ->and(DB::table('notification_site_mutes')->where('destination_id', $clientChannel->id)->count())->toBe(0);
 
-    $this->actingAs($admin)->putJson(route('notification-channels.preferences', $clientChannel), [
+    $this->actingAs($admin)->patchJson(route('notification-channels.update', $clientChannel), [
         'preferences' => ['outage' => 'immediate', 'warning' => 'digest'],
         'mute_site_ids' => [$ownSite->id],
-    ])->assertNoContent();
+    ])->assertOk();
 
     expect(recipientGrid($clientChannel->id))->toMatchArray(['outage' => 'immediate', 'warning' => 'digest'])
         ->and(DB::table('notification_site_mutes')->where('destination_id', $clientChannel->id)->pluck('site_id')->all())->toBe([$ownSite->id]);
 
-    $this->actingAs($admin)->putJson(route('notification-channels.preferences', $clientChannel), [
+    $this->actingAs($admin)->patchJson(route('notification-channels.update', $clientChannel), [
         'unmute_site_ids' => [$ownSite->id],
-    ])->assertNoContent();
+    ])->assertOk();
 
     expect(DB::table('notification_site_mutes')->where('destination_id', $clientChannel->id)->count())->toBe(0);
 
@@ -673,14 +710,14 @@ it('commits preferences and site mutes atomically and rolls both back on refusal
         'config' => app(ChannelRegistry::class)->get('webhook')->configSchema()->validateConfig(recipientWebhook()['config']),
     ]);
     $memberBefore = recipientGrid($memberChannel->id);
-    $this->actingAs($member)->putJson(route('notification-channels.preferences', $memberChannel), [
+    $this->actingAs($member)->patchJson(route('notification-channels.update', $memberChannel), [
         'preferences' => ['warning' => 'digest'],
         'mute_site_ids' => [$otherSite->id],
     ])->assertNotFound();
     expect(recipientGrid($memberChannel->id))->toBe($memberBefore)
         ->and(DB::table('notification_site_mutes')->where('destination_id', $memberChannel->id)->count())->toBe(0);
 
-    $this->actingAs($admin)->putJson(route('notification-channels.preferences', $clientChannel), [
+    $this->actingAs($admin)->patchJson(route('notification-channels.update', $clientChannel), [
         'preferences' => ['warning' => 'digest'],
         'mute_site_ids' => range(1, UpdateNotificationPreferences::MaxSiteMutesBatch + 1),
     ])->assertUnprocessable()->assertJsonValidationErrors(['mute_site_ids']);

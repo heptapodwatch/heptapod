@@ -5,10 +5,8 @@ import {
     clientFormValues,
     type ClientFormValues,
 } from '@/components/client-form-fields';
-import { FormSecondaryAction } from '@/components/form-section';
 import InputError from '@/components/input-error';
 import { SheetForm } from '@/components/sheet-form';
-import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/sheet';
 import {
     HttpValidationError,
@@ -43,12 +41,9 @@ export function ClientCreateSheet({
             }}
         >
             <SheetForm
-                title={t('New client')}
-                description={t('pages.client_settings.description')}
+                title={t('Add client')}
                 aria-busy={form.processing}
-                onSubmit={(event) => {
-                    event.preventDefault();
-                    if (form.processing) return;
+                onSubmit={() => {
                     setFailure('');
                     void form
                         .post(store.url())
@@ -64,19 +59,12 @@ export function ClientCreateSheet({
                                 );
                         });
                 }}
-                footer={
-                    <>
-                        <FormSecondaryAction
-                            disabled={form.processing}
-                            onClick={onClose}
-                        >
-                            {t('Cancel')}
-                        </FormSecondaryAction>
-                        <Button type="submit" disabled={form.processing}>
-                            {t('Create client')}
-                        </Button>
-                    </>
-                }
+                actions={{
+                    kind: 'create',
+                    valid: form.data.name.trim() !== '',
+                    busy: form.processing,
+                    onCancel: onClose,
+                }}
             >
                 <ClientFormFields
                     data={form.data}

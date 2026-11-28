@@ -3,7 +3,6 @@ import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ConfirmDialog, confirmVisit } from '@/components/confirm-dialog';
-import { FormSecondaryAction } from '@/components/form-section';
 import InputError from '@/components/input-error';
 import { PageHeaderAction } from '@/components/page-header-actions';
 import { SheetForm } from '@/components/sheet-form';
@@ -228,22 +227,13 @@ function SnoozeUntilSheet({
                         onSuccess: () => onOpenChange(false),
                     });
                 }}
-                footer={
-                    <>
-                        <FormSecondaryAction
-                            disabled={form.processing}
-                            onClick={() => onOpenChange(false)}
-                        >
-                            {t('Cancel')}
-                        </FormSecondaryAction>
-                        <Button
-                            type="submit"
-                            disabled={form.processing || instant === null}
-                        >
-                            {t('Snooze')}
-                        </Button>
-                    </>
-                }
+                actions={{
+                    kind: 'action',
+                    label: t('Snooze'),
+                    valid: instant !== null && !invalid,
+                    busy: form.processing,
+                    onCancel: () => onOpenChange(false),
+                }}
             >
                 <div className="space-y-1.5">
                     <Label htmlFor="snooze-until">{t('Snooze until')}</Label>

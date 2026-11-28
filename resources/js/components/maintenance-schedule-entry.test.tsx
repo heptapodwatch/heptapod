@@ -168,7 +168,7 @@ it('opens the new-window sheet for the site from the site header link and consum
     render(page(true));
 
     const sheet = screen.getByRole('dialog', {
-        name: 'New maintenance window',
+        name: 'Schedule maintenance',
     });
     // The trigger shows the site avatar (letter fallback "A") plus the name.
     expect(
@@ -214,7 +214,7 @@ it('defaults the timezone from the target, follows target changes until picked, 
     render(page(true));
 
     const sheet = screen.getByRole('dialog', {
-        name: 'New maintenance window',
+        name: 'Schedule maintenance',
     });
     const zoneTrigger = () =>
         within(sheet).getByRole('combobox', { name: 'Timezone' });
@@ -260,7 +260,7 @@ it('keeps an existing windows stored timezone when editing and switching targets
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
 
     const sheet = screen.getByRole('dialog', {
-        name: 'Edit maintenance window',
+        name: 'Maintenance window settings',
     });
     const zoneTrigger = within(sheet).getByRole('combobox', {
         name: 'Timezone',
@@ -326,7 +326,7 @@ it('keeps untouched default times strictly ordered when following a target into 
             screen.getAllByRole('button', { name: 'New window' })[0]!,
         );
         const sheet = screen.getByRole('dialog', {
-            name: 'New maintenance window',
+            name: 'Schedule maintenance',
         });
         fireEvent.click(within(sheet).getByRole('combobox', { name: 'Sites' }));
         fireEvent.click(screen.getByRole('option', { name: /API/ }));
@@ -367,7 +367,7 @@ it('labels pinned timezone options and shows a following hint until the user ove
     );
 
     const sheet = screen.getByRole('dialog', {
-        name: 'New maintenance window',
+        name: 'Schedule maintenance',
     });
     const zoneTrigger = () =>
         within(sheet).getByRole('combobox', { name: 'Timezone' });

@@ -1,5 +1,13 @@
-import { Lock, Pause, Pencil, Play, RotateCcw, Send } from 'lucide-react';
-import { useId, useState } from 'react';
+import {
+    ChevronUp,
+    Lock,
+    Pause,
+    Pencil,
+    Play,
+    RotateCcw,
+    Send,
+} from 'lucide-react';
+import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ActionNoteSlot } from '@/components/action-note-slot';
@@ -16,7 +24,10 @@ import {
 } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { siteComboboxOptions } from '@/components/entity-combobox';
-import { FormSecondaryAction } from '@/components/form-section';
+import {
+    ChannelConnectionFields,
+    useChannelForm,
+} from '@/components/recipient-settings/channel-form-sheet';
 import InputError from '@/components/input-error';
 import { ChannelGlyph } from '@/components/recipient-settings/channel-glyph';
 import {
@@ -50,7 +61,7 @@ import { cn } from '@/lib/utils';
 import {
     destroy,
     enabled as setEnabled,
-    preferences as savePreferences,
+    update as saveChannel,
     test as sendTest,
 } from '@/routes/notification-channels';
 
@@ -68,15 +79,12 @@ export function ChannelSheet({
     page,
     channel,
     onChanged,
-    onEdit,
     onClose,
 }: {
     page: SettingsPage;
     channel: Channel;
     /** Re-reads the page props after a change that already happened on the server. */
     onChanged: () => void;
-    /** Opens the channel's name and transport settings (not for the account email, which follows the account). */
-    onEdit: () => void;
     onClose: () => void;
 }) {
     const { t } = useTranslation();
@@ -88,13 +96,16 @@ export function ChannelSheet({
     const [confirmRemoval, setConfirmRemoval] = useState(false);
     const [error, setError] = useState('');
     const [testDiagnosis, setTestDiagnosis] = useState<string | null>(null);
-    const save = useHttpRequest<{
-        preferences?: Grid;
-        mute_site_ids?: number[];
-        unmute_site_ids?: number[];
-    }>({});
+    const {
+        form: save,
+        changes,
+        valid,
+        isConnectionError,
+    } = useChannelForm(page, channel);
+    const editor = useRef<HTMLDivElement>(null);
+    const [editing, setEditing] = useState(false);
     const test = useHttpRequest<
-        Record<string, never>,
+        { draft?: typeof changes },
         Heptapod.Contracts.Notifications.DeliveryResult
     >({});
     const pause = useHttpRequest<{ enabled: boolean }, PauseResult>({
@@ -122,13 +133,17 @@ export function ChannelSheet({
     const removed = channel.muted_site_ids.filter(
         (site) => !siteIds.includes(site),
     );
-    const dirty = changedCells.length + added.length + removed.length > 0;
+    const connectionDirty = Object.keys(changes).length > 0;
+    const dirty =
+        connectionDirty ||
+        changedCells.length + added.length + removed.length > 0;
     const name = channel.label;
 
     const submit = async () => {
         setError('');
         try {
             save.transform(() => ({
+                ...changes,
                 ...(changedCells.length > 0
                     ? {
                           preferences: Object.fromEntries(
@@ -142,20 +157,34 @@ export function ChannelSheet({
                 ...(added.length > 0 ? { mute_site_ids: added } : {}),
                 ...(removed.length > 0 ? { unmute_site_ids: removed } : {}),
             }));
-            await save.put(savePreferences.url(channel.id));
+            await save.patch(saveChannel.url(channel.id));
             toast.success(t('recipient_settings.channel_saved'));
             onChanged();
             onClose();
         } catch (failure: unknown) {
-            setError(
-                failure instanceof HttpValidationError
-                    ? String(Object.values(failure.errors)[0])
-                    : httpErrorMessage(
-                          failure,
-                          t,
-                          'recipient_settings.save_failed',
-                      ),
-            );
+            if (failure instanceof HttpValidationError) {
+                const errors = Object.entries(failure.errors);
+                if (errors.some(([key]) => isConnectionError(key))) {
+                    setEditing(true);
+                    requestAnimationFrame(() => {
+                        const field =
+                            editor.current?.querySelector<HTMLElement>(
+                                '[aria-invalid="true"]',
+                            );
+                        if (field) field.focus();
+                    });
+                }
+                const other = errors.find(([key]) => !isConnectionError(key));
+                if (other) setError(String(other[1]));
+            } else {
+                setError(
+                    httpErrorMessage(
+                        failure,
+                        t,
+                        'recipient_settings.save_failed',
+                    ),
+                );
+            }
             onChanged();
         }
     };
@@ -175,31 +204,25 @@ export function ChannelSheet({
                         : 'recipient_settings.sheet.description',
                 )}
                 aria-busy={busy}
-                onSubmit={(event) => {
-                    event.preventDefault();
-                    if (!busy && dirty) void submit();
+                onSubmit={() => void submit()}
+                actions={{
+                    kind: 'edit',
+                    dirty,
+                    valid: !connectionDirty || valid,
+                    blockedReason:
+                        connectionDirty && !valid
+                            ? t('recipient_settings.form.invalid_connection')
+                            : undefined,
+                    busy,
+                    pendingLabel: save.processing ? t('Saving…') : undefined,
+                    onCancel: onClose,
+                    remove: channel.can_remove
+                        ? {
+                              label: t('Remove channel'),
+                              confirm: () => setConfirmRemoval(true),
+                          }
+                        : undefined,
                 }}
-                footer={
-                    <>
-                        {channel.can_remove && (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                className="mr-auto"
-                                disabled={busy}
-                                onClick={() => setConfirmRemoval(true)}
-                            >
-                                {t('Remove channel')}
-                            </Button>
-                        )}
-                        <FormSecondaryAction disabled={busy} onClick={onClose}>
-                            {t('Cancel')}
-                        </FormSecondaryAction>
-                        <Button type="submit" disabled={busy || !dirty}>
-                            {t(save.processing ? 'Saving…' : 'Save')}
-                        </Button>
-                    </>
-                }
             >
                 <Card>
                     <CardHeader>
@@ -222,10 +245,19 @@ export function ChannelSheet({
                                         }
                                         disabled={
                                             busy ||
-                                            channel.status === 'needs_attention'
+                                            channel.status ===
+                                                'needs_attention' ||
+                                            (editing &&
+                                                connectionDirty &&
+                                                !valid)
                                         }
                                         onClick={() => {
                                             setTestDiagnosis(null);
+                                            test.transform(() =>
+                                                editing && connectionDirty
+                                                    ? { draft: changes }
+                                                    : {},
+                                            );
                                             void test
                                                 .post(sendTest.url(channel.id))
                                                 .then((result) => {
@@ -282,10 +314,28 @@ export function ChannelSheet({
                                     type="button"
                                     variant="outline"
                                     disabled={busy}
-                                    onClick={onEdit}
+                                    onClick={() => {
+                                        setEditing(!editing);
+                                        if (!editing)
+                                            requestAnimationFrame(() =>
+                                                editor.current
+                                                    ?.querySelector<HTMLElement>(
+                                                        'input:not([type=hidden]), [role=combobox]',
+                                                    )
+                                                    ?.focus(),
+                                            );
+                                    }}
                                 >
-                                    <Pencil aria-hidden />
-                                    {t('Edit')}
+                                    {editing ? (
+                                        <ChevronUp aria-hidden />
+                                    ) : (
+                                        <Pencil aria-hidden />
+                                    )}
+                                    {t(
+                                        editing
+                                            ? 'recipient_settings.form.collapse'
+                                            : 'Edit',
+                                    )}
                                 </PageHeaderAction>
                                 {channel.status !== 'needs_attention' && (
                                     <PageHeaderAction
@@ -367,6 +417,15 @@ export function ChannelSheet({
                             <p>{t('recipient_settings.account_address')}</p>
                         )}
                     </CardContent>
+                    {editing && (
+                        <CardContent ref={editor} className="space-y-4">
+                            <ChannelConnectionFields
+                                page={page}
+                                channel={channel}
+                                form={save}
+                            />
+                        </CardContent>
+                    )}
                 </Card>
                 {paused && (
                     <Alert tone="warning">

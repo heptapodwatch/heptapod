@@ -1157,19 +1157,12 @@ function IncidentNoteSheet({
                         onSuccess: onClose,
                     });
                 }}
-                footer={
-                    <>
-                        <FormSecondaryAction
-                            disabled={form.processing}
-                            onClick={onClose}
-                        >
-                            {t('Cancel')}
-                        </FormSecondaryAction>
-                        <Button type="submit" disabled={form.processing}>
-                            {t('Save note')}
-                        </Button>
-                    </>
-                }
+                actions={{
+                    kind: 'edit',
+                    dirty: form.isDirty,
+                    busy: form.processing,
+                    onCancel: onClose,
+                }}
             >
                 <Textarea
                     id="incident-note"

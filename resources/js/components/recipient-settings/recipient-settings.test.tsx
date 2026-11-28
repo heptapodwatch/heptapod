@@ -220,8 +220,8 @@ it('shades changed rows, resets them to how the channel started and saves only c
     await waitFor(() => expect(requests).toHaveLength(1));
     // The locked System cell is never sent, and the unchanged Outage cell is left alone.
     expect(requests[0]).toEqual({
-        method: 'put',
-        url: '/notification-channels/7/preferences',
+        method: 'patch',
+        url: '/notification-channels/7',
         body: { preferences: { warning: now } },
     });
 });
@@ -355,6 +355,31 @@ it("shows the provider's reason in the sheet when a test is rejected", async () 
     expect(toast.error).toHaveBeenCalledWith('notifications.transport_failed');
 });
 
+const mailChannelType: SettingsPage['channel_types'][number] = {
+    key: 'mail',
+    label_key: 'notifications.channel.mail',
+    description_key: 'notifications.channel.mail.description',
+    config_schema: {
+        fields: {
+            email: {
+                type: 'string',
+                rules: ['required', 'email'],
+                properties: {},
+                items: null,
+                presentation: {
+                    labelKey: 'channels.field.email',
+                    helpKey: null,
+                    options: {},
+                },
+                additionalProperties: false,
+                targetUrl: false,
+                uppercase: false,
+                trimmedStrings: false,
+            },
+        },
+    },
+};
+
 it('shows a refused channel setting at its field, under its label, and never says the channel was added', async () => {
     writeResponse = json(422, {
         message: 'The Email address field must be a valid email address.',
@@ -368,33 +393,7 @@ it('shows a refused channel setting at its field, under its label, and never say
         <RecipientSettings
             page={{
                 ...page([]),
-                channel_types: [
-                    {
-                        key: 'mail',
-                        label_key: 'notifications.channel.mail',
-                        description_key:
-                            'notifications.channel.mail.description',
-                        config_schema: {
-                            fields: {
-                                email: {
-                                    type: 'string',
-                                    rules: ['required', 'email'],
-                                    properties: {},
-                                    items: null,
-                                    presentation: {
-                                        labelKey: 'channels.field.email',
-                                        helpKey: null,
-                                        options: {},
-                                    },
-                                    additionalProperties: false,
-                                    targetUrl: false,
-                                    uppercase: false,
-                                    trimmedStrings: false,
-                                },
-                            },
-                        },
-                    },
-                ],
+                channel_types: [mailChannelType],
             }}
             scopeDescription="scope"
         />,
@@ -402,7 +401,10 @@ it('shows a refused channel setting at its field, under its label, and never say
     fireEvent.click(screen.getByRole('button', { name: 'Add channel' }));
     const sheet = await screen.findByRole('dialog');
     const email = within(sheet).getByLabelText(/channels\.field\.email/);
-    fireEvent.change(email, { target: { value: 'not an email' } });
+    fireEvent.change(within(sheet).getByLabelText('Name'), {
+        target: { value: 'Alerts' },
+    });
+    fireEvent.change(email, { target: { value: 'alerts@example.test' } });
     fireEvent.click(within(sheet).getByRole('button', { name: 'Add channel' }));
     await waitFor(() =>
         expect(email.getAttribute('aria-invalid')).toBe('true'),
@@ -413,6 +415,60 @@ it('shows a refused channel setting at its field, under its label, and never say
     ).toContain('The Email address field must be a valid email address.');
     expect(toast.success).not.toHaveBeenCalled();
     expect(screen.getByRole('dialog')).toBe(sheet);
+});
+
+it('reopens a collapsed connection and associates the save error with its field', async () => {
+    const message = 'This address is not available.';
+    writeResponse = json(422, { errors: { 'values.email': [message] } });
+    render(
+        <RecipientSettings
+            page={{
+                ...page([
+                    channel({
+                        channel: 'mail',
+                        label: 'Email alerts',
+                        config: { email: 'saved@example.test' },
+                    }),
+                ]),
+                channel_types: [mailChannelType],
+            }}
+            scopeDescription="scope"
+        />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Email alerts' }));
+    const sheet = await screen.findByRole('dialog');
+    const connectionMenu = () =>
+        fireEvent.keyDown(
+            within(sheet).getByRole('button', { name: 'More actions' }),
+            { key: 'Enter' },
+        );
+    connectionMenu();
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }));
+    fireEvent.change(
+        within(sheet).getByRole('textbox', { name: /channels\.field\.email/ }),
+        { target: { value: 'draft@example.test' } },
+    );
+    connectionMenu();
+    fireEvent.click(
+        await screen.findByRole('menuitem', {
+            name: 'recipient_settings.form.collapse',
+        }),
+    );
+    expect(within(sheet).queryByRole('textbox')).toBeNull();
+
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Save' }));
+
+    const email = await within(sheet).findByRole('textbox', {
+        name: /channels\.field\.email/,
+    });
+    expect((email as HTMLInputElement).value).toBe('draft@example.test');
+    expect(email.getAttribute('aria-invalid')).toBe('true');
+    expect(
+        email
+            .getAttribute('aria-describedby')
+            ?.split(' ')
+            .map((id) => document.getElementById(id)?.textContent),
+    ).toContain(message);
 });
 
 it('tells same-named sites apart in the exception picker, its chips and the channel sentence', async () => {
@@ -678,8 +734,8 @@ it('saves channel preference and site-mute changes in a single atomic request', 
 
     await waitFor(() => expect(requests).toHaveLength(1));
     expect(requests[0]).toEqual({
-        method: 'put',
-        url: '/notification-channels/7/preferences',
+        method: 'patch',
+        url: '/notification-channels/7',
         body: {
             preferences: { warning: now },
             mute_site_ids: [4],

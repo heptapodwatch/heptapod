@@ -24,6 +24,7 @@
     "Client state": "Kundenstatus",
     "Create client": "Kunden anlegen",
     "New client": "Neuer Kunde",
+    "Add client": "Kunden hinzufügen",
     "clients.archived_cannot_add_site": "Zu einem archivierten Kunden können keine Websites hinzugefügt werden.",
     "No sites for this client.": "Keine Websites für diesen Kunden.",
     "Archived clients keep site history.": "Bei archivierten Kunden bleibt der Verlauf erhalten.",

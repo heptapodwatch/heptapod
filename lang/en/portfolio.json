@@ -24,6 +24,7 @@
     "Client state": "Client state",
     "Create client": "Create client",
     "New client": "New client",
+    "Add client": "Add client",
     "clients.archived_cannot_add_site": "Sites cannot be added to an archived client.",
     "No sites for this client.": "No sites for this client.",
     "Archived clients keep site history.": "Archived clients keep site history.",

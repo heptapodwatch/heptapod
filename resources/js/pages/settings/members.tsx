@@ -10,7 +10,6 @@ import { RowActions } from '@/components/row-actions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ListHeader, ListRow } from '@/components/ui/table';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import { FormSecondaryAction } from '@/components/form-section';
 import { SheetForm } from '@/components/sheet-form';
 import { Sheet } from '@/components/ui/sheet';
 import { PageHeader } from '@/components/page-header';
@@ -262,7 +261,7 @@ function InviteDialog({
         >
             <SheetForm
                 title={t(
-                    returning ? 'Invite back to the team' : 'Invite a teammate',
+                    returning ? 'Invite back to the team' : 'Invite teammate',
                 )}
                 description={t(
                     returning
@@ -272,16 +271,13 @@ function InviteDialog({
                 onSubmit={save}
                 noValidate
                 contentProps={{ showCloseButton: !busy }}
-                footer={
-                    <>
-                        <FormSecondaryAction disabled={busy} onClick={onClose}>
-                            {t('Cancel')}
-                        </FormSecondaryAction>
-                        <Button disabled={busy || committed} type="submit">
-                            {t(busy ? 'Sending…' : 'Send invite')}
-                        </Button>
-                    </>
-                }
+                actions={{
+                    kind: 'create',
+                    onCancel: onClose,
+                    busy,
+                    valid: !committed,
+                    pendingLabel: busy ? t('Sending…') : undefined,
+                }}
             >
                 <fieldset
                     disabled={busy || committed}
@@ -426,44 +422,48 @@ function EditMemberSheet({
         >
             <SheetForm
                 title={member.name}
-                description={member.email}
                 onSubmit={(event) => {
                     event.preventDefault();
                     void save(false);
                 }}
                 contentProps={{ showCloseButton: !busy }}
-                footer={
-                    <>
-                        {member.can_deactivate && (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                className="mr-auto"
-                                disabled={busy || saved}
-                                onClick={() => setConfirmRemoval(true)}
-                            >
-                                {t('Remove from team')}
-                            </Button>
-                        )}
-                        <FormSecondaryAction disabled={busy} onClick={onClose}>
-                            {t('Cancel')}
-                        </FormSecondaryAction>
-                        <Button
-                            type="submit"
-                            disabled={
-                                busy ||
-                                saved ||
-                                !dirty ||
-                                (legacyAll &&
-                                    form.data.role === 'Member' &&
-                                    !confirmRestriction)
-                            }
-                        >
-                            {t(busy ? 'Saving…' : 'Save access')}
-                        </Button>
-                    </>
+                actions={
+                    member.is_last_owner
+                        ? {
+                              kind: 'read-only',
+                              onClose,
+                              reason: t(
+                                  'The last active Owner cannot be demoted or removed.',
+                              ),
+                          }
+                        : {
+                              kind: 'edit',
+                              dirty,
+                              busy,
+                              onCancel: onClose,
+                              valid:
+                                  !saved &&
+                                  (form.data.role !== 'Member' ||
+                                      form.data.client_ids.length > 0),
+                              blockedReason:
+                                  legacyAll &&
+                                  form.data.role === 'Member' &&
+                                  !confirmRestriction
+                                      ? t('members.confirm_restriction_to_save')
+                                      : undefined,
+                              pendingLabel: busy ? t('Saving…') : undefined,
+                              remove:
+                                  member.can_deactivate && !saved
+                                      ? {
+                                            label: t('Remove from team'),
+                                            confirm: () =>
+                                                setConfirmRemoval(true),
+                                        }
+                                      : undefined,
+                          }
                 }
             >
+                <p className="text-sm text-muted-foreground">{member.email}</p>
                 <fieldset disabled={busy || saved || member.is_last_owner}>
                     <AccessFields
                         prefix="access"
@@ -474,15 +474,6 @@ function EditMemberSheet({
                         errors={form.errors}
                     />
                 </fieldset>
-                {member.is_last_owner && (
-                    <Alert tone="info">
-                        <AlertTitle>
-                            {t(
-                                'The last active Owner cannot be demoted or removed.',
-                            )}
-                        </AlertTitle>
-                    </Alert>
-                )}
                 {(removed.length > 0 || limited) && (
                     <Alert tone="warning">
                         <AlertTitle>

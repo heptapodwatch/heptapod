@@ -32,7 +32,7 @@ use Illuminate\Validation\ValidationException;
  */
 final readonly class SaveNotificationChannel
 {
-    public function __construct(private ChannelRegistry $channels, private CheckRegistry $checks, private RequestRoutingReconciliation $reconcile) {}
+    public function __construct(private ChannelRegistry $channels, private CheckRegistry $checks, private RequestRoutingReconciliation $reconcile, private UpdateNotificationPreferences $preferences) {}
 
     /** @param array<string, mixed> $attributes */
     public function add(RecipientKind $kind, ?User $user, ?Client $client, array $attributes): NotificationDestination
@@ -160,9 +160,54 @@ final readonly class SaveNotificationChannel
      *
      * @param  array<string, mixed>  $attributes
      */
-    public function edit(NotificationDestination $destination, array $attributes): NotificationDestination
+    public function edit(NotificationDestination $destination, array $attributes, ?User $actor = null): NotificationDestination
+    {
+        $data = $this->editData($destination, $attributes);
+        $preferences = array_intersect_key($attributes, array_flip(['preferences', 'mute_site_ids', 'unmute_site_ids']));
+        $allowsUptime = array_key_exists('check_types', $data)
+            && ($data['check_types'] === null || in_array(CheckKey::Uptime->value, $data['check_types'], true));
+        $lockEpisodes = array_key_exists('scope_client_id', $data) || isset($data['config']) || $allowsUptime;
+
+        return NotificationLocks::transaction(function () use ($destination, $data, $preferences, $actor, $allowsUptime, $lockEpisodes): NotificationDestination {
+            // The new scope's client key comes before the sites, incidents and channel.
+            if (isset($data['scope_client_id'])) {
+                NotificationLocks::forShare(DB::table('clients')->where('id', $data['scope_client_id']))->first(['id']);
+            }
+            $applyConnection = function (NotificationDestination $locked) use ($data, $allowsUptime): bool {
+                if ($data === []) {
+                    return false;
+                }
+                $beforeScope = $locked->scope_client_id;
+                $addedUptime = $allowsUptime && $locked->check_types !== null && ! in_array(CheckKey::Uptime->value, $locked->check_types, true);
+                $wasActive = $locked->enabled && ! $locked->needs_attention;
+                $this->fillConnection($locked, $data);
+                $locked->save();
+
+                return ($beforeScope !== null && $locked->scope_client_id !== $beforeScope) || $addedUptime
+                    || (! $wasActive && $locked->enabled && ! $locked->needs_attention);
+            };
+
+            return ($this->preferences)($destination, $preferences, $actor, $applyConnection, $lockEpisodes)->refresh();
+        });
+    }
+
+    /** @param array<string, mixed> $attributes */
+    public function draft(NotificationDestination $destination, array $attributes): NotificationDestination
+    {
+        $draft = clone $destination;
+        $this->fillConnection($draft, $this->editData($destination, $attributes));
+
+        return $draft;
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array{label?: string, locale?: string, timezone?: string|null, scope_client_id?: int|null, check_types?: list<string>|null, config?: array<string, mixed>}
+     */
+    private function editData(NotificationDestination $destination, array $attributes): array
     {
         $team = $destination->recipient_kind === RecipientKind::Team;
+
         /** @var array{label?: string, locale?: string, timezone?: string|null, scope_client_id?: int|null, check_types?: list<string>|null, config?: array<string, mixed>} $data */
         $data = Validator::make($attributes, [
             'label' => ['sometimes', 'string', 'max:255'],
@@ -174,40 +219,16 @@ final readonly class SaveNotificationChannel
             ...$this->checkTypeRules(),
         ], attributes: $this->attributeNames())->validate();
 
-        return NotificationLocks::transaction(function () use ($destination, $data): NotificationDestination {
-            // NotificationLocks: the target client's key (before level 1: the scope's foreign key takes it at the save, and
-            // archiving that client holds it exclusive while it waits for the client's incidents), the open episodes a
-            // widened route or a resume marks (incidents), then the channel.
-            if (isset($data['scope_client_id'])) {
-                NotificationLocks::forShare(DB::table('clients')->where('id', $data['scope_client_id']))->first(['id']);
-            }
-            $allowsUptime = array_key_exists('check_types', $data)
-                && ($data['check_types'] === null || in_array(CheckKey::Uptime->value, $data['check_types'], true));
-            if (array_key_exists('scope_client_id', $data) || isset($data['config']) || $allowsUptime) {
-                $this->reconcile->lockEpisodes($destination);
-            }
-            NotificationLocks::channels([$destination->id]);
-            $locked = NotificationDestination::query()->findOrFail($destination->id);
-            if ($locked->removed_at !== null) {
-                throw ValidationException::withMessages(['channel' => __('notifications.channel_removed')]);
-            }
-            $widenedScope = array_key_exists('scope_client_id', $data) && $locked->scope_client_id !== null && $data['scope_client_id'] !== $locked->scope_client_id;
-            $addedUptime = $allowsUptime && $locked->check_types !== null && ! in_array(CheckKey::Uptime->value, $locked->check_types, true);
-            $wasActive = $locked->enabled && ! $locked->needs_attention;
-            $locked->fill(array_intersect_key($data, array_flip(['label', 'locale', 'timezone', 'scope_client_id', 'check_types'])));
-            if (isset($data['config'])) {
-                $locked->setAttribute('config', $this->mergedConfig($locked, $data['config']));
-            }
-            // Saving repaired settings clears needs_attention and resumes the channel (NotificationDestination::booted):
-            // like a resume, it can newly reach open outages (design §2.2).
-            $locked->save();
-            $resumed = ! $wasActive && $locked->enabled && ! $locked->needs_attention;
-            if ($widenedScope || $addedUptime || $resumed) {
-                $this->reconcile->forChannel($locked->refresh());
-            }
+        return $data;
+    }
 
-            return $locked->refresh();
-        });
+    /** @param array{label?: string, locale?: string, timezone?: string|null, scope_client_id?: int|null, check_types?: list<string>|null, config?: array<string, mixed>} $data */
+    private function fillConnection(NotificationDestination $destination, array $data): void
+    {
+        $destination->fill(array_diff_key($data, ['config' => true]));
+        if (isset($data['config'])) {
+            $destination->setAttribute('config', $this->mergedConfig($destination, $data['config']));
+        }
     }
 
     /** @param array<string, mixed> $incoming */

@@ -23,7 +23,7 @@ final readonly class SendTestNotification
     public function __construct(private ChannelRegistry $channels, private AccountMailFactory $accountMails) {}
 
     /** The caller authorizes through NotificationDestinationPolicy::sendTest; whoever manages a channel may test it. */
-    public function execute(NotificationDestination $destination, User $actor): DeliveryResult
+    public function execute(NotificationDestination $destination, User $actor, ?NotificationDestination $draft = null): DeliveryResult
     {
         activity('audit')->causedBy($actor)->performedOn($destination)->event('notification.test_requested')
             ->withProperties(['destination_id' => $destination->id])->log('notification.test_requested');
@@ -32,6 +32,7 @@ final readonly class SendTestNotification
 
             return new DeliveryResult(DeliveryState::Failed, $reason, diagnosis: __($reason, locale: $destination->effectiveLocale()));
         }
+        $connection = $draft ?? $destination;
         $message = new AlertMessage(
             eventId: 0, severity: AlertSeverity::Info,
             titleKey: 'notifications.test_title', titleParams: [],
@@ -39,10 +40,14 @@ final readonly class SendTestNotification
             siteId: 0, siteLabel: 'Heptapod', siteUrl: config()->string('app.url'),
             checkType: null, since: CarbonImmutable::now('UTC'), downtimeSeconds: null,
             cause: null, link: route('sites.index'), isTest: true,
-            mail: $destination->channel === 'mail' ? $this->accountMails->test($destination, $actor, CarbonImmutable::now('UTC')) : null,
+            mail: $connection->channel === 'mail' ? $this->accountMails->test($connection, $actor, CarbonImmutable::now('UTC')) : null,
         );
 
-        $result = $this->channels->send($destination->channel, ChannelRecipient::forChannel($destination->destinationConfig()), new AlertNotification($message, 'test:'.Str::uuid()));
+        $result = $this->channels->send($connection->channel, ChannelRecipient::forChannel($connection->destinationConfig()), new AlertNotification($message, 'test:'.Str::uuid()));
+        if ($draft instanceof NotificationDestination) {
+            // Testing an unsaved connection cannot establish the health of the saved one.
+            return $result;
+        }
         if ($result->status === DeliveryState::Sent) {
             // An accepted test proves a repaired channel, so channel_failing resolves without waiting for the next alert.
             $destination->update(['failing_since' => null]);
