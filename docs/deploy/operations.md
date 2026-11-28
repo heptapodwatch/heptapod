@@ -238,13 +238,14 @@ Per-service default caps total 5110 MiB with browser services and 3446 MiB witho
 | Lighthouse |             1536 |
 | Proxy      |              128 |
 
-Horizon runs one master, six fixed supervisors and seven workers by default: two isolated `checks-fast`, one `checks-crawl`, one dedicated `checks-browser`, one dedicated `notifications`, one shared `icons,reports`, and one dedicated `broadcasts`. `HEPTAPOD_CRAWL_CONCURRENCY` sizes only the crawl pool. The browser supervisor stays at one worker because the Lighthouse service admits one audit at a time. `HORIZON_MEMORY_LIMIT` sets the shared Horizon service cap (both variables live in `.env.prod`):
+Horizon runs one master, six fixed supervisors and seven workers by default: two isolated `checks-fast`, one `checks-crawl`, one dedicated `checks-browser`, one dedicated `notifications`, one shared `icons,reports`, and one dedicated `broadcasts`. `HEPTAPOD_CRAWL_CONCURRENCY` sizes only the crawl pool. `HEPTAPOD_FAST_CONCURRENCY` (default 2) sizes the `checks-fast` pool, which runs uptime, performance, certificate, DNS, domain, cron and application health checks one at a time per worker. Raise it when these checks queue up; each extra worker adds 70 MiB to the Horizon budget. The browser supervisor stays at one worker because the Lighthouse service admits one audit at a time. `HORIZON_MEMORY_LIMIT` sets the shared Horizon service cap (these variables live in `.env.prod`):
 
 | Host RAM                | Profile | Crawl processes | `HEPTAPOD_CRAWL_MEMORY_LIMIT_MB` | `HORIZON_MEMORY_LIMIT` | All-service caps without/with browser |
 | ----------------------- | ------- | --------------: | -------------------------------: | ---------------------: | ------------------------------------: |
 | 4 GiB (minimum)         | small   |               1 |                              512 |                  1670m |                       3126 / 4790 MiB |
 | 8 GiB (recommended)     | default |               1 |                              768 |                  1990m |                       3446 / 5110 MiB |
 | 8 GiB or more, 2 crawls | default |               2 |                              768 |                  2990m |                       4446 / 6110 MiB |
+| 8 GiB or more, 4 fast   | default |               1 |                              768 |                  2130m |                       3586 / 5250 MiB |
 
 A fresh installation reads the host's RAM. Below 6 GiB it writes the small profile into `.env.prod` and prints one line that names both keys; from 6 GiB it writes the default profile. Reruns and upgrades never change these values. Install and upgrade refuse before maintenance and migrations when the enabled services' caps exceed the host's RAM minus a 512 MiB reserve for the kernel, Docker and system services, or when `HORIZON_MEMORY_LIMIT` is below the budget for `HEPTAPOD_CRAWL_MEMORY_LIMIT_MB` and `HEPTAPOD_CRAWL_CONCURRENCY`. Both refusals print the values to set.
 
