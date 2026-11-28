@@ -41,6 +41,7 @@
     "import.sections_invalid": "Wählen Sie gültige Abschnitte für den Import aus.",
     "import.cli_sections_invalid": "Geben Sie bei --only eine kommagetrennte Liste von Abschnitten an: sites, maintenance, cron, channels.",
     "import.notice.site_unmatched": "Keine Website passt zu diesem Oh-Dear-Monitor.",
+    "import.notice.site_deleting": "Die passende Website wird gerade gelöscht. Importieren Sie sie erneut, sobald das Löschen abgeschlossen ist.",
     "import.update_sections": "In bestehende Website importieren",
     "import.details.cron": "Cron-Definitionen: :cron",
     "import.details.maintenance": "Wartungszeiträume: :one_off; wiederkehrende Zeiträume: :recurring",

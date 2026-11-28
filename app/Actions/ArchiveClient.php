@@ -64,8 +64,9 @@ final readonly class ArchiveClient
         if ($client->archived_at !== null) {
             return;
         }
+        // A site whose deletion is pending stays with this client until its purge deletes it (SitePolicy::unlessDeleting).
         $sites = Site::query();
-        $sites->getQuery()->where('client_id', $client->id)->orderBy('id');
+        $sites->getQuery()->where('client_id', $client->id)->whereNull('marked_for_deletion_at')->orderBy('id');
         // Release each site's history locks before moving the next; retries continue from the remaining sites.
         $moved = 0;
         foreach ($sites->get() as $site) {
@@ -88,7 +89,7 @@ final readonly class ArchiveClient
             NotificationLocks::clients([$client->id]);
             $locked = Client::query()->findOrFail($client->id);
             $this->authorizeLocked($locked, $user);
-            if (DB::table('sites')->where('client_id', $locked->id)->exists()) {
+            if (DB::table('sites')->where('client_id', $locked->id)->whereNull('marked_for_deletion_at')->exists()) {
                 throw ValidationException::withMessages(['site_action' => __('Sites were added while archiving; try again.')]);
             }
             $locked->update(['archived_at' => now()]);

@@ -50,7 +50,7 @@ final readonly class CreateMaintenanceWindow
         };
         Validator::make(['target_id' => $id], ['target_id' => Rule::exists($table, 'id')])->validate();
         if ($type === 'site') {
-            SitePolicy::deleting(Site::query()->findOrFail($id))?->authorize();
+            app(SitePolicy::class)->unlessDeleting($user, Site::query()->findOrFail($id))?->authorize();
         }
         $start = $this->localTime->resolve(substr($data['starts_local'], 0, 10), substr($data['starts_local'], 11), $data['timezone']);
         $end = $this->localTime->resolve(substr($data['ends_local'], 0, 10), substr($data['ends_local'], 11), $data['timezone']);

@@ -65,6 +65,10 @@ final readonly class ImportOhDearMonitor
             return $this->skipped($monitor, 'monitor:unsupported', __('import.unsupported_monitor', ['type' => $monitor->type]));
         }
         $site = Site::query()->where('oh_dear_id', $monitor->id)->first();
+        // A site whose deletion is pending is neither updated nor imported again; its URL is free once it is gone.
+        if ($site !== null && $site->marked_for_deletion_at !== null) {
+            return $this->skipped($monitor, 'site:deleting', __('import.notice.site_deleting'));
+        }
         $sites = in_array(ImportSection::Sites, $sections, true);
         $importCron = in_array(ImportSection::Cron, $sections, true);
         $importMaintenance = in_array(ImportSection::Maintenance, $sections, true);
@@ -72,7 +76,9 @@ final readonly class ImportOhDearMonitor
             $url = ($this->normalise)($monitor->url);
             $duplicate = $site !== null && $site->url === $monitor->url ? null : $this->duplicates->find($url, $site?->id);
             if ($duplicate instanceof Site) {
-                return $this->skipped($monitor, 'site:exists', $this->duplicates->message($duplicate));
+                return $duplicate->marked_for_deletion_at !== null
+                    ? $this->skipped($monitor, 'site:deleting', __('import.notice.site_deleting'))
+                    : $this->skipped($monitor, 'site:exists', $this->duplicates->message($duplicate));
             }
             // UI imports never fall back to No client when an existing site disappeared since the plan.
             if ($site === null && $approved !== null && $approved['clientId'] === null) {

@@ -63,6 +63,12 @@ it('serializes concurrent target edits with configuration edits or deletion with
             ], timeout: 30);
             $process->start();
             $processes[$index] = $process;
+            // While the deletion waits in its final DeleteSite, the site is already marked: an edit is refused at once.
+            if ($method === 'DELETE' && $index === 0) {
+                $process->wait();
+
+                continue;
+            }
             $deadline = hrtime(true) + 20_000_000_000;
             do {
                 $wait = DB::scalar("SELECT wait_event FROM pg_stat_activity WHERE application_name = ? AND wait_event_type = 'Lock'", [$name.'_'.$index]);
@@ -78,7 +84,7 @@ it('serializes concurrent target edits with configuration edits or deletion with
         foreach ($processes as $index => $process) {
             $process->wait();
             expect($process->isSuccessful())->toBeTrue($process->getErrorOutput());
-            expect($process->getOutput())->toBe($method === 'DELETE' ? ($index === 1 ? '204' : '404') : '200');
+            expect($process->getOutput())->toBe($method === 'DELETE' ? ($index === 1 ? '204' : '403') : '200');
         }
         if ($method === 'DELETE') {
             $this->assertModelMissing($site);

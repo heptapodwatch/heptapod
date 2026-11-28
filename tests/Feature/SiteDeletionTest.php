@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Heptapod\Actions\CreateApiToken;
 use Heptapod\Checks\Execution\ClaimService;
 use Heptapod\Checks\Execution\RunOrigin;
 use Heptapod\Checks\Recording\RecordableRun;
@@ -19,6 +20,7 @@ use Heptapod\Models\Check;
 use Heptapod\Models\Client;
 use Heptapod\Models\Event;
 use Heptapod\Models\Incident;
+use Heptapod\Models\RecurringMaintenancePeriod;
 use Heptapod\Models\Site;
 use Heptapod\Models\SystemIssue;
 use Heptapod\Models\User;
@@ -290,4 +292,48 @@ it('offers and accepts no change or new work for a site whose deletion is pendin
     expect(DB::table('maintenance_periods')->where('site_id', $site->id)->exists())->toBeFalse()
         ->and(DB::table('check_run_attempts')->where('check_id', $check->id)->where('origin', 'manual')->exists())->toBeFalse()
         ->and($site->refresh()->friendly_name)->toBe('Purge shop');
+});
+
+it('answers 404, not 403, to a token that cannot see a site whose deletion is pending', function (): void {
+    $owner = User::factory()->owner()->create();
+    $site = siteWithHistory(1);
+    $check = $site->checks()->sole();
+    $this->actingAs($owner)->delete('/sites/'.$site->id, ['name' => 'Purge shop'])->assertRedirect('/sites');
+    $other = Client::factory()->create();
+    $scoped = app(CreateApiToken::class)($owner, 'scoped', ['monitors:read', 'monitors:write', 'checks:snooze'], $other->id);
+    $inScope = app(CreateApiToken::class)($owner, 'in-scope', ['monitors:read', 'monitors:write', 'checks:snooze'], $site->client_id);
+
+    $this->withToken($scoped)->postJson('/api/checks/'.$check->id.'/snooze', ['minutes' => 5])->assertNotFound();
+    $this->withToken($scoped)->putJson('/api/monitors/'.$site->id, ['friendly_name' => 'Renamed'])->assertNotFound();
+    $this->withToken($inScope)->postJson('/api/checks/'.$check->id.'/snooze', ['minutes' => 5])->assertForbidden();
+    $this->withToken($inScope)->putJson('/api/monitors/'.$site->id, ['friendly_name' => 'Renamed'])->assertForbidden();
+});
+
+it('archives a client and moves its sites while one of them is being deleted, which stays behind', function (): void {
+    $owner = User::factory()->owner()->create();
+    $source = Client::factory()->create();
+    $target = Client::factory()->create();
+    $live = Site::factory()->for($source)->create();
+    $deleting = Site::factory()->for($source)->create(['friendly_name' => 'Purge shop']);
+    $this->actingAs($owner)->delete('/sites/'.$deleting->id, ['name' => 'Purge shop'])->assertRedirect('/sites');
+
+    $this->post('/clients/'.$source->id.'/archive', ['site_action' => 'move', 'client_id' => $target->id])->assertSessionHasNoErrors();
+
+    expect($live->refresh()->client_id)->toBe($target->id)
+        ->and($deleting->refresh()->client_id)->toBe($source->id)
+        ->and($source->refresh()->archived_at)->not->toBeNull();
+});
+
+it('generates no maintenance windows for a site whose deletion is pending', function (): void {
+    $owner = User::factory()->owner()->create();
+    $site = siteWithHistory(1);
+    $other = Site::factory()->create();
+    $recurrences = [RecurringMaintenancePeriod::factory()->create(['site_id' => $site->id]), RecurringMaintenancePeriod::factory()->create(['site_id' => $other->id])];
+    DB::table('maintenance_periods')->delete();
+    $this->actingAs($owner)->delete('/sites/'.$site->id, ['name' => 'Purge shop'])->assertRedirect('/sites');
+
+    $this->artisan('heptapod:generate-maintenance')->assertSuccessful();
+
+    expect(DB::table('maintenance_periods')->where('recurring_maintenance_period_id', $recurrences[0]->id)->exists())->toBeFalse()
+        ->and(DB::table('maintenance_periods')->where('recurring_maintenance_period_id', $recurrences[1]->id)->exists())->toBeTrue();
 });
