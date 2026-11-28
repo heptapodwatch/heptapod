@@ -571,6 +571,25 @@ it('filters whole viewer-local days with a half-open end across DST and per view
         ->where('incidents.1.id', $incidents[3]->id));
 });
 
+it('links each fixed incident filter to a URL that removes only that filter', function (): void {
+    $user = User::factory()->owner()->create(['timezone' => 'Europe/Berlin']);
+    $filters = ['status' => 'all', 'cause' => 'errored', 'check' => 'dns',
+        'started_after' => '2026-10-25', 'started_before' => '2026-10-26T04:15'];
+
+    $response = $this->actingAs($user)->get('/incidents?'.http_build_query(['filter' => $filters, 'page' => 2]))->assertOk();
+    $response->assertInertia(fn (Assert $page): Assert => $page
+        ->where('filter_chips.started_after.timestamp', '2026-10-25T00:00:00+02:00')
+        ->where('filter_chips.started_before.timestamp', '2026-10-26T04:15:00+01:00'));
+    foreach (['cause', 'started_after', 'started_before'] as $key) {
+        $remaining = $filters;
+        unset($remaining[$key]);
+        $url = $response->inertiaProps('filter_chips.'.$key.'.clear_url');
+        expect($url)->toBe('/incidents?'.http_build_query(['filter' => $remaining]));
+        $this->get($url)->assertInertia(fn (Assert $page): Assert => $page
+            ->where('filter_chips.'.$key, null)->where('filters.'.$key, null));
+    }
+});
+
 it('exports a stable incident snapshot without skipping or duplicating rows when incidents resolve between chunks', function (): void {
     $owner = User::factory()->owner()->create();
     $client = Client::factory()->create();

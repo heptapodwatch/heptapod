@@ -1,6 +1,7 @@
 import { ListFooter } from '@/components/list-footer';
 import {
     FilterBar,
+    FilterChip,
     FilterCombobox,
     FilterSelectTrigger,
 } from '@/components/filter-bar';
@@ -380,6 +381,12 @@ export default function SitesIndex({
                         {checkFilter}
                         {tagFilter}
                         {advisoryFilter}
+                        {filters.attention && (
+                            <FilterChip
+                                label={t('Needs attention')}
+                                onClear={() => visit({ attention: null })}
+                            />
+                        )}
                     </FilterBar>
                 </div>
                 <Deferred

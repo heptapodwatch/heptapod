@@ -141,7 +141,7 @@ export function CheckHistory({
         </ListRow>
     );
     return (
-        <Card className="overflow-hidden" data-check-history>
+        <Card id="check-history" className="overflow-hidden" data-check-history>
             <CardHeader>
                 <CardTitle>
                     {t(

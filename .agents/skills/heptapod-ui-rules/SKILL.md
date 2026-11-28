@@ -214,3 +214,4 @@ Admin-curated configuration lists (members, tokens, channels) show in full. Neve
 - `FilterBar`: search first, then selects, then the segmented control. Its `actions` slot holds filter actions only, never page actions.
 - Filters apply live (no submit button), push to browser history and survive Back.
 - An active select or combobox filter shows that it is active and has its own clear button; a search or segmented control shows its value.
+- Use `FilterChip` for an active filter that can be cleared but is not changed from the bar.

@@ -9,9 +9,11 @@ use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\RunPhase;
 use Heptapod\Data\Ui\RunsBoardData;
 use Heptapod\Data\Ui\RunsFilterData;
-use Heptapod\Data\Ui\RunsHistoryPageData;
+use Heptapod\Data\Ui\RunsHistoryData;
 use Heptapod\Data\Ui\RunsIndexPageData;
 use Heptapod\Http\ListPageSize;
+use Heptapod\Models\Check;
+use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Queries\RunsReader;
 use Heptapod\Queries\SitesReader;
@@ -28,7 +30,7 @@ final class RunsController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
-        Validator::make($request->all(), [
+        $validated = Validator::make($request->all(), [
             'client' => ['sometimes', 'integer', 'min:1'],
             'check' => ['sometimes', 'integer', 'min:1'],
             'type' => ['sometimes', Rule::enum(CheckKey::class)],
@@ -59,9 +61,24 @@ final class RunsController extends Controller
         $read = function () use (&$board, $reader, $user, $filters): RunsBoardData {
             return $board ??= $reader->board($user, $filters);
         };
-        $readHistory = function () use (&$history, $reader, $user, $filters, $since): RunsHistoryPageData {
+        $readHistory = function () use (&$history, $reader, $user, $filters, $since): RunsHistoryData {
             return $history ??= $reader->history($user, $filters->per_page, $filters->check, $filters->before, $filters->client, $filters->type?->value, $filters->state, $filters->show_same_result, since: $since, manualOnly: $filters->started_manually);
         };
+
+        $checkFilter = null;
+        if ($filters->check !== null) {
+            $check = $reader->findVisibleCheck($user, $filters->check);
+            $site = $check?->site;
+            unset($validated['check'], $validated['before']);
+            $checkFilter = [
+                'clear_url' => route('runs.index', $validated, absolute: false),
+                'check' => $check instanceof Check && $site instanceof Site ? [
+                    'type' => $check->type,
+                    'site_name' => $site->displayName(),
+                    'history_url' => route('sites.checks.show', ['site' => $check->site_id, 'check' => $check->id], absolute: false).'#check-history',
+                ] : null,
+            ];
+        }
 
         return Inertia::render('runs/index', new RunsIndexPageData(
             current: Lazy::closure(static fn (): array => $read()->current),
@@ -71,6 +88,8 @@ final class RunsController extends Controller
             next_cursor: Lazy::closure(static fn (): ?string => $readHistory()->next_cursor),
             clients: Lazy::closure(static fn (): array => $sites->clients($user)),
             filters: $filters,
+            check_filter: $checkFilter,
+            attempt_retention_days: config()->integer('monitoring.attempt_retention_days'),
         ));
     }
 }

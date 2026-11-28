@@ -10,6 +10,7 @@ import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import {
     FilterBar,
+    FilterChip,
     FilterCombobox,
     FilterSelectTrigger,
 } from '@/components/filter-bar';
@@ -25,8 +26,8 @@ beforeEach(() => i18n.changeLanguage('en'));
 afterEach(cleanup);
 
 /** A toolbar with one fixed and one growable filter, both defaulting to "all", wired like the list pages. */
-function Toolbar({ check = 'all', client = 'all' }) {
-    const [filters, setFilters] = useState({ check, client });
+function Toolbar({ check = 'all', client = 'all', scope = '' }) {
+    const [filters, setFilters] = useState({ check, client, scope });
     const change = (changes: Partial<typeof filters>) =>
         setFilters((current) => ({ ...current, ...changes }));
     return (
@@ -34,10 +35,21 @@ function Toolbar({ check = 'all', client = 'all' }) {
             <FilterBar
                 activeCount={0}
                 filtersActive={
-                    filters.check !== 'all' || filters.client !== 'all'
+                    filters.check !== 'all' ||
+                    filters.client !== 'all' ||
+                    filters.scope !== ''
                 }
-                onClearFilters={() => change({ check: 'all', client: 'all' })}
+                onClearFilters={() =>
+                    change({ check: 'all', client: 'all', scope: '' })
+                }
             >
+                {filters.scope && (
+                    <FilterChip
+                        label="Site"
+                        value={filters.scope}
+                        onClear={() => change({ scope: '' })}
+                    />
+                )}
                 <FilterCombobox
                     ariaLabel="Client"
                     options={[
@@ -116,6 +128,22 @@ it('resets only the cleared filter from the × inside an active control, without
         screen.getByRole('button', { name: 'Clear Client filter' }),
     ).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Clear filters' })).toBeTruthy();
+});
+
+it('names a fixed filter and clears it without resetting another filter', async () => {
+    render(<Toolbar scope="Example site" client="4" />);
+    expect(screen.getByText('Example site')).toBeTruthy();
+
+    await act(async () => {
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Clear Site filter' }),
+        );
+    });
+
+    expect(screen.queryByText('Example site')).toBeNull();
+    expect(
+        screen.getByRole('combobox', { name: 'Client' }).textContent,
+    ).toContain('Acme');
 });
 
 it('Clear filters resets every filter and then disappears', async () => {

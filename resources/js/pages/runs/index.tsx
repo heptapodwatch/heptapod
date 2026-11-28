@@ -10,6 +10,7 @@ import { useEffect, useRef } from 'react';
 import { EmptyState } from '@/components/empty-state';
 import {
     FilterBar,
+    FilterChip,
     FilterCombobox,
     FilterSelectTrigger,
 } from '@/components/filter-bar';
@@ -38,6 +39,7 @@ import { checkTypes } from '@/lib/check-types';
 import { index as runsIndex } from '@/routes/runs';
 import { show as checkShow } from '@/routes/sites/checks';
 import { EntityLink } from '@/components/entity-link';
+import { TextLink } from '@/components/text-link';
 
 type Phase = Heptapod.Data.Ui.CheckRunStateData['phase'];
 const phases: Record<Phase, string> = {
@@ -72,11 +74,9 @@ export default function Runs({
     next_cursor,
     clients,
     filters,
-}: Heptapod.Data.Ui.RunsBoardData &
-    Heptapod.Data.Ui.RunsHistoryPageData & {
-        clients: Heptapod.Data.Ui.ClientData[];
-        filters: Heptapod.Data.Ui.RunsFilterData;
-    }) {
+    check_filter,
+    attempt_retention_days,
+}: Heptapod.Data.Ui.RunsIndexPageData) {
     const { t } = useTranslation();
     const format = useFormat();
     // Merge consecutive live changes before the preceding response arrives.
@@ -108,11 +108,21 @@ export default function Runs({
                 preserveState: true,
                 preserveScroll: true,
                 ...(historyOnly
-                    ? { only: ['runs', 'next_cursor', 'filters'] }
+                    ? {
+                          only: [
+                              'runs',
+                              'next_cursor',
+                              'filters',
+                              'check_filter',
+                          ],
+                      }
                     : {}),
             },
         );
     };
+    const selectedCheck = check_filter?.check;
+    const checkScoped = check_filter !== null;
+    const scopeReasonId = checkScoped ? 'runs-check-scope' : undefined;
     // activeCount counts the page filters inside the mobile collapse; the history range lives outside it but narrows
     // the history too. The same-result toggle defaults to hiding repeats, so turning it on only widens and never counts.
     const runFilterCount = [
@@ -145,57 +155,79 @@ export default function Runs({
                     filtersActive={filtersActive}
                     onClearFilters={clearRunFilters}
                 >
-                    <FilterCombobox
-                        ariaLabel={t('Client')}
-                        options={[
-                            { value: 'all', label: t('All clients') },
-                            ...clientComboboxOptions(clients),
-                        ]}
-                        value={filters.client?.toString() ?? 'all'}
-                        onValueChange={(value) =>
-                            visitFilters({
-                                client: value === 'all' ? null : Number(value),
-                            })
-                        }
-                        onClear={
-                            filters.client !== null
-                                ? () => visitFilters({ client: null })
-                                : null
-                        }
-                    />
-                    <Select
-                        value={filters.type ?? 'all'}
-                        onValueChange={(value) => {
-                            if (value !== 'all' && !isCheckType(value))
-                                throw new Error('Unknown check type: ' + value);
-                            visitFilters({
-                                type: value === 'all' ? null : value,
-                            });
-                        }}
-                    >
-                        <FilterSelectTrigger
-                            aria-label={t('Check type')}
+                    {check_filter && (
+                        <FilterChip
+                            label={t('Check')}
+                            value={
+                                selectedCheck
+                                    ? `${t(checkTypes[selectedCheck.type].label)} · ${selectedCheck.site_name}`
+                                    : t('runs.filters.checkUnavailable')
+                            }
+                            clearHref={check_filter.clear_url}
+                        />
+                    )}
+                    {(!checkScoped || filters.client !== null) && (
+                        <FilterCombobox
+                            ariaLabel={t('Client')}
+                            disabled={checkScoped}
+                            describedBy={scopeReasonId}
+                            options={[
+                                { value: 'all', label: t('All clients') },
+                                ...clientComboboxOptions(clients),
+                            ]}
+                            value={filters.client?.toString() ?? 'all'}
+                            onValueChange={(value) =>
+                                visitFilters({
+                                    client:
+                                        value === 'all' ? null : Number(value),
+                                })
+                            }
                             onClear={
-                                filters.type !== null
-                                    ? () => visitFilters({ type: null })
+                                filters.client !== null
+                                    ? () => visitFilters({ client: null })
                                     : null
                             }
+                        />
+                    )}
+                    {(!checkScoped || filters.type !== null) && (
+                        <Select
+                            value={filters.type ?? 'all'}
+                            disabled={checkScoped}
+                            onValueChange={(value) => {
+                                if (value !== 'all' && !isCheckType(value))
+                                    throw new Error(
+                                        'Unknown check type: ' + value,
+                                    );
+                                visitFilters({
+                                    type: value === 'all' ? null : value,
+                                });
+                            }}
                         >
-                            <SelectValue />
-                        </FilterSelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">
-                                {t('All checks')}
-                            </SelectItem>
-                            {Object.entries(checkTypes).map(
-                                ([value, check]) => (
-                                    <SelectItem key={value} value={value}>
-                                        {t(check.label)}
-                                    </SelectItem>
-                                ),
-                            )}
-                        </SelectContent>
-                    </Select>
+                            <FilterSelectTrigger
+                                aria-label={t('Check type')}
+                                aria-describedby={scopeReasonId}
+                                onClear={
+                                    filters.type !== null
+                                        ? () => visitFilters({ type: null })
+                                        : null
+                                }
+                            >
+                                <SelectValue />
+                            </FilterSelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">
+                                    {t('All checks')}
+                                </SelectItem>
+                                {Object.entries(checkTypes).map(
+                                    ([value, check]) => (
+                                        <SelectItem key={value} value={value}>
+                                            {t(check.label)}
+                                        </SelectItem>
+                                    ),
+                                )}
+                            </SelectContent>
+                        </Select>
+                    )}
                     <Select
                         value={filters.state ?? 'all'}
                         onValueChange={(value) => {
@@ -257,6 +289,14 @@ export default function Runs({
                             </SelectItem>
                         </SelectContent>
                     </Select>
+                    {checkScoped && (
+                        <p
+                            id={scopeReasonId}
+                            className="text-xs text-muted-foreground"
+                        >
+                            {t('runs.filters.checkScope')}
+                        </p>
+                    )}
                 </FilterBar>
             </div>
             <RunBoard
@@ -301,6 +341,23 @@ export default function Runs({
                     >
                         {t('Show runs with the same result as before')}
                     </CheckboxField>
+                    <p className="basis-full text-xs text-muted-foreground">
+                        {t('runs.history.attemptRetention', {
+                            count: attempt_retention_days,
+                        })}
+                        {selectedCheck && (
+                            <>
+                                {' '}
+                                <TextLink
+                                    document
+                                    variant="secondary"
+                                    href={selectedCheck.history_url}
+                                >
+                                    {t('runs.history.acceptedResults')}
+                                </TextLink>
+                            </>
+                        )}
+                    </p>
                 </div>
                 {runs.length > 0 && (
                     <ListHeader className="grid-cols-[9rem_7rem_minmax(0,1fr)_5rem_minmax(0,1.3fr)] lg:grid">
@@ -433,6 +490,7 @@ export default function Runs({
                                               'runs',
                                               'next_cursor',
                                               'filters',
+                                              'check_filter',
                                           ],
                                           preserveState: true,
                                       }

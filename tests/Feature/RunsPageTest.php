@@ -58,23 +58,38 @@ it('keeps unclaimed late checks out of the active board and shares the authorize
     expect(CheckRunAttempt::query()->count())->toBe(0);
     $this->get('/runs?state=late')->assertInertia(fn (Assert $page): Assert => $page->has('current', 0));
     $this->get('/runs?check='.$hidden->id.'&show_same_result=1')->assertInertia(fn (Assert $page): Assert => $page->has('current', 0)->has('runs', 0)
+        ->where('check_filter.check', null)->where('check_filter.clear_url', '/runs?show_same_result=1')
         ->where('lateRunsCount', 1));
+    $this->get('/runs?check='.($hidden->id + 1000))->assertInertia(fn (Assert $page): Assert => $page->has('runs', 0)
+        ->where('check_filter.check', null)->where('check_filter.clear_url', '/runs'));
     $late->update(['enabled' => false]);
     $this->get('/runs')->assertInertia(fn (Assert $page): Assert => $page->missing('late')->has('current', 0)->where('lateRunsCount', 0));
 });
 
-it('filters current and attempt history by authorized client and check type while preserving check-id links', function (): void {
+it('filters attempts by client and type and exposes a check filter that can be removed on its own', function (): void {
     $this->freezeTime();
     $user = User::factory()->create();
     $user->assignRole('Owner');
     $visible = Check::factory()->create(['next_run_at' => now()->addHour()]);
-    $other = Check::factory()->create(['type' => 'lighthouse', 'next_run_at' => now()->addHour()]);
+    $other = Check::factory()->for(Site::factory()->state(['friendly_name' => 'Example store']))
+        ->create(['type' => 'lighthouse', 'next_run_at' => now()->addHour()]);
+    config(['monitoring.attempt_retention_days' => 3]);
     expect(app(ClaimService::class)->runNow($visible->id, RunOrigin::System))->not->toBeNull();
     expect(app(ClaimService::class)->runNow($other->id, RunOrigin::System))->not->toBeNull();
 
     $this->actingAs($user)->get('/runs?client='.$visible->site->client_id.'&type=uptime&state=queued')->assertInertia(fn (Assert $page): Assert => $page
         ->has('runs', 1)->where('runs.0.check_id', $visible->id)->has('current', 1)->where('current.0.check_id', $visible->id));
-    $this->get('/runs?check='.$other->id)->assertInertia(fn (Assert $page): Assert => $page->has('runs', 1)->where('runs.0.check_id', $other->id));
+    $removeCheck = $this->get('/runs?check='.$other->id.'&period=7d&show_same_result=1&state=queued')
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->has('runs', 1)->where('runs.0.check_id', $other->id)
+            ->where('check_filter.check.type', 'lighthouse')->where('check_filter.check.site_name', 'Example store')
+            ->where('check_filter.check.history_url', "/sites/{$other->site_id}/checks/{$other->id}#check-history")
+            ->where('attempt_retention_days', 3))
+        ->inertiaProps('check_filter.clear_url');
+    expect($removeCheck)->toBe('/runs?state=queued&show_same_result=1&period=7d');
+    $this->get($removeCheck)->assertInertia(fn (Assert $page): Assert => $page
+        ->where('check_filter', null)->where('filters.period', '7d')->where('filters.show_same_result', true)
+        ->where('filters.state', 'queued')->has('runs', 2));
     $this->get('/runs?type=dns')->assertInertia(fn (Assert $page): Assert => $page->has('runs', 0)->has('current', 0));
     $this->get('/runs?state=not-a-state')->assertSessionHasErrors('state');
 });
