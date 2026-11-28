@@ -5,7 +5,6 @@ import { InfoTooltip, TapTooltip } from '@/components/info-tooltip';
 import { StatusBadge } from '@/components/monitoring';
 import { ScoreRing, type ScoreRingTone } from '@/components/score-ring';
 import { TruncatedText } from '@/components/truncated-text';
-import { TableCell } from '@/components/ui/table';
 import { useFormat } from '@/hooks/use-format';
 import { cn } from '@/lib/utils';
 import type { SiteState } from '@/types/monitoring';
@@ -466,28 +465,27 @@ export function ServerListLegend({ defaults }: { defaults: Thresholds }) {
 }
 
 /** The list row's value columns (desktop table): Disk used, RAM used, Load. */
-export function ServerGaugeCells({ server }: { server: ServerRow }) {
+/** The table's disk (the fullest shown mount) or RAM gauge; empty until the first report. */
+export function ServerShareGauge({
+    server,
+    share,
+}: {
+    server: ServerRow;
+    share: 'disk' | 'memory';
+}) {
     const [disk, memory] = useListShares(server.values, server.thresholds);
-    return (
-        <>
-            {[disk, memory].map((share, index) => (
-                <TableCell key={index} className="text-center">
-                    {share !== undefined && <ListShare share={share} />}
-                </TableCell>
-            ))}
-            <TableCell className="text-center">
-                {server.values !== null && (
-                    <ListLoad
-                        values={server.values}
-                        thresholds={server.thresholds}
-                    />
-                )}
-            </TableCell>
-        </>
+    const shown = share === 'disk' ? disk : memory;
+    return shown === undefined ? null : <ListShare share={shown} />;
+}
+
+/** The table's 5-minute load against the cores; empty until the first report. */
+export function ServerLoadValue({ server }: { server: ServerRow }) {
+    return server.values === null ? null : (
+        <ListLoad values={server.values} thresholds={server.thresholds} />
     );
 }
 
-/** The list card's values (below md). */
+/** The list card's values (below the table breakpoint). */
 export function ServerGaugeLine({
     server,
 }: {

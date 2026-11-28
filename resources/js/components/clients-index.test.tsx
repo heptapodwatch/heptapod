@@ -60,7 +60,7 @@ function page(
                 },
             },
         ],
-        pagination: {
+        clients_pagination: {
             current_page: 1,
             last_page: 1,
             per_page: 25,
@@ -125,7 +125,7 @@ function emptyPage(
     return {
         ...page({}),
         clients: [],
-        pagination: { ...page({}).pagination, total: 0 },
+        clients_pagination: { ...page({}).clients_pagination, total: 0 },
         ...changes,
     };
 }

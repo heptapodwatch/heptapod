@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Data\Ui;
 
 use Heptapod\Contracts\ListFilterData;
+use Heptapod\Contracts\PaginationData;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
@@ -20,14 +21,11 @@ final class MaintenanceIndexPageData extends Data
      */
     public function __construct(
         public readonly array $windows,
-        public readonly ?int $next_page,
+        public readonly PaginationData $windows_pagination,
         public readonly bool $can_manage,
         public readonly array $tags,
         public readonly array $timezones,
         public readonly array $window_clients,
         public readonly array $filters,
-        public readonly ?int $previous_page = null,
-        public readonly int $total = 0,
-        public readonly int $per_page = 50,
     ) {}
 }

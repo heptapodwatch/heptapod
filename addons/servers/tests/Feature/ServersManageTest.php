@@ -425,12 +425,12 @@ it('pages the server list with the shared page sizes, the last page for a page b
     }
 
     $this->get('/servers?servers_per_page=10')->assertInertia(fn (Assert $page): Assert => $page
-        ->count('servers', 10)->where('pagination.total', 12)->where('pagination.last_page', 2)->where('pagination.page_name', 'servers_page'));
+        ->count('servers', 10)->where('servers_pagination.total', 12)->where('servers_pagination.last_page', 2)->where('servers_pagination.page_name', 'servers_page'));
     $this->get('/servers?servers_per_page=10&servers_page=2')->assertInertia(fn (Assert $page): Assert => $page
         ->where('servers.0.name', 'web-11')->where('servers.1.name', 'web-12')->count('servers', 2));
     // A page beyond the end shows the last page.
     $this->get('/servers?servers_per_page=10&servers_page=3')->assertInertia(fn (Assert $page): Assert => $page
-        ->count('servers', 2)->where('pagination.current_page', 2)->where('pagination.total', 12));
+        ->count('servers', 2)->where('servers_pagination.current_page', 2)->where('servers_pagination.total', 12));
     $this->get('/servers?servers_per_page=7')->assertSessionHasErrors('servers_per_page');
 });
 
@@ -494,7 +494,7 @@ it('filters the list by name or host name and by state', function (): void {
         ->and($names('filter[state]=awaiting'))->toBe(['acre-web'])
         ->and($names('filter[state]=reporting&filter[search]=acre'))->toBe([]);
     $this->get('/servers?filter[state]=awaiting')->assertInertia(fn (Assert $page): Assert => $page
-        ->where('filters.search.value', null)->where('filters.state.value', 'awaiting')->where('pagination.total', 1));
+        ->where('filters.search.value', null)->where('filters.state.value', 'awaiting')->where('servers_pagination.total', 1));
 });
 
 it('searches for server names containing literal commas and boolean words', function (): void {

@@ -23,7 +23,11 @@ import type { EventDto } from '@/types/monitoring';
 type Group = Heptapod.Data.Ui.ActivityGroupData;
 
 /** The partial reload of a flapping group's own events; the timeline and its loaded batches stay as they are. */
-const detailProps = ['expanded_id', 'expanded_events', 'expanded_pagination'];
+const detailProps = [
+    'expanded_id',
+    'expanded_events',
+    'expanded_events_pagination',
+];
 
 /**
  * Activity as the site overview's event timeline, grouped by calendar day (relative day + date header, the event
@@ -36,13 +40,14 @@ export function ActivityTimeline({
     filters,
     expandedId,
     expandedEvents,
-    expandedPagination,
+    pagination,
 }: {
     groups: Group[];
     filters: Record<string, string | null>;
     expandedId: number | null;
     expandedEvents: EventDto[];
-    expandedPagination: Heptapod.Contracts.PaginationData | null;
+    /** The expanded group's own events page. */
+    pagination: Heptapod.Contracts.PaginationData | null;
 }) {
     const { t, i18n } = useTranslation();
     const format = useFormat();
@@ -154,7 +159,7 @@ export function ActivityTimeline({
                                         group.event_count,
                                     ),
                                 })}
-                                pagination={expandedPagination ?? undefined}
+                                pagination={pagination ?? undefined}
                                 only={detailProps}
                             />
                         </div>

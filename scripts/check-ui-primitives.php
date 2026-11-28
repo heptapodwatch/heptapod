@@ -82,7 +82,6 @@ $sheetContentOwners = [
 ];
 /** Raw <button> elements outside components/ui/: each is a shared primitive or a row target that draws the shared ring itself. Every other button is Button. */
 $rawButtonOwners = [
-    'resources/js/components/data-table.tsx' => [1, 'Mobile site card: the whole card is the row target (rowTargetClass).'],
     'resources/js/components/filter-bar.tsx' => [1, 'FilterBar clear (x) control drawn inside the filter trigger.'],
     'resources/js/components/info-tooltip.tsx' => [1, 'InfoTooltip primitive: the 16 px info trigger.'],
     'resources/js/components/monitoring.tsx' => [1, 'UptimeBar: the strip is one tab stop with Left/Right day navigation.'],

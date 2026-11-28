@@ -159,14 +159,14 @@ it('filters the Sites list by open advisory, package and advisory ID within the 
         // An advisory link may contain commas; it is one identity, not a list.
         ->and(advisorySiteIds('filter[advisory]='.urlencode('https://example.com/advisory/a,b')))->toBe([]);
     $this->get('/sites?filter[package]=dompdf/dompdf')->assertInertia(fn (Assert $page): Assert => $page
-        ->where('filters.package.value', 'dompdf/dompdf')->where('pagination.total', 1));
+        ->where('filters.package.value', 'dompdf/dompdf')->where('sites_pagination.total', 1));
 
     $this->actingAs($member)->get('/sites')->assertInertia(fn (Assert $page): Assert => $page->where('advisory_packages', [
         ['package' => 'phpmailer/phpmailer', 'sites' => 1, 'severity' => 'critical'],
     ]));
     expect(advisorySiteIds('filter[advisories]=1'))->toBe([$mailer->site_id])
         ->and(advisorySiteIds('filter[package]=dompdf/dompdf'))->toBe([]);
-    $this->get('/sites?filter[advisory]='.$phpmailerCve)->assertInertia(fn (Assert $page): Assert => $page->where('pagination.total', 1));
+    $this->get('/sites?filter[advisory]='.$phpmailerCve)->assertInertia(fn (Assert $page): Assert => $page->where('sites_pagination.total', 1));
 
     // A Check error and a skipped advisories result verify nothing, so the advisories stay open; an ok result clears them.
     runAdvisories($mailer, new FetchResult(failure: new FetchFailure(FetchFailureKind::Connect)));

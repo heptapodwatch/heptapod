@@ -45,10 +45,6 @@ final readonly class SiteDirectoryReader implements SiteDirectory
     {
         $query = $this->query($user, $siteIds);
         $page = $this->paging->paginate($query, $list);
-        // A page beyond the end (sites unlinked meanwhile) shows the last page.
-        if ($page->currentPage() > $page->lastPage()) {
-            $page = $this->paging->paginate($query, $list, $page->lastPage());
-        }
         /** @var list<Site> $items */
         $items = array_values($page->items());
 

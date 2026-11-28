@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Heptapod\Queries;
 
 use Carbon\CarbonImmutable;
+use Heptapod\Contracts\ListPaging;
+use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\MaintenanceSiteHeaderData;
 use Heptapod\Data\Ui\MaintenanceWindowData;
 use Heptapod\Maintenance\MaintenanceTargets;
@@ -16,15 +18,16 @@ use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\JoinClause;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Spatie\Tags\Tag;
 
 final readonly class MaintenanceReader
 {
-    public function __construct(private SitePolicy $policy, private MaintenanceTargets $targets) {}
+    public function __construct(private SitePolicy $policy, private MaintenanceTargets $targets, private ListPaging $paging) {}
 
-    /** @return array{windows: list<MaintenanceWindowData>, next_page: int|null, previous_page: int|null, total: int, site_name: string|null} */
-    public function index(User $user, int $perPage, int $page = 1, ?int $siteId = null, ?int $clientId = null, string $state = 'all'): array
+    /** @return array{windows: list<MaintenanceWindowData>, pagination: PaginationData, site_name: string|null} */
+    public function index(User $user, ?int $siteId = null, ?int $clientId = null, string $state = 'all'): array
     {
         abort_unless($user->hasAnyRole(['Owner', 'Admin', 'Member']), 403);
         $query = $siteId === null ? MaintenancePeriod::query() : MaintenancePeriod::targetingSite($siteId);
@@ -50,11 +53,8 @@ final readonly class MaintenanceReader
                 ->whereRaw($effectiveEnd.($state === 'active' ? ' > ?' : ' <= ?'), [$timestamp]);
         }
         $query->getQuery()->orderByDesc('maintenance_periods.starts_at')->orderByDesc('maintenance_periods.id');
-        $windows = $query->paginate($perPage, ['*'], 'page', $page);
-        if ($page > $windows->lastPage()) {
-            $page = $windows->lastPage();
-            $windows = $query->paginate($perPage, ['*'], 'page', $page);
-        }
+        /** @var LengthAwarePaginator<int, MaintenancePeriod> $windows */
+        $windows = $this->paging->paginate($query, 'maintenance', 'page');
         $byType = $windows->getCollection()->groupBy('target_type');
         $sites = Site::query();
         $sites->getQuery()->whereIn('id', $byType->get('site', collect())->map(static function (mixed $window): int {
@@ -111,8 +111,7 @@ final readonly class MaintenanceReader
                 $recurrence?->anchor_date?->format('Y-m-d'), $recurrence?->timezone);
         }
 
-        return ['windows' => $rows, 'next_page' => $windows->hasMorePages() ? $page + 1 : null,
-            'previous_page' => $page > 1 ? $page - 1 : null, 'total' => $windows->total(), 'site_name' => $siteName];
+        return ['windows' => $rows, 'pagination' => PaginationData::fromPaginator($windows), 'site_name' => $siteName];
     }
 
     public function siteHeader(User $user, Site $site): ?MaintenanceSiteHeaderData

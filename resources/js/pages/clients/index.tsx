@@ -5,7 +5,7 @@ import {
     ListFilterBar,
     withFilterValues,
 } from '@/components/list-filter-bar';
-import { ListFooter } from '@/components/list-footer';
+import { ListTable } from '@/components/list-table';
 import {
     useLiveSearch,
     type LiveSearchVisitOptions,
@@ -20,27 +20,13 @@ import { stateCountOrder, statusLabels } from '@/lib/status';
 import type { SiteState } from '@/types/monitoring';
 import { EmptyState } from '@/components/empty-state';
 import { ClientMark } from '@/components/client-mark';
-import {
-    EntityLink,
-    openRowTarget,
-    rowTargetClass,
-} from '@/components/entity-link';
+import { EntityLink } from '@/components/entity-link';
 import { TextLink } from '@/components/text-link';
-import { cn } from '@/lib/utils';
 import { Alert, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import {
-    Table,
-    listCardPadding,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { useFormat } from '@/hooks/use-format';
 import { useLiveReload } from '@/hooks/use-live';
-import { useBufferedChanges } from '@/hooks/use-buffered-changes';
+import { useBufferedPage } from '@/hooks/use-buffered-changes';
 import { PendingChanges } from '@/components/pending-changes';
 import {
     create as clientCreate,
@@ -50,7 +36,7 @@ import {
 
 export default function ClientsIndex({
     clients,
-    pagination,
+    clients_pagination: latestPagination,
     filters,
     can_manage,
 }: Heptapod.Data.Ui.ClientsIndexPageData) {
@@ -82,14 +68,21 @@ export default function ClientsIndex({
             },
             {
                 ...searchOptions,
-                only: ['clients', 'pagination', 'filters'],
+                only: ['clients', 'clients_pagination', 'filters'],
                 preserveState: true,
                 preserveScroll: true,
             },
         );
     };
-    useLiveReload(['state.changed'], ['clients', 'pagination']);
-    const buffered = useBufferedChanges(clients, (row) => row.client.id);
+    useLiveReload(['state.changed'], ['clients', 'clients_pagination']);
+    const buffered = useBufferedPage(
+        clients,
+        latestPagination,
+        (row) => row.client.id,
+    );
+    const clients_pagination = buffered.pagination;
+    const uptime = (summary: Heptapod.Data.Ui.DashboardTilesData) =>
+        summary.uptime === null ? '—' : format.uptimePercentage(summary.uptime);
     const statusSummary = (summary: Heptapod.Data.Ui.DashboardTilesData) => {
         // OK and Unavailable are not listed: the row shows what needs a look.
         const counts: Partial<Record<SiteState, number>> = {
@@ -141,7 +134,7 @@ export default function ClientsIndex({
                 <PageHeader
                     title={t('Clients')}
                     description={t('pages.clients.description')}
-                    count={format.number(pagination.total)}
+                    count={format.number(clients_pagination.total)}
                     actions={
                         <>
                             {can_manage && (
@@ -185,161 +178,119 @@ export default function ClientsIndex({
                     count={buffered.pendingCount}
                     apply={buffered.apply}
                 />
-                {buffered.rows.length ? (
-                    <div className="overflow-hidden rounded-lg border">
-                        <div className="hidden sm:block">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>{t('Client')}</TableHead>
-                                        <TableHead className="text-right">
-                                            {t('Sites monitored')}
-                                        </TableHead>
-                                        <TableHead className="text-right">
-                                            {t('Status')}
-                                        </TableHead>
-                                        <TableHead className="text-right">
-                                            {t('Open incidents')}
-                                        </TableHead>
-                                        <TableHead className="text-right">
-                                            {t('30-day uptime')}
-                                        </TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {buffered.rows.map(
-                                        ({ client, summary }) => (
-                                            <TableRow
-                                                key={client.id}
-                                                className={rowTargetClass}
-                                                onClick={openRowTarget(
-                                                    clientShow.url(client.id),
-                                                )}
-                                            >
-                                                <TableCell column="name">
-                                                    <EntityLink
-                                                        name={client.name}
-                                                        href={clientShow.url(
-                                                            client.id,
-                                                        )}
-                                                        icon={
-                                                            <ClientMark
-                                                                small
-                                                                client={client}
-                                                            />
-                                                        }
-                                                    />
-                                                </TableCell>
-                                                <TableCell className="text-right font-mono tabular-nums">
-                                                    {format.number(
-                                                        summary.sites,
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    {statusSummary(summary)}
-                                                </TableCell>
-                                                <TableCell className="text-right font-mono tabular-nums">
-                                                    {format.number(
-                                                        summary.open_incidents,
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-right font-mono tabular-nums">
-                                                    {summary.uptime === null
-                                                        ? '—'
-                                                        : format.uptimePercentage(
-                                                              summary.uptime,
-                                                          )}
-                                                </TableCell>
-                                            </TableRow>
-                                        ),
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
-                        <ul className="divide-y sm:hidden">
-                            {buffered.rows.map(({ client, summary }) => (
-                                <li key={client.id}>
-                                    <Link
-                                        href={clientShow.url(client.id)}
-                                        prefetch
-                                        className={cn(
-                                            'block space-y-2',
-                                            listCardPadding,
-                                            rowTargetClass,
-                                        )}
-                                    >
-                                        <EntityLink
-                                            name={client.name}
-                                            insideLink
-                                            icon={
-                                                <ClientMark client={client} />
-                                            }
-                                        />
-                                        {statusSummary(summary)}
-                                        <span className="flex justify-between gap-2 text-xs text-muted-foreground">
-                                            <span>
-                                                {t('Sites monitored')}:{' '}
-                                                <span className="font-mono tabular-nums">
-                                                    {format.number(
-                                                        summary.sites,
-                                                    )}
-                                                </span>
-                                            </span>
-                                            <span>
-                                                {t('Open incidents')}:{' '}
-                                                <span className="font-mono tabular-nums">
-                                                    {format.number(
-                                                        summary.open_incidents,
-                                                    )}
-                                                </span>
-                                            </span>
-                                        </span>
-                                        <span className="text-xs text-muted-foreground">
-                                            {t('30-day uptime')}:{' '}
-                                            {summary.uptime === null
-                                                ? '—'
-                                                : format.uptimePercentage(
-                                                      summary.uptime,
-                                                  )}
-                                        </span>
-                                    </Link>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                ) : (
-                    <EmptyState
-                        icon={Users}
-                        title={t('No clients yet')}
-                        description={t(
-                            'Add a client to group its sites, alerts and reports.',
-                        )}
-                        action={
-                            can_manage && (
-                                <Button asChild>
-                                    <Link href={clientCreate.url()}>
-                                        <Plus className="size-4" />
-                                        {t('New client')}
-                                    </Link>
-                                </Button>
-                            )
-                        }
-                        filtered={{
-                            active: filtersActive(draftFilters),
-                            title: t('No matching clients'),
-                            description: t('Clear filters to see all clients.'),
-                        }}
-                    />
-                )}
-                {pagination.total > 0 && (
-                    <ListFooter
-                        count={t('{{count}} clients', {
-                            count: pagination.total,
-                            formattedCount: format.number(pagination.total),
-                        })}
-                        pagination={pagination}
-                    />
-                )}
+                <ListTable
+                    rows={buffered.rows}
+                    rowKey={({ client }) => client.id}
+                    rowHref={({ client }) => clientShow.url(client.id)}
+                    columns={[
+                        {
+                            id: 'client',
+                            header: t('Client'),
+                            content: 'name',
+                            cell: ({ client }) => (
+                                <EntityLink
+                                    name={client.name}
+                                    href={clientShow.url(client.id)}
+                                    icon={<ClientMark small client={client} />}
+                                />
+                            ),
+                        },
+                        {
+                            id: 'sites',
+                            header: t('Sites monitored'),
+                            align: 'end',
+                            cell: ({ summary }) => (
+                                <span className="font-mono tabular-nums">
+                                    {format.number(summary.sites)}
+                                </span>
+                            ),
+                        },
+                        {
+                            id: 'status',
+                            header: t('Status'),
+                            align: 'end',
+                            cell: ({ summary }) => statusSummary(summary),
+                        },
+                        {
+                            id: 'open_incidents',
+                            header: t('Open incidents'),
+                            align: 'end',
+                            cell: ({ summary }) => (
+                                <span className="font-mono tabular-nums">
+                                    {format.number(summary.open_incidents)}
+                                </span>
+                            ),
+                        },
+                        {
+                            id: 'uptime',
+                            header: t('30-day uptime'),
+                            align: 'end',
+                            cell: ({ summary }) => (
+                                <span className="font-mono tabular-nums">
+                                    {uptime(summary)}
+                                </span>
+                            ),
+                        },
+                    ]}
+                    card={({ client, summary }) => (
+                        <>
+                            <EntityLink
+                                name={client.name}
+                                insideLink
+                                icon={<ClientMark client={client} />}
+                            />
+                            {statusSummary(summary)}
+                            <span className="flex justify-between gap-2 text-xs text-muted-foreground">
+                                <span>
+                                    {t('Sites monitored')}:{' '}
+                                    <span className="font-mono tabular-nums">
+                                        {format.number(summary.sites)}
+                                    </span>
+                                </span>
+                                <span>
+                                    {t('Open incidents')}:{' '}
+                                    <span className="font-mono tabular-nums">
+                                        {format.number(summary.open_incidents)}
+                                    </span>
+                                </span>
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                                {t('30-day uptime')}: {uptime(summary)}
+                            </span>
+                        </>
+                    )}
+                    empty={
+                        <EmptyState
+                            icon={Users}
+                            title={t('No clients yet')}
+                            description={t(
+                                'Add a client to group its sites, alerts and reports.',
+                            )}
+                            action={
+                                can_manage && (
+                                    <Button asChild>
+                                        <Link href={clientCreate.url()}>
+                                            <Plus className="size-4" />
+                                            {t('New client')}
+                                        </Link>
+                                    </Button>
+                                )
+                            }
+                            filtered={{
+                                active: filtersActive(draftFilters),
+                                title: t('No matching clients'),
+                                description: t(
+                                    'Clear filters to see all clients.',
+                                ),
+                            }}
+                        />
+                    }
+                    count={t('{{count}} clients', {
+                        count: clients_pagination.total,
+                        formattedCount: format.number(clients_pagination.total),
+                    })}
+                    pagination={clients_pagination}
+                />
             </PageContainer>
         </>
     );

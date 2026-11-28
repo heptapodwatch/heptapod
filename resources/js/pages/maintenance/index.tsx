@@ -52,7 +52,7 @@ import {
 import { Sheet } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { useBufferedChanges } from '@/hooks/use-buffered-changes';
+import { useBufferedPage } from '@/hooks/use-buffered-changes';
 import { useFormat } from '@/hooks/use-format';
 import { useLiveReload } from '@/hooks/use-live';
 import { useViewerTimezone } from '@/hooks/use-viewer-timezone';
@@ -197,10 +197,7 @@ function maintenanceActionCopy(
 
 export default function MaintenanceIndex({
     windows,
-    next_page,
-    previous_page,
-    total,
-    per_page,
+    windows_pagination: latestPagination,
     filters,
     can_manage,
     timezones,
@@ -217,7 +214,7 @@ export default function MaintenanceIndex({
     const viewerTimezone = useViewerTimezone();
     useLiveReload(
         ['state.changed'],
-        ['windows', 'window_clients', 'next_page', 'previous_page', 'total'],
+        ['windows', 'window_clients', 'windows_pagination'],
         undefined,
         true,
         {
@@ -230,13 +227,16 @@ export default function MaintenanceIndex({
                       },
         },
     );
-    const buffered = useBufferedChanges(
+    const buffered = useBufferedPage(
         windows,
+        latestPagination,
         (window) => window.id,
-        null,
-        (window) => JSON.stringify(window),
-        'windows',
+        {
+            contentKey: (window) => JSON.stringify(window),
+            ownResponseProp: 'windows',
+        },
     );
+    const windows_pagination = buffered.pagination;
     // The site header's "Schedule maintenance" opens this sheet with the site preselected (?site_id=…&new=1).
     const [sheetOpen, setSheetOpen] = useState(
         () => can_manage && site_id !== null && newWindowRequested(),
@@ -462,7 +462,7 @@ export default function MaintenanceIndex({
                 state,
                 ...(site_id === null ? {} : { site_id }),
                 ...(client_id === null ? {} : { client_id }),
-                page: previous_page === null ? 1 : previous_page + 1,
+                page: windows_pagination.current_page,
             },
         },
     };
@@ -620,12 +620,6 @@ export default function MaintenanceIndex({
             {stateLabel(window)}
         </span>
     );
-    const pageLink = (page: number | null) =>
-        page === null
-            ? null
-            : maintenanceIndex.url({
-                  query: { ...values, page },
-              });
     return (
         <PageContainer>
             <Head title={t('Maintenance')} />
@@ -885,22 +879,13 @@ export default function MaintenanceIndex({
                     })}
                 </div>
             )}
-            {total > 0 && (
+            {windows_pagination.total > 0 && (
                 <ListFooter
                     count={t('{{count}} windows', {
-                        count: total,
-                        formattedCount: format.number(total),
+                        count: windows_pagination.total,
+                        formattedCount: format.number(windows_pagination.total),
                     })}
-                    pagination={{
-                        current_page:
-                            previous_page === null ? 1 : previous_page + 1,
-                        per_page,
-                        total,
-                        last_page: Math.max(1, Math.ceil(total / per_page)),
-                        previous_page_url: pageLink(previous_page),
-                        next_page_url: pageLink(next_page),
-                        page_name: 'page',
-                    }}
+                    pagination={windows_pagination}
                 />
             )}
             <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>

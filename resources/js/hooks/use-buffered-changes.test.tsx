@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
-import { useBufferedChanges } from './use-buffered-changes';
+import { clientPagination } from '@/components/list-footer';
+import { useBufferedChanges, useBufferedPage } from './use-buffered-changes';
 
 type Listener = (event: { detail: Record<string, unknown> }) => void;
 const listeners = vi.hoisted(() => new Map<string, Set<Listener>>());
@@ -216,4 +217,37 @@ it('keeps a content-only own edit in place without revealing a buffered foreign 
     act(() => result.current.apply());
     expect(result.current.rows).toEqual(afterOwnReasonEdit);
     expect(result.current.pendingCount).toBe(0);
+});
+
+it('changes buffered rows and their pager together', () => {
+    const pageThree = [{ id: 21 }, { id: 22 }];
+    // Another tab removed a client: the server's page 3 now starts one row later and the total dropped.
+    const freshPageThree = [{ id: 22 }, { id: 23 }];
+    const { result, rerender } = renderHook(
+        ({ rows, pagination }) =>
+            useBufferedPage(rows, pagination, (row) => row.id),
+        {
+            initialProps: {
+                rows: pageThree,
+                pagination: clientPagination(3, 10, 22),
+            },
+        },
+    );
+
+    rerender({ rows: freshPageThree, pagination: clientPagination(3, 10, 21) });
+    expect(result.current.pendingCount).toBe(1);
+    expect(result.current.rows).toEqual(pageThree);
+    expect(result.current.pagination.total).toBe(22);
+
+    act(() => result.current.apply());
+    expect(result.current.rows).toEqual(freshPageThree);
+    expect(result.current.pagination.total).toBe(21);
+
+    // A change that shows at once (same rows, new values) brings its pager along.
+    rerender({
+        rows: [{ id: 22 }, { id: 23 }],
+        pagination: clientPagination(3, 10, 23),
+    });
+    expect(result.current.pendingCount).toBe(0);
+    expect(result.current.pagination.total).toBe(23);
 });

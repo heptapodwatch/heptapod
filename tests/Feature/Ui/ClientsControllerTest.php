@@ -70,7 +70,7 @@ it('keeps client summaries batched as the client count grows', function (int $co
         $response = $this->get('/clients');
         $queries = count(DB::getQueryLog());
         DB::disableQueryLog();
-        $response->assertInertia(fn (Assert $page): Assert => $page->has('clients', min(50, $total))->where('pagination.total', $total)->where('clients.0.summary.warning', 1));
+        $response->assertInertia(fn (Assert $page): Assert => $page->has('clients', min(50, $total))->where('clients_pagination.total', $total)->where('clients.0.summary.warning', 1));
 
         return $queries;
     };
@@ -190,7 +190,7 @@ it('paginates client sites with a fixed detail query budget', function (int $cou
         $response = $this->get('/clients/'.$client->id);
         $queries = count(DB::getQueryLog());
         DB::disableQueryLog();
-        $response->assertInertia(fn (Assert $page): Assert => $page->has('sites', min(50, $total))->where('pagination.total', $total)->where('summary.warning', $total));
+        $response->assertInertia(fn (Assert $page): Assert => $page->has('sites', min(50, $total))->where('sites_pagination.total', $total)->where('summary.warning', $total));
 
         return $queries;
     };

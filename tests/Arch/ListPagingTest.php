@@ -90,23 +90,16 @@ const BoundedPageLists = [
     'Heptapod\Data\Ui\SitesIndexPageData::$advisory_packages' => 'the picker\'s most severe packages; more_advisory_packages says others exist',
     'Heptapod\Data\Ui\SitesIndexPageData::$clients' => RowClients,
     'Heptapod\Data\Ui\SitesIndexPageData::$needs_attention' => 'the attention preview; Show all opens the paged list filtered to it',
+    'Heptapod\Data\Ui\SitesIndexPageData::$sites_history' => 'one history entry per row of the paged sites',
     'Heptapod\Data\Ui\SitesIndexPageData::$tags' => SelectChoices,
     'Heptapod\Data\Ui\UpcomingIndexPageData::$clients' => RowClients,
 ];
 
-/** Page lists paged by a property other than `<rows>_pagination`. @var array<string, array{string, string}> "Class::$property" => [pager property, the control it is passed to] */
+/** Cursor lists: no total, so no PaginationData; their next page is a cursor or URL. @var array<string, array{string, string}> "Class::$property" => [pager property, the control it is passed to] */
 const PagedPageLists = [
-    'Heptapod\Data\Ui\ActivityPageData::$expanded_events' => ['expanded_pagination', 'ActivityTimeline'],
-    'Heptapod\Data\Ui\ClientDetailPageData::$sites' => ['pagination', 'ListFooter'],
-    'Heptapod\Data\Ui\ClientsIndexPageData::$clients' => ['pagination', 'ListFooter'],
     'Heptapod\Data\Ui\IncidentNotificationPageData::$deliveries' => ['next_cursor', 'Button'],
-    'Heptapod\Data\Ui\IncidentsIndexPageData::$incidents' => ['pagination', 'ListFooter'],
-    'Heptapod\Data\Ui\MaintenanceIndexPageData::$windows' => ['next_page', 'ListFooter'],
     'Heptapod\Data\Ui\RunsIndexPageData::$runs' => ['next_cursor', 'ListFooter'],
-    'Heptapod\Data\Ui\SitesIndexPageData::$sites' => ['pagination', 'ListFooter'],
-    'Heptapod\Data\Ui\SitesIndexPageData::$sites_history' => ['pagination', 'ListFooter'],
     'Heptapod\Data\Ui\UpcomingIndexPageData::$items' => ['next_page_url', 'ListFooter'],
-    'Heptapod\Addons\Servers\Data\ServersPageData::$servers' => ['pagination', 'ListFooter'],
 ];
 
 /** Catalog strings that announce a cap or progress count but describe no UI list. @var array<string, string> key => reason */
@@ -162,7 +155,7 @@ function listFooterControls(array $sources): array
     // Extract each top-level component function's body so we can trace pagination prop forwarding to ListFooter.
     $functions = [];
     foreach ($sources as $source) {
-        if (preg_match_all('/(?:export\s+)?function\s+([A-Z]\w*)\s*\(/', $source, $matches, PREG_OFFSET_CAPTURE) === 0) {
+        if (preg_match_all('/(?:export\s+)?function\s+([A-Z]\w*)\s*(?:<[^>]*>)?\s*\(/', $source, $matches, PREG_OFFSET_CAPTURE) === 0) {
             continue;
         }
         foreach ($matches[1] as $index => [$name, $offset]) {

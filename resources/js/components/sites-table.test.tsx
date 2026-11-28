@@ -2,8 +2,9 @@ import { cleanup, render } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { I18nextProvider } from 'react-i18next';
-import { DataTable } from './data-table';
+import { SitesTable } from './sites-table';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { clientPagination } from '@/components/list-footer';
 import { clients, sites } from '@/fixtures/design';
 import i18n from '@/lib/i18n';
 import type { CheckDto, SiteDto } from '@/types/monitoring';
@@ -78,10 +79,12 @@ it('shows the worst active check, preferring an open incident then its ID, with 
     const { container } = render(
         <I18nextProvider i18n={i18n}>
             <TooltipProvider>
-                <DataTable
-                    data={[data]}
+                <SitesTable
+                    sites={[data]}
                     clients={clients}
-                    onSelect={() => {}}
+                    empty={null}
+                    count="1 site"
+                    pagination={clientPagination(1, 50, 1)}
                 />
             </TooltipProvider>
         </I18nextProvider>,
@@ -101,12 +104,12 @@ it('keeps the column gear in its own header cell when every hideable column is h
     const { container } = render(
         <I18nextProvider i18n={i18n}>
             <TooltipProvider>
-                <DataTable
-                    data={sites.slice(0, 3)}
+                <SitesTable
+                    sites={sites.slice(0, 3)}
                     clients={clients}
-                    full
-                    serverMode
-                    onSelect={() => {}}
+                    empty={null}
+                    count="3 sites"
+                    pagination={clientPagination(1, 50, 3)}
                 />
             </TooltipProvider>
         </I18nextProvider>,

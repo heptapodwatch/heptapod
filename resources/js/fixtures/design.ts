@@ -1050,7 +1050,7 @@ export function sitesPageFixture(
             clients: new Set(data.map((site) => site.client_id)).size,
         },
         can_create: true,
-        pagination: pagination(data.length),
+        sites_pagination: pagination(data.length),
         sort: 'status',
         filters: {
             search: listFilter('search', 'Search sites'),

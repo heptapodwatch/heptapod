@@ -272,9 +272,6 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
         $whitelist = $mixed ? null : $this->whitelist($latest->site_id);
         $ignored = $mixed ? [] : $this->filterFindings($findingQuery, $whitelist, $legacy, $view);
         $findingsPage = $this->paging->paginate($findingQuery->orderBy('id'), 'findings');
-        if ($findingsPage->currentPage() > $findingsPage->lastPage()) {
-            $findingsPage = $this->paging->paginate($findingQuery, 'findings', $findingsPage->lastPage());
-        }
         $rows = collect($findingsPage->items());
         $notVerifiableQuery = DB::table('crawl_findings')->where('snapshot_id', $latest->id)
             ->whereRaw(LinkClassificationPolicy::notVerifiableSql('', $legacy));

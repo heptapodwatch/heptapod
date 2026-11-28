@@ -1,3 +1,4 @@
+import { clientPagination } from '@/components/list-footer';
 import { listFilter } from '@/fixtures/list-filter';
 import {
     cleanup,
@@ -170,10 +171,7 @@ function page(
     return (
         <MaintenanceIndex
             windows={windows}
-            next_page={null}
-            previous_page={null}
-            total={windows.length}
-            per_page={50}
+            windows_pagination={clientPagination(1, 50, windows.length)}
             filters={{
                 state: listFilter('segmented', 'Window state', {
                     default: 'all',

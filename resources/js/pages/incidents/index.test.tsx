@@ -93,7 +93,7 @@ function renderIncidents(
                             default: '30d',
                         }),
                     }}
-                    pagination={{
+                    incidents_pagination={{
                         current_page: 1,
                         last_page: 1,
                         per_page: 50,

@@ -16,7 +16,6 @@ use Heptapod\Data\Ui\MaintenanceIndexPageData;
 use Heptapod\Data\Ui\MaintenanceTargetOptionData;
 use Heptapod\Data\Ui\MaintenanceWindowData;
 use Heptapod\Exceptions\ExpectedRefusal;
-use Heptapod\Http\ListPageSize;
 use Heptapod\Http\MaintenanceReturnContext;
 use Heptapod\Maintenance\LocalMaintenanceTime;
 use Heptapod\Models\Client;
@@ -53,10 +52,8 @@ final class MaintenanceController extends Controller
         ], ['page' => ['sometimes', 'integer', 'between:1,10000']]);
         $user = $request->user();
         abort_unless($user instanceof User, 401);
-        $perPage = ListPageSize::resolve($request, 'maintenance');
-        $page = $filters->parameter('page');
         $state = $filters->value('state') ?? throw new \LogicException('The maintenance state has no default.');
-        $result = $reader->index($user, $perPage, is_numeric($page) ? (int) $page : 1, $filters->integer('site_id'), $filters->integer('client_id'), $state);
+        $result = $reader->index($user, $filters->integer('site_id'), $filters->integer('client_id'), $state);
         $siteName = $result['site_name'];
         $canManage = $user->hasAnyRole(['Owner', 'Admin']);
         // The rows name a targeted client with its mark; only the clients of the listed windows are read.
@@ -92,11 +89,10 @@ final class MaintenanceController extends Controller
             }
         }
 
-        return Inertia::render('maintenance/index', new MaintenanceIndexPageData($result['windows'], $result['next_page'],
+        return Inertia::render('maintenance/index', new MaintenanceIndexPageData($result['windows'], $result['pagination'],
             $canManage, array_values($tags),
             $timezones,
-            array_values($windowClients), $filters->data(),
-            $result['previous_page'], $result['total'], $perPage)->toArray());
+            array_values($windowClients), $filters->data())->toArray());
     }
 
     public function show(Request $request, Site $site, MaintenanceReader $reader): JsonResponse

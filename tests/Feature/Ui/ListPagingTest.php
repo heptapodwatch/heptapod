@@ -45,7 +45,7 @@ it('pages one Activity group\'s own events', function (): void {
 
     $this->actingAs($owner)->get('/activity?group='.$group.'&activity_events_per_page=10')->assertInertia(fn (Assert $page): Assert => $page
         ->has('expanded_events', 10)->where('expanded_events.0.id', $members[0])
-        ->where('expanded_pagination.total', 12)->where('expanded_pagination.last_page', 2));
+        ->where('expanded_events_pagination.total', 12)->where('expanded_events_pagination.last_page', 2));
     $this->get('/activity?group='.$group.'&activity_events_page=2&activity_events_per_page=10')->assertInertia(fn (Assert $page): Assert => $page
         ->has('expanded_events', 2)->where('expanded_events.0.id', $members[10])->where('expanded_events.1.id', $members[11]));
 });

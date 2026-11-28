@@ -66,10 +66,10 @@ it('orders sites by severity then locale-aware name and permits explicit sorting
 
     $this->actingAs($user)->get('/sites')->assertOk()->assertInertia(fn (Assert $page): Assert => $page
         ->component('sites/index')->missing('sites')
-        ->where('pagination.per_page', 50)->where('pagination.total', 6)->where('sort', 'status')
+        ->where('sites_pagination.per_page', 50)->where('sites_pagination.total', 6)->where('sort', 'status')
         ->where('summary.total', 6)->where('summary.attention', 3)->where('summary.paused', 0)
         ->loadDeferredProps(['list'], fn (Assert $list): Assert => $list
-            ->has('sites', 6)->missing('summary')->missing('pagination')
+            ->has('sites', 6)->missing('summary')->missing('sites_pagination')
             ->where('sites.0.name', 'Down')->where('sites.0.checks.0.open_incident_id', Incident::query()->sole()->id)
             ->where('sites.1.state', 'check-error')->where('sites.2.state', 'warning')
             ->where('sites.3.state', 'pending')->where('sites.4.name', 'Äpfel')->where('sites.5.name', 'Zulu')));
@@ -114,7 +114,7 @@ it('scopes sites and client filter options and never exposes stored secrets', fu
 
     $response = $this->actingAs($user)->get('/sites')->assertOk()->assertInertia(fn (Assert $page): Assert => $page
         ->missing('sites')->has('clients', 1)->where('clients.0.id', $allowed->id)
-        ->where('pagination.total', 1)->where('pagination.per_page', 50)
+        ->where('sites_pagination.total', 1)->where('sites_pagination.per_page', 50)
         ->where('summary.total', 1)->where('summary.attention', 1)
         ->where('tags.0.name', 'public-tag')->where('can_create', false)
         ->has('tiles')->has('needs_attention', 1)->where('needs_attention.0.id', $site->id)
@@ -122,7 +122,7 @@ it('scopes sites and client filter options and never exposes stored secrets', fu
     expect(json_encode($response->inertiaProps(), JSON_THROW_ON_ERROR))->not->toContain($secret);
     expect($site->refresh()->crawler_headers[0]['value'])->toBe($secret);
     $this->get('/sites?filter[client_id]='.$hidden->id)->assertInertia(fn (Assert $page): Assert => $page
-        ->where('pagination.total', 0)
+        ->where('sites_pagination.total', 0)
         ->loadDeferredProps(['list'], fn (Assert $list): Assert => $list->has('sites', 0)));
     $this->get('/sites', [
         'X-Inertia' => 'true',
@@ -252,7 +252,7 @@ it('batches the check strip and recent sparkline within a fixed query budget', f
         CheckRun::factory()->for($check)->create(['started_at' => now()->subMinutes(2), 'ended_at' => now()->subMinute(), 'result' => RunResult::Succeeded, 'metrics' => ['total_time_in_seconds' => ($index + 1) / 1000]]);
     }
     $this->actingAs($user)->get('/sites')->assertInertia(fn (Assert $page): Assert => $page
-        ->missing('sites')->missing('sites_history')->where('pagination.total', $count));
+        ->missing('sites')->missing('sites_history')->where('sites_pagination.total', $count));
     $partial = function (string $prop): array {
         DB::enableQueryLog();
         DB::flushQueryLog();
@@ -265,7 +265,7 @@ it('batches the check strip and recent sparkline within a fixed query budget', f
 
     [$rows, $queries, $sampleQueries] = $partial('sites');
     $rows->assertInertia(fn (Assert $page): Assert => $page->component('sites/index')
-        ->has('sites', 50)->missing('sites_history')->missing('pagination')->has('sites.0.checks', 1));
+        ->has('sites', 50)->missing('sites_history')->missing('sites_pagination')->has('sites.0.checks', 1));
     expect(count($queries))->toBeLessThanOrEqual(24)->and($sampleQueries)->toBeEmpty();
 
     [$history, $queries, $sampleQueries] = $partial('sites_history');

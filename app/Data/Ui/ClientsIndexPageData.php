@@ -19,7 +19,7 @@ final class ClientsIndexPageData extends Data
      */
     public function __construct(
         public readonly ClosureLazy|array $clients,
-        public readonly ClosureLazy|PaginationData $pagination,
+        public readonly ClosureLazy|PaginationData $clients_pagination,
         public readonly array $filters,
         public readonly bool $can_manage,
     ) {}

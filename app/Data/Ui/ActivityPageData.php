@@ -30,6 +30,6 @@ final class ActivityPageData extends Data
         public readonly array $filters,
         public readonly ?int $expanded_id,
         public readonly array $expanded_events,
-        public readonly ?PaginationData $expanded_pagination,
+        public readonly ?PaginationData $expanded_events_pagination,
     ) {}
 }

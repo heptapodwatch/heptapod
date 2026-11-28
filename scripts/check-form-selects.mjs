@@ -189,8 +189,13 @@ for (const file of [
                         file ===
                             'resources/js/components/list-filter-bar.tsx' &&
                         sourceExpr === 'fixedOptions';
+                    // ListSortSelect: the sorts the list's own column definitions declare.
+                    const declaredSortChoices =
+                        file === 'resources/js/components/list-table.tsx' &&
+                        sourceExpr === 'sortOptions';
                     if (
                         !declaredFilterChoices &&
+                        !declaredSortChoices &&
                         !toolbarAllowList.has(root) &&
                         !sourceExpr.startsWith('Object.') &&
                         !sourceExpr.startsWith('[')
