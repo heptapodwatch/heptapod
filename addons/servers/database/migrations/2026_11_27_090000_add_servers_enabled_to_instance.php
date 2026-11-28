@@ -9,11 +9,14 @@ return new class extends SettingsMigration
 {
     public function up(): void
     {
-        $this->migrator->add('instance.servers_enabled', false);
+        // Retry-safe: the settings write can commit before the migration is recorded.
+        if (! $this->migrator->exists('instance.servers_enabled')) {
+            $this->migrator->add('instance.servers_enabled', false);
+        }
     }
 
     public function down(): void
     {
-        $this->migrator->delete('instance.servers_enabled');
+        $this->migrator->deleteIfExists('instance.servers_enabled');
     }
 };
