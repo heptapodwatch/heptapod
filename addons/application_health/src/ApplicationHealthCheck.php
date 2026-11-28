@@ -18,7 +18,6 @@ use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\HealthProbeEvaluator;
 use Heptapod\Contracts\Http\FetchFailure;
 use Heptapod\Contracts\Http\FetchFailureKind;
@@ -92,6 +91,11 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
         return count(CheckResults::fromJson(json_encode($validated, JSON_THROW_ON_ERROR))->checkResults());
     }
 
+    public function namesCheck(string $key): bool
+    {
+        return str_starts_with($key, 'application_health.presentation.failed');
+    }
+
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData
     {
         $observation = $run->observationEvidence();
@@ -143,10 +147,6 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
     public function mailEventTones(): array
     {
         return [
-            'incident.opened' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.cause_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.resolved' => ['succeeded' => MailTone::Recovered, 'warning' => MailTone::Recovered],
-            'check.result_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
             'application_health.component_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Changed],
         ];
     }
@@ -185,18 +185,11 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
         return [new TableBlock(__('application_health.mail_results', locale: $locale), [__('application_health.mail_check', locale: $locale), __('application_health.mail_result', locale: $locale)], $rows, $more)];
     }
 
-    public function mailRecoveryEvidence(CheckRunPresentationInput $opening, CarbonImmutable $openedAt, ?CheckRunPresentationInput $recovery, CarbonImmutable $recoveredAt, string $locale, string $timezone, MailEventFacts $event): array
-    {
-        return $recovery instanceof CheckRunPresentationInput
-            ? $this->mailEvidence($recovery, $recoveredAt, $locale, $timezone, $event)
-            : [new NoteBlock(__('application_health.mail_details_not_retained', locale: $locale))];
-    }
-
     public function definition(): CheckDefinition
     {
         return new CheckDefinition(
             CheckKey::ApplicationHealth, 'checks.application_health.label', 'heart-pulse',
-            'checks-fast', 30, 60, 1, ExecutionMode::Poll,
+            'checks-fast', 30, 60, 1,
             new Schema([
                 'result_url' => new Field(FieldType::String, ['required', 'url:http,https', 'max:2048'], presentation: new FieldPresentation('application_health.result_url'), targetUrl: true),
                 'secret' => new Field(FieldType::Secret, ['required', 'max:10000', 'not_regex:/[\r\n]/'], presentation: new FieldPresentation('application_health.secret')),

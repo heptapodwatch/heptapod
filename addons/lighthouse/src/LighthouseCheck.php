@@ -21,7 +21,6 @@ use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
 use Heptapod\Contracts\ChromiumRenderer;
 use Heptapod\Contracts\DailyMetricHistoryProvider;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\LatestRunEvidence;
 use Heptapod\Contracts\ListScore;
 use Heptapod\Contracts\ListScoresProvider;
@@ -74,6 +73,15 @@ final readonly class LighthouseCheck implements CheckDetailProvider, CheckHistor
     }
 
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData
+    {
+        return CheckRunPresentationData::withMappedHistory($this->presentReport($run), $run, static fn (CheckRunPresentationPartData $first): ?string => match ($first->key) {
+            'lighthouse.presentation.below', 'lighthouse.presentation.below_and_dropped' => 'checks.history.score_below',
+            'lighthouse.presentation.dropped' => 'checks.history.score_dropped',
+            default => null,
+        });
+    }
+
+    private function presentReport(CheckRunPresentationInput $run): ?CheckRunPresentationData
     {
         if ($run->result === RunResult::Errored && (str_starts_with($run->summary, 'lighthouse.cause.') || $run->summary === 'causes.engine.lighthouse_incomplete')) {
             $details = [];
@@ -157,6 +165,11 @@ final readonly class LighthouseCheck implements CheckDetailProvider, CheckHistor
         return new CheckRunPresentationData([$first, new CheckRunPresentationPartData($timeout), ...array_slice($findings, 1)], history_label: $history);
     }
 
+    public function namesCheck(string $key): bool
+    {
+        return false;
+    }
+
     public function history(int $checkId, bool $canViewCapabilities = false): LighthouseHistoryData
     {
         return $this->store->history($checkId);
@@ -183,10 +196,6 @@ final readonly class LighthouseCheck implements CheckDetailProvider, CheckHistor
     public function mailEventTones(): array
     {
         return [
-            'incident.opened' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.cause_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.resolved' => ['succeeded' => MailTone::Recovered, 'warning' => MailTone::Recovered],
-            'check.result_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
             'lighthouse.score_threshold_crossed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Changed],
         ];
     }
@@ -212,13 +221,6 @@ final readonly class LighthouseCheck implements CheckDetailProvider, CheckHistor
 
         return [new ScoresBlock(__('lighthouse.mail_scores', ['at' => $at->isoFormat('ll, HH:mm z')], $locale), $items,
             __('lighthouse.mail_recorded_thresholds', locale: $locale))];
-    }
-
-    public function mailRecoveryEvidence(CheckRunPresentationInput $opening, CarbonImmutable $openedAt, ?CheckRunPresentationInput $recovery, CarbonImmutable $recoveredAt, string $locale, string $timezone, MailEventFacts $event): array
-    {
-        return $recovery instanceof CheckRunPresentationInput
-            ? $this->mailEvidence($recovery, $recoveredAt, $locale, $timezone, $event)
-            : [new NoteBlock(__('lighthouse.mail_details_not_retained', locale: $locale))];
     }
 
     public function listScores(?array $metrics): array
@@ -250,7 +252,7 @@ final readonly class LighthouseCheck implements CheckDetailProvider, CheckHistor
 
         return new CheckDefinition(
             CheckKey::Lighthouse, 'checks.lighthouse.label', 'gauge',
-            'checks-browser', 170, 86400, 1, ExecutionMode::Poll,
+            'checks-browser', 170, 86400, 1,
             new Schema([
                 'continent' => new Field(FieldType::String, ['sometimes', 'nullable', 'max:100'], presentation: new FieldPresentation('lighthouse.continent', hidden: true), default: null),
                 'device_emulation' => new Field(FieldType::String, ['sometimes', 'in:mobile,desktop'], presentation: new FieldPresentation('lighthouse.device', options: ['mobile' => 'Mobile', 'desktop' => 'Desktop']), default: 'mobile'),

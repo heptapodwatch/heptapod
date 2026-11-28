@@ -24,6 +24,6 @@ final class CertificateHealthServiceProvider extends ServiceProvider
     {
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         $this->loadJsonTranslationsFrom(__DIR__.'/../lang');
-        $registry->register(CertificateHealthCheck::class, new OhDearImportMapping(['expires_soon_threshold_in_days', 'frequency_value', 'frequency_unit', 'failed_notification_threshold']));
+        $registry->register(CertificateHealthCheck::class, new OhDearImportMapping(['expires_soon_threshold_in_days']));
     }
 }

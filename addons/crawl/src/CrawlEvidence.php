@@ -29,6 +29,21 @@ final class CrawlEvidence extends Data
         /** @var array<string, int> Not-verifiable result label => link count; empty on runs recorded before per-reason counts. */
         public array $not_verifiable_reasons = []) {}
 
+    /** Crawl limits, unverifiable links and crawl notes describe the crawl, not the check's findings. */
+    public static function namesCheck(string $key): bool
+    {
+        return ! str_starts_with($key, 'crawl.') && ! in_array($key, [
+            'broken_links.presentation.not_verifiable', 'mixed_content.presentation.not_verifiable',
+            'broken_links.presentation.unchecked', 'broken_links.presentation.page_limit',
+            'broken_links.presentation.resource_limit', 'broken_links.presentation.time_limit',
+            'broken_links.presentation.comparison_limit', 'broken_links.incomplete',
+            'broken_links.incomplete_resources', 'broken_links.incomplete_other', 'broken_links.incomplete_rate_limited_urls',
+            'broken_links.incomplete_time_limit', 'broken_links.comparison_limit',
+            'mixed_content.incomplete', 'mixed_content.incomplete_resources', 'mixed_content.incomplete_other',
+            'mixed_content.incomplete_time_limit', 'mixed_content.comparison_limit', 'mixed_content.incomplete_rate_limited_urls',
+        ], true);
+    }
+
     /** Keep collection provenance separate from problem and change headlines. */
     public static function presentCollection(CheckRunPresentationInput $run, ?CheckRunPresentationData $presentation): ?CheckRunPresentationData
     {

@@ -23,6 +23,6 @@ final class DnsServiceProvider extends ServiceProvider
     {
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         $this->loadJsonTranslationsFrom(__DIR__.'/../lang');
-        $registry->register(DnsCheck::class, new OhDearImportMapping(['extra_cnames', 'monitor_main_domain', 'ignored_record_types', 'check_nameservers_in_sync', 'frequency_value', 'frequency_unit', 'failed_notification_threshold']));
+        $registry->register(DnsCheck::class, new OhDearImportMapping(['extra_cnames', 'monitor_main_domain', 'ignored_record_types', 'check_nameservers_in_sync']));
     }
 }

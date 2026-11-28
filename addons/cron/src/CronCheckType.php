@@ -17,14 +17,12 @@ use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\GuardsAcceptance;
 use Heptapod\Contracts\Mail\Cell;
 use Heptapod\Contracts\Mail\FactsBlock;
 use Heptapod\Contracts\Mail\MailEventFacts;
 use Heptapod\Contracts\Mail\MailEvidenceProvider;
 use Heptapod\Contracts\Mail\MailTone;
-use Heptapod\Contracts\Mail\NoteBlock;
 use Heptapod\Contracts\NoResultReason;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunResult;
@@ -57,6 +55,11 @@ final readonly class CronCheckType implements CheckHistoryProvider, CheckRunPres
     public function history(int $checkId, bool $canViewCapabilities = false): CronTasksDetailData
     {
         return $this->store->tasksDetail($checkId, $canViewCapabilities);
+    }
+
+    public function namesCheck(string $key): bool
+    {
+        return str_starts_with($key, 'cron.presentation.') && $key !== 'cron.presentation.task';
     }
 
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData
@@ -115,10 +118,6 @@ final readonly class CronCheckType implements CheckHistoryProvider, CheckRunPres
     public function mailEventTones(): array
     {
         return [
-            'incident.opened' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.cause_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.resolved' => ['succeeded' => MailTone::Recovered, 'warning' => MailTone::Recovered],
-            'check.result_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
             'cron.task_result_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
         ];
     }
@@ -162,18 +161,11 @@ final readonly class CronCheckType implements CheckHistoryProvider, CheckRunPres
         ])];
     }
 
-    public function mailRecoveryEvidence(CheckRunPresentationInput $opening, CarbonImmutable $openedAt, ?CheckRunPresentationInput $recovery, CarbonImmutable $recoveredAt, string $locale, string $timezone, MailEventFacts $event): array
-    {
-        return $recovery instanceof CheckRunPresentationInput
-            ? $this->mailEvidence($recovery, $recoveredAt, $locale, $timezone, $event)
-            : [new NoteBlock(__('cron.mail_details_not_retained', locale: $locale))];
-    }
-
     public function definition(): CheckDefinition
     {
         return new CheckDefinition(
             CheckKey::Cron, 'checks.cron.label', 'clock', 'checks-fast', 30, 60, 1,
-            ExecutionMode::Push, new Schema([]),
+            new Schema([]),
             new Schema([
                 'succeeded' => new Field(FieldType::Integer, ['required', 'min:0']),
                 'warning' => new Field(FieldType::Integer, ['required', 'min:0']),

@@ -16,7 +16,6 @@ use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\LatestRunEvidence;
 use Heptapod\Contracts\Mail\Cell;
 use Heptapod\Contracts\Mail\MailEventFacts;
@@ -47,10 +46,6 @@ final readonly class MixedContentCheck implements CheckDetailProvider, CheckHist
     public function mailEventTones(): array
     {
         return [
-            'incident.opened' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.cause_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.resolved' => ['succeeded' => MailTone::Recovered, 'warning' => MailTone::Recovered],
-            'check.result_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
             'mixed_content.new_finding' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Changed],
         ];
     }
@@ -72,7 +67,7 @@ final readonly class MixedContentCheck implements CheckDetailProvider, CheckHist
         /** @var list<string> $newIds */
         $rows = $event->run instanceof RunReference ? $this->store->mailMixedContent($event->checkId, $event->run, $newIds) : null;
         if ($rows === null || $rows === []) {
-            return [new NoteBlock(__('mixed_content.mail_details_not_retained', locale: $locale))];
+            return [NoteBlock::detailsNotRetained($locale)];
         }
         // The table lists the observation's findings; only the event's own identities are marked new, as in the broken-links mail.
         $new = array_flip($newIds);
@@ -102,16 +97,9 @@ final readonly class MixedContentCheck implements CheckDetailProvider, CheckHist
         return $blocks;
     }
 
-    public function mailRecoveryEvidence(CheckRunPresentationInput $opening, CarbonImmutable $openedAt, ?CheckRunPresentationInput $recovery, CarbonImmutable $recoveredAt, string $locale, string $timezone, MailEventFacts $event): array
-    {
-        return $recovery instanceof CheckRunPresentationInput
-            ? $this->mailEvidence($recovery, $recoveredAt, $locale, $timezone, $event)
-            : [new NoteBlock(__('mixed_content.mail_details_not_retained', locale: $locale))];
-    }
-
     public function definition(): CheckDefinition
     {
-        return new CheckDefinition(CheckKey::MixedContent, 'checks.mixed_content.label', 'shield-alert', 'checks-crawl', Config::integer('heptapod.crawl.timeout_seconds'), Config::integer('heptapod.crawl.interval_seconds'), 1, ExecutionMode::Derived, new Schema([]), CrawlMetrics::schema(), ['mixed_content.new_finding'], requiresHttps: true, detailDataClass: CrawlSnapshot::class, intervalPresetsMinutes: [360, 720, 1440, 10080]);
+        return new CheckDefinition(CheckKey::MixedContent, 'checks.mixed_content.label', 'shield-alert', 'checks-crawl', Config::integer('heptapod.crawl.timeout_seconds'), Config::integer('heptapod.crawl.interval_seconds'), 1, new Schema([]), CrawlMetrics::schema(), ['mixed_content.new_finding'], requiresHttps: true, detailDataClass: CrawlSnapshot::class, intervalPresetsMinutes: [360, 720, 1440, 10080]);
     }
 
     public function detail(int $checkId, ?LatestRunEvidence $latestRun = null): ?CrawlSnapshot
@@ -165,6 +153,11 @@ final readonly class MixedContentCheck implements CheckDetailProvider, CheckHist
         }
 
         return new CheckRunPresentationData($parts);
+    }
+
+    public function namesCheck(string $key): bool
+    {
+        return CrawlEvidence::namesCheck($key);
     }
 
     public function execute(CheckContext $context): CheckOutcome|NoResultReason

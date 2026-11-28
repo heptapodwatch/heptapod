@@ -642,7 +642,6 @@ readonly queue: string,
 readonly timeout: number,
 readonly defaultInterval: number,
 readonly defaultFailureThreshold: number,
-readonly executionMode: Heptapod.Contracts.ExecutionMode,
 readonly configSchema: Heptapod.Contracts.Schema.Schema,
 readonly metricSchema: Heptapod.Contracts.Schema.Schema,
 readonly emittedEvents: string[],
@@ -732,7 +731,6 @@ readonly state: Heptapod.Enums.SiteStatus,
 readonly client_name: string | null,
 };
 export type DomainRegistrationSource = 'rdap' | 'whois';
-export type ExecutionMode = 'poll' | 'push' | 'derived';
 export type FilterKind = 'select' | 'combobox' | 'segmented' | 'chip' | 'boolean' | 'search' | 'date';
 export type FilterSlot = 'bar' | 'history-range' | 'history';
 export type ListFilterData = {

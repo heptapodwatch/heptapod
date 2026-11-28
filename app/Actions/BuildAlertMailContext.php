@@ -18,6 +18,7 @@ use Heptapod\Contracts\Mail\EvidenceBlock;
 use Heptapod\Contracts\Mail\ListBlock;
 use Heptapod\Contracts\Mail\MailEventFacts;
 use Heptapod\Contracts\Mail\MailEvidenceProvider;
+use Heptapod\Contracts\Mail\MailRecoveryEvidenceProvider;
 use Heptapod\Contracts\Mail\MailTone;
 use Heptapod\Contracts\Mail\NoteBlock;
 use Heptapod\Contracts\Notifications\AlertSeverity;
@@ -104,10 +105,10 @@ final readonly class BuildAlertMailContext
             // The opening snapshot is the check error; the cause change itself retains the failed observation.
             AlertMailEvent::CauseChanged => $this->causeChangeEvidence($event, $provider, $locale, $timezone, $facts),
             AlertMailEvent::Reminder => [new NoteBlock(__('emails.reminder_note', ['id' => $incident->id], $locale))],
-            AlertMailEvent::Recovered => $provider->mailRecoveryEvidence($input, CarbonImmutable::parse($observedAt)->utc(), $this->recoveryRun($event), $event->occurred_at, $locale, $timezone, $facts),
+            AlertMailEvent::Recovered => $this->recoveryEvidence($provider, $input, CarbonImmutable::parse($observedAt)->utc(), $this->recoveryRun($event), $event->occurred_at, $locale, $timezone, $facts),
             AlertMailEvent::LateFold => [
                 new NoteBlock(__('emails.late_fold_note', locale: $locale)),
-                ...$provider->mailRecoveryEvidence($input, CarbonImmutable::parse($observedAt)->utc(), $this->resolvedIncidentRecoveryRun($incident), $resolvedAt, $locale, $timezone, $facts),
+                ...$this->recoveryEvidence($provider, $input, CarbonImmutable::parse($observedAt)->utc(), $this->resolvedIncidentRecoveryRun($incident), $resolvedAt, $locale, $timezone, $facts),
             ],
         };
         if (($event->payload['uptime_episode'] ?? false) === true || ($event->payload['maintenance_first_alert'] ?? false) === true) {
@@ -126,6 +127,16 @@ final readonly class BuildAlertMailContext
         }
 
         return $this->context($event, $destination, $presentation, $blocks, $variant, MailTone::Down, $facts, $openingIncident, $resolvedAt);
+    }
+
+    /** @return list<EvidenceBlock> */
+    private function recoveryEvidence(MailEvidenceProvider $provider, CheckRunPresentationInput $opening, CarbonImmutable $openedAt, ?CheckRunPresentationInput $recovery, CarbonImmutable $recoveredAt, string $locale, string $timezone, MailEventFacts $facts): array
+    {
+        if (! $provider instanceof MailRecoveryEvidenceProvider) {
+            throw new \LogicException('An outage recovery mail needs the recovery evidence of its addon.');
+        }
+
+        return $provider->mailRecoveryEvidence($opening, $openedAt, $recovery, $recoveredAt, $locale, $timezone, $facts);
     }
 
     /** @param list<EvidenceBlock> $blocks */
@@ -175,7 +186,7 @@ final readonly class BuildAlertMailContext
             throw new \LogicException('Alert mail requires a retained final event result.');
         }
         $result = RunResult::from($resultValue);
-        $tone = $provider->mailEventTones()[$event->type][$result->value]
+        $tone = ($provider->mailEventTones() + MailEvidenceProvider::LifecycleTones)[$event->type][$result->value]
             ?? throw new \LogicException('Addon did not declare the event/result mail tone: '.$event->type.' '.$result->value);
         // Only an uptime cause change to failed is an outage here: the check could not run before, now the site is down.
         if ($tone === MailTone::Down && ($check->type !== CheckKey::Uptime || $event->type !== 'incident.cause_changed')) {

@@ -229,5 +229,6 @@
     "recipient_settings.category.servers.label": "Servers",
     "recipient_settings.category.servers.plural": "server issues",
     "recipient_settings.category.servers.description": "A server needs attention: disk, memory, load or no report.",
-    "recipient_settings.servers_client_limited": "Server alerts never reach a channel limited to one client."
+    "recipient_settings.servers_client_limited": "Server alerts never reach a channel limited to one client.",
+    "notifications.mail_details_not_retained": "Details no longer retained."
 }

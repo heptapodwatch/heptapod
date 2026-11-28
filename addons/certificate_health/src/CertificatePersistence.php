@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunReference;
+use Heptapod\Contracts\StagedSnapshots;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
@@ -37,42 +38,22 @@ final class CertificatePersistence implements RunPersistence
             'certificate_chain_issuers' => ['present', 'array', 'list', 'max:20'],
             'certificate_chain_issuers.*' => ['string'],
         ])->validate();
-        DB::transaction(function () use ($context, $snapshot): void {
-            $existing = DB::table('certificate_health_snapshots')->where('run_id', $context->runId)->where('claim_token', $context->claimToken)->lockForUpdate()->first();
-            if ($existing !== null && $existing->run_ended_at !== null) {
-                throw new \LogicException('Cannot stage an accepted certificate snapshot.');
-            }
-            DB::table('certificate_health_snapshots')->updateOrInsert(['run_id' => $context->runId, 'claim_token' => $context->claimToken], [
-                'site_id' => $context->siteId,
-                'check_id' => $context->checkId,
-                'snapshot' => json_encode($snapshot, JSON_THROW_ON_ERROR),
-                'created_at' => now()->format('Y-m-d H:i:s.uP'),
-            ]);
-        });
+        StagedSnapshots::stage('certificate_health_snapshots', $context, [
+            'site_id' => $context->siteId,
+            'check_id' => $context->checkId,
+            'snapshot' => json_encode($snapshot, JSON_THROW_ON_ERROR),
+            'created_at' => now()->format('Y-m-d H:i:s.uP'),
+        ]);
     }
 
     public function finalize(RunReference $run, string $claimToken): void
     {
-        DB::transaction(function () use ($run, $claimToken): void {
-            $query = DB::table('certificate_health_snapshots')->where('run_id', $run->id)->where('claim_token', $claimToken);
-            $row = $query->lockForUpdate()->first();
-            // Transport failures can be accepted errored runs without any staged observation.
-            if ($row === null) {
-                return;
-            }
-            /** @var \stdClass&object{snapshot: string, site_id: int, run_ended_at: string|null} $row */
-            if ($row->run_ended_at !== null) {
-                if (! CarbonImmutable::parse($row->run_ended_at)->eq($run->endedAt)) {
-                    throw new \LogicException('Certificate attempt was finalized for a different run timestamp.');
-                }
-
-                return;
-            }
+        // Transport failures can be accepted errored runs without any staged observation.
+        StagedSnapshots::finalize('certificate_health_snapshots', $run, $claimToken, static function (\stdClass $row, string $endedAt): void {
+            /** @var \stdClass&object{snapshot: string, site_id: int} $row */
             /** @var array{certificate_details: array<string, mixed>|null} $snapshot */
             $snapshot = json_decode($row->snapshot, true, flags: JSON_THROW_ON_ERROR);
             $details = $snapshot['certificate_details'];
-            $endedAt = $run->endedAt->format('Y-m-d H:i:s.uP');
-            $query->update(['run_ended_at' => $endedAt]);
             if ($details !== null) {
                 $details['additional_domains'] = json_encode($details['additional_domains'], JSON_THROW_ON_ERROR);
                 DB::table('detected_certificates')->upsert([
@@ -155,8 +136,7 @@ final class CertificatePersistence implements RunPersistence
 
     public function purgeCheck(int $checkId, int $limit): int
     {
-        return DB::delete('DELETE FROM certificate_health_snapshots WHERE ctid = ANY(ARRAY(SELECT ctid FROM certificate_health_snapshots
-            WHERE check_id = ? AND run_ended_at IS NOT NULL ORDER BY run_ended_at, run_id LIMIT ?))', [$checkId, $limit]);
+        return StagedSnapshots::purge('certificate_health_snapshots', $checkId, $limit);
     }
 
     public function prunedTables(): array
@@ -177,6 +157,6 @@ final class CertificatePersistence implements RunPersistence
 
     public function discard(int $runId, string $claimToken): void
     {
-        DB::table('certificate_health_snapshots')->where('run_id', $runId)->where('claim_token', $claimToken)->whereNull('run_ended_at')->delete();
+        StagedSnapshots::discard('certificate_health_snapshots', $runId, $claimToken);
     }
 }

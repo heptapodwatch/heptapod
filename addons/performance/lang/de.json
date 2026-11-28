@@ -23,7 +23,6 @@
     "performance.p95_uptime": "p95 der Antwortzeiten der Erreichbarkeitsprüfung, stündlich",
     "performance.confirming_warning": "Durchschnitt :average ms; erhöhte Antwortzeit, Messung :count von 3 vor einer Warnung.",
     "performance.confirming_recovery": "Durchschnitt :average ms; gute Antwortzeit, Messung :count von 3 vor dem Ende der Warnung.",
-    "performance.mail_details_not_retained": "Details werden nicht mehr vorgehalten.",
     "performance.mail_average": "Durchschnittliche Antwortzeit",
     "performance.mail_samples": "Messwerte",
     "performance.mail_baseline": "Üblicher Median für diese Stunde",

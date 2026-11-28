@@ -10,6 +10,7 @@ use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\DailyRollupReader;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunReference;
+use Heptapod\Contracts\StagedSnapshots;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Spatie\LaravelData\Lazy;
@@ -35,41 +36,21 @@ final readonly class LighthousePersistence implements RunPersistence
         if ($compressed === false) {
             throw new \RuntimeException('Lighthouse report compression failed.');
         }
-        DB::transaction(function () use ($context, $row, $compressed): void {
-            $existing = DB::table('lighthouse_reports')->where('run_id', $context->runId)->where('claim_token', $context->claimToken)->lockForUpdate()->first();
-            if ($existing !== null && $existing->run_ended_at !== null) {
-                throw new \LogicException('Cannot stage an accepted Lighthouse report.');
-            }
-            DB::table('lighthouse_reports')->updateOrInsert(['run_id' => $context->runId, 'claim_token' => $context->claimToken], [
-                'site_id' => $context->siteId, 'check_id' => $context->checkId,
-                // Base64 keeps compressed bytes portable through Laravel's PostgreSQL bindings.
-                'compressed_report' => base64_encode($compressed),
-                'metrics' => json_encode($row['metrics'], JSON_THROW_ON_ERROR),
-                'evidence' => json_encode($row['evidence'], JSON_THROW_ON_ERROR),
-                'created_at' => now()->format('Y-m-d H:i:s.uP'),
-            ]);
-        });
+        StagedSnapshots::stage('lighthouse_reports', $context, [
+            'site_id' => $context->siteId, 'check_id' => $context->checkId,
+            // Base64 keeps compressed bytes portable through Laravel's PostgreSQL bindings.
+            'compressed_report' => base64_encode($compressed),
+            'metrics' => json_encode($row['metrics'], JSON_THROW_ON_ERROR),
+            'evidence' => json_encode($row['evidence'], JSON_THROW_ON_ERROR),
+            'created_at' => now()->format('Y-m-d H:i:s.uP'),
+        ]);
     }
 
     public function finalize(RunReference $run, string $claimToken): void
     {
-        DB::transaction(function () use ($run, $claimToken): void {
-            $query = DB::table('lighthouse_reports')->where('run_id', $run->id)->where('claim_token', $claimToken);
-            $row = $query->lockForUpdate()->first();
-            // Browser failures produce accepted errored runs without a staged report.
-            if ($row === null) {
-                return;
-            }
-            /** @var \stdClass&object{run_ended_at: string|null, check_id: int, metrics: string} $row */
-            if ($row->run_ended_at !== null) {
-                if (! CarbonImmutable::parse($row->run_ended_at)->eq($run->endedAt)) {
-                    throw new \LogicException('Lighthouse attempt was finalized for a different run timestamp.');
-                }
-
-                return;
-            }
-            $endedAt = $run->endedAt->format('Y-m-d H:i:s.uP');
-            $query->update(['run_ended_at' => $endedAt]);
+        // Browser failures produce accepted errored runs without a staged report.
+        StagedSnapshots::finalize('lighthouse_reports', $run, $claimToken, static function (\stdClass $row, string $endedAt) use ($run): void {
+            /** @var \stdClass&object{check_id: int, metrics: string} $row */
             /** @var array<string, int|float|null> $metrics */
             $metrics = json_decode($row->metrics, true, flags: JSON_THROW_ON_ERROR);
             $scores = [];
@@ -142,8 +123,7 @@ final readonly class LighthousePersistence implements RunPersistence
 
     public function purgeCheck(int $checkId, int $limit): int
     {
-        return DB::delete('DELETE FROM lighthouse_reports WHERE ctid = ANY(ARRAY(SELECT ctid FROM lighthouse_reports
-            WHERE check_id = ? AND run_ended_at IS NOT NULL ORDER BY run_ended_at, run_id LIMIT ?))', [$checkId, $limit]);
+        return StagedSnapshots::purge('lighthouse_reports', $checkId, $limit);
     }
 
     public function prunedTables(): array
@@ -159,6 +139,6 @@ final readonly class LighthousePersistence implements RunPersistence
 
     public function discard(int $runId, string $claimToken): void
     {
-        DB::table('lighthouse_reports')->where('run_id', $runId)->where('claim_token', $claimToken)->whereNull('run_ended_at')->delete();
+        StagedSnapshots::discard('lighthouse_reports', $runId, $claimToken);
     }
 }

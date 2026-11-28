@@ -44,7 +44,6 @@
     "lighthouse.presentation.below": "{{category}} {{score}} (unter {{threshold}})",
     "lighthouse.presentation.dropped": "{{category}} {{score}} ({{drop}} weniger als zuvor {{previous}})",
     "lighthouse.presentation.below_and_dropped": "{{category}} {{score}} (unter {{threshold}}, {{drop}} weniger als zuvor {{previous}})",
-    "lighthouse.mail_details_not_retained": "Details werden nicht mehr vorgehalten.",
     "lighthouse.mail_no_current_scores": "Die Prüfung konnte nicht ausgeführt werden. Es gibt deshalb keine aktuellen Werte.",
     "lighthouse.mail_scores": "Werte · :at",
     "lighthouse.mail_recorded_thresholds": "Grenzwerte werden nur angezeigt, wenn sie mit dieser Beobachtung vorgehalten werden.",

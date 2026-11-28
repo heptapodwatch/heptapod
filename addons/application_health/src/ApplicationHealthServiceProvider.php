@@ -20,7 +20,7 @@ final class ApplicationHealthServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         $this->loadJsonTranslationsFrom(__DIR__.'/../lang');
         $registry->register(ApplicationHealthCheck::class, new OhDearImportMapping([
-            'result_url', 'secret', 'headers', 'frequency_value', 'frequency_unit', 'failed_notification_threshold',
+            'result_url', 'secret', 'headers',
         ]));
     }
 }

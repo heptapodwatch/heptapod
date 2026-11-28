@@ -18,7 +18,6 @@ use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\LatestRunEvidence;
 use Heptapod\Contracts\Mail\Cell;
 use Heptapod\Contracts\Mail\DiffBlock;
@@ -64,6 +63,11 @@ final readonly class CertificateHealthCheck implements CheckDetailProvider, Chec
         unset($observation);
 
         return new CertificateTimelineData($observations);
+    }
+
+    public function namesCheck(string $key): bool
+    {
+        return $key !== 'certificate_health.not_https';
     }
 
     public function presentRun(CheckRunPresentationInput $run): CheckRunPresentationData
@@ -119,10 +123,6 @@ final readonly class CertificateHealthCheck implements CheckDetailProvider, Chec
     public function mailEventTones(): array
     {
         return [
-            'incident.opened' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.cause_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.resolved' => ['succeeded' => MailTone::Recovered, 'warning' => MailTone::Recovered],
-            'check.result_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
             'certificate_health.certificate_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Changed, 'succeeded' => MailTone::Changed],
         ];
     }
@@ -168,18 +168,11 @@ final readonly class CertificateHealthCheck implements CheckDetailProvider, Chec
         return [new FactsBlock(__('certificate_health.mail_served', locale: $locale), $rows)];
     }
 
-    public function mailRecoveryEvidence(CheckRunPresentationInput $opening, CarbonImmutable $openedAt, ?CheckRunPresentationInput $recovery, CarbonImmutable $recoveredAt, string $locale, string $timezone, MailEventFacts $event): array
-    {
-        return $recovery instanceof CheckRunPresentationInput
-            ? $this->mailEvidence($recovery, $recoveredAt, $locale, $timezone, $event)
-            : [new NoteBlock(__('certificate_health.mail_recovery_confirmed', locale: $locale))];
-    }
-
     public function definition(): CheckDefinition
     {
         return new CheckDefinition(
             CheckKey::CertificateHealth, 'checks.certificate_health.label', 'shield-check',
-            'checks-fast', 30, 3600, 1, ExecutionMode::Poll,
+            'checks-fast', 30, 3600, 1,
             new Schema(['expires_soon_threshold_in_days' => new Field(FieldType::Integer, ['sometimes', 'min:0'], presentation: new FieldPresentation('certificate_health.threshold'), default: 14)]),
             new Schema([
                 'issuer' => new Field(FieldType::String, ['present', 'nullable']),

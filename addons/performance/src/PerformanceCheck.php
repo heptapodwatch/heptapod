@@ -15,13 +15,11 @@ use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\Mail\Cell;
 use Heptapod\Contracts\Mail\FactsBlock;
 use Heptapod\Contracts\Mail\MailEventFacts;
 use Heptapod\Contracts\Mail\MailEvidenceProvider;
 use Heptapod\Contracts\Mail\MailTone;
-use Heptapod\Contracts\Mail\NoteBlock;
 use Heptapod\Contracts\NoResultReason;
 use Heptapod\Contracts\PerformanceResponseTimeWindow;
 use Heptapod\Contracts\PreviousResult;
@@ -35,7 +33,7 @@ use Heptapod\Contracts\SummaryParameters;
 
 final class PerformanceCheck implements CheckRunPresenter, CheckType, MailEvidenceProvider
 {
-    public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData
+    public function presentRun(CheckRunPresentationInput $run): CheckRunPresentationData
     {
         $improved = $run->eventPayload('performance.improved');
         if ($improved !== null) {
@@ -50,17 +48,31 @@ final class PerformanceCheck implements CheckRunPresenter, CheckType, MailEviden
             return new CheckRunPresentationData([new CheckRunPresentationPartData('performance.presentation.improved',
                 ['from' => $seconds($baseline), 'to' => $seconds($median), 'change' => (int) round($change)])]);
         }
-        if (! $run->event instanceof MailEventFacts) {
-            return null;
-        }
-        $short = match ($run->summary) {
+        // Short headlines are mail wording.
+        $short = $run->event instanceof MailEventFacts ? match ($run->summary) {
             'performance.median_above_configured_range' => 'performance.presentation.relative_short',
             'performance.median_above_threshold' => 'performance.presentation.threshold_short',
             'performance.recovered_below' => 'performance.presentation.recovered_short',
             default => null,
+        } : null;
+        $part = new CheckRunPresentationPartData($run->summary, $run->summaryParams, shortKey: $short);
+        $history = match ($run->summary) {
+            'performance.median_above_threshold' => 'checks.history.performance_threshold',
+            'performance.median_above_configured_range' => 'checks.history.performance_increased',
+            'performance.confirming_warning' => 'checks.history.confirming_warning',
+            'performance.confirming_recovery' => 'checks.history.confirming_recovery',
+            'performance.succeeded' => 'checks.history.performance_average',
+            'performance.recovered_below' => 'checks.history.performance_recovered',
+            'performance.recovery_band' => 'checks.history.performance_recovery_band',
+            default => null,
         };
 
-        return new CheckRunPresentationData([new CheckRunPresentationPartData($run->summary, $run->summaryParams, shortKey: $short)]);
+        return new CheckRunPresentationData([$part], history_label: $history === null ? null : $part->withKey($history));
+    }
+
+    public function namesCheck(string $key): bool
+    {
+        return false;
     }
 
     public function mailEventPhrases(): array
@@ -76,10 +88,6 @@ final class PerformanceCheck implements CheckRunPresenter, CheckType, MailEviden
     public function mailEventTones(): array
     {
         return [
-            'incident.opened' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.cause_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.resolved' => ['succeeded' => MailTone::Recovered, 'warning' => MailTone::Recovered],
-            'check.result_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
             'performance.improved' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Changed, 'succeeded' => MailTone::Changed],
         ];
     }
@@ -115,17 +123,10 @@ final class PerformanceCheck implements CheckRunPresenter, CheckType, MailEviden
         return [new FactsBlock(__('performance.mail_response', locale: $locale), $rows)];
     }
 
-    public function mailRecoveryEvidence(CheckRunPresentationInput $opening, CarbonImmutable $openedAt, ?CheckRunPresentationInput $recovery, CarbonImmutable $recoveredAt, string $locale, string $timezone, MailEventFacts $event): array
-    {
-        return $recovery instanceof CheckRunPresentationInput
-            ? $this->mailEvidence($recovery, $recoveredAt, $locale, $timezone, $event)
-            : [new NoteBlock(__('performance.mail_details_not_retained', locale: $locale))];
-    }
-
     public function definition(): CheckDefinition
     {
         return new CheckDefinition(
-            CheckKey::Performance, 'checks.performance.label', 'timer', 'checks-fast', 10, 60, 1, ExecutionMode::Derived,
+            CheckKey::Performance, 'checks.performance.label', 'timer', 'checks-fast', 10, 60, 1,
             new Schema([
                 'threshold_in_ms' => new Field(FieldType::Integer, ['sometimes', 'min:0'], presentation: new FieldPresentation('Threshold', 'performance.threshold_help'), default: 2000),
                 'change_percentage' => new Field(FieldType::Integer, ['sometimes', 'min:0'], presentation: new FieldPresentation('performance.minimum_increase', 'performance.minimum_increase_help'), default: 50),

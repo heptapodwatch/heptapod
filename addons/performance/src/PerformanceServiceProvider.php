@@ -13,6 +13,6 @@ final class PerformanceServiceProvider extends ServiceProvider
     public function boot(CheckRegistry $registry): void
     {
         $this->loadJsonTranslationsFrom(__DIR__.'/../lang');
-        $registry->register(PerformanceCheck::class, new OhDearImportMapping(['threshold_in_ms', 'change_percentage', 'frequency_value', 'frequency_unit', 'failed_notification_threshold']));
+        $registry->register(PerformanceCheck::class, new OhDearImportMapping(['threshold_in_ms', 'change_percentage']));
     }
 }

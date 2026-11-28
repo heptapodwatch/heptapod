@@ -18,7 +18,6 @@ use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
 use Heptapod\Contracts\DomainRegistrationLookup;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\Http\FetchException;
 use Heptapod\Contracts\Http\FetchFailure;
 use Heptapod\Contracts\Http\FetchFailureKind;
@@ -28,7 +27,6 @@ use Heptapod\Contracts\Mail\FactsBlock;
 use Heptapod\Contracts\Mail\MailEventFacts;
 use Heptapod\Contracts\Mail\MailEvidenceProvider;
 use Heptapod\Contracts\Mail\MailTone;
-use Heptapod\Contracts\Mail\NoteBlock;
 use Heptapod\Contracts\PublicSuffixList;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunResult;
@@ -54,6 +52,11 @@ final readonly class DomainCheck implements CheckDetailProvider, CheckRunPresent
     {
         return ! $latestRun instanceof LatestRunEvidence || $latestRun->observationEvidence() === []
             ? null : DomainSnapshot::from($latestRun->observationEvidence());
+    }
+
+    public function namesCheck(string $key): bool
+    {
+        return ! in_array($key, ['checks.presentation.domain_valid_until', 'domain.registry_does_not_publish'], true);
     }
 
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData
@@ -102,10 +105,6 @@ final readonly class DomainCheck implements CheckDetailProvider, CheckRunPresent
     public function mailEventTones(): array
     {
         return [
-            'incident.opened' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.cause_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.resolved' => ['succeeded' => MailTone::Recovered, 'warning' => MailTone::Recovered],
-            'check.result_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
             'domain.expiry_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Changed, 'succeeded' => MailTone::Changed],
             'domain.registration_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Changed, 'succeeded' => MailTone::Changed],
         ];
@@ -149,18 +148,11 @@ final readonly class DomainCheck implements CheckDetailProvider, CheckRunPresent
         ])];
     }
 
-    public function mailRecoveryEvidence(CheckRunPresentationInput $opening, CarbonImmutable $openedAt, ?CheckRunPresentationInput $recovery, CarbonImmutable $recoveredAt, string $locale, string $timezone, MailEventFacts $event): array
-    {
-        return $recovery instanceof CheckRunPresentationInput
-            ? $this->mailEvidence($recovery, $recoveredAt, $locale, $timezone, $event)
-            : [new NoteBlock(__('domain.mail_details_not_retained', locale: $locale))];
-    }
-
     public function definition(): CheckDefinition
     {
         return new CheckDefinition(
             CheckKey::Domain, 'checks.domain.label', 'globe',
-            'checks-fast', 120, 86400, 1, ExecutionMode::Poll,
+            'checks-fast', 120, 86400, 1,
             new Schema(['expires_soon_threshold_in_days' => new Field(FieldType::Integer, ['sometimes', 'min:0'], presentation: new FieldPresentation('domain.threshold'), default: 30)]),
             new Schema([
                 'expires_at' => new Field(FieldType::String, ['present', 'nullable', 'date']),

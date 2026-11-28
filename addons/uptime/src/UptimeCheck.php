@@ -19,7 +19,6 @@ use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckSummaryPresenter;
 use Heptapod\Contracts\CheckType;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\ExternalNetworkException;
 use Heptapod\Contracts\ExternalTimeoutException;
 use Heptapod\Contracts\Http\AutomatedCheckBlock;
@@ -35,6 +34,7 @@ use Heptapod\Contracts\Mail\Cell;
 use Heptapod\Contracts\Mail\FactsBlock;
 use Heptapod\Contracts\Mail\MailEventFacts;
 use Heptapod\Contracts\Mail\MailEvidenceProvider;
+use Heptapod\Contracts\Mail\MailRecoveryEvidenceProvider;
 use Heptapod\Contracts\Mail\MailTone;
 use Heptapod\Contracts\Mail\TableBlock;
 use Heptapod\Contracts\MonitorOutageGuard;
@@ -55,7 +55,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Number;
 use Illuminate\Support\Str;
 
-final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresenter, CheckSummaryPresenter, CheckType, MailEvidenceProvider
+final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresenter, CheckSummaryPresenter, CheckType, MailEvidenceProvider, MailRecoveryEvidenceProvider
 {
     public function __construct(
         private OutboundHttp $http,
@@ -83,7 +83,7 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
         }
 
         return new CheckDefinition(
-            CheckKey::Uptime, 'checks.uptime.label', 'activity', 'checks-fast', 60, 60, 2, ExecutionMode::Poll,
+            CheckKey::Uptime, 'checks.uptime.label', 'activity', 'checks-fast', 60, 60, 2,
             new Schema([
                 'location' => new Field(FieldType::String, ['sometimes'], presentation: new FieldPresentation('uptime.location', 'uptime.local_probe')),
                 'http_verb' => new Field(FieldType::String, ['sometimes', 'in:GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS'], presentation: new FieldPresentation('Method', group: $request), default: 'GET', uppercase: true),
@@ -218,7 +218,14 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
 
     public function presentRun(CheckRunPresentationInput $run): CheckRunPresentationData
     {
-        return new CheckRunPresentationData([$this->presentSummary($run->summary, $run->summaryParams)]);
+        $part = $this->presentSummary($run->summary, $run->summaryParams);
+
+        return new CheckRunPresentationData([$part], history_label: $part->key === 'uptime.status' ? $part->withKey('checks.history.http_status') : null);
+    }
+
+    public function namesCheck(string $key): bool
+    {
+        return false;
     }
 
     public function mailEventPhrases(): array
@@ -237,7 +244,6 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
         return [
             'incident.opened' => ['failed' => MailTone::Down, 'errored-or-timed-out' => MailTone::CheckError],
             'incident.cause_changed' => ['failed' => MailTone::Down, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.resolved' => ['succeeded' => MailTone::Recovered, 'warning' => MailTone::Recovered],
             'check.result_changed' => ['failed' => MailTone::Down, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
             'incident.still_down' => ['failed' => MailTone::Down],
         ];

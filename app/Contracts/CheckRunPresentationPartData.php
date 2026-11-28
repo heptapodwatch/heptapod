@@ -41,6 +41,12 @@ final class CheckRunPresentationPartData extends Data
         return new self($this->key, $params, $this->labels, $this->shortKey, $this->untrusted, $this->trusted, $this->lists);
     }
 
+    /** The same facts under another key, for example as a history label. */
+    public function withKey(string $key): self
+    {
+        return new self($key, $this->params, $this->labels, $this->shortKey, $this->untrusted, $this->trusted, $this->lists);
+    }
+
     /** @return array<string, string|int|float|bool|null> */
     public function localizedParams(string $locale): array
     {

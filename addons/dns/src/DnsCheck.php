@@ -21,7 +21,6 @@ use Heptapod\Contracts\CheckType;
 use Heptapod\Contracts\DnsBaselineAcceptance;
 use Heptapod\Contracts\DnsLookupResult;
 use Heptapod\Contracts\DnsResolver;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\ExternalNetworkException;
 use Heptapod\Contracts\ExternalTimeoutException;
 use Heptapod\Contracts\LatestRunEvidence;
@@ -85,6 +84,11 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
     public function accept(int $checkId, int $actorId, string $actorName, int $expectedRunId): int
     {
         return $this->store->accept($checkId, $actorId, $actorName, $expectedRunId);
+    }
+
+    public function namesCheck(string $key): bool
+    {
+        return true;
     }
 
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData
@@ -208,10 +212,6 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
     public function mailEventTones(): array
     {
         return [
-            'incident.opened' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.cause_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.resolved' => ['succeeded' => MailTone::Recovered, 'warning' => MailTone::Recovered],
-            'check.result_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
             'dns.records_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Changed, 'succeeded' => MailTone::Changed],
         ];
     }
@@ -289,13 +289,6 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
         return mb_strcut(implode(' ', $values), 0, 512, 'UTF-8');
     }
 
-    public function mailRecoveryEvidence(CheckRunPresentationInput $opening, CarbonImmutable $openedAt, ?CheckRunPresentationInput $recovery, CarbonImmutable $recoveredAt, string $locale, string $timezone, MailEventFacts $event): array
-    {
-        return $recovery instanceof CheckRunPresentationInput
-            ? $this->mailEvidence($recovery, $recoveredAt, $locale, $timezone, $event)
-            : [new NoteBlock(__('dns.mail_details_not_retained', locale: $locale))];
-    }
-
     public function definition(): CheckDefinition
     {
         /** @var array<int, string> $knownTypes */
@@ -303,7 +296,7 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
         $ignoredTypes = array_values($knownTypes);
 
         return new CheckDefinition(
-            CheckKey::Dns, 'checks.dns.label', 'network', 'checks-fast', 120, 3600, 1, ExecutionMode::Poll,
+            CheckKey::Dns, 'checks.dns.label', 'network', 'checks-fast', 120, 3600, 1,
             new Schema([
                 'extra_cnames' => new Field(FieldType::List, ['sometimes', 'max:20'], items: new Field(FieldType::String, ['required', 'max:253', 'regex:/^(?=.{1,253}\\.?$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\\.)+[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\\.?$/D']), presentation: new FieldPresentation('dns.extra_cnames'), default: []),
                 'monitor_main_domain' => new Field(FieldType::Boolean, ['sometimes'], presentation: new FieldPresentation('dns.monitor_main_domain'), default: false),

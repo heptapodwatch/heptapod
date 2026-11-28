@@ -16,7 +16,6 @@ use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\Findings\FindingsView;
 use Heptapod\Contracts\LatestRunEvidence;
 use Heptapod\Contracts\Mail\Cell;
@@ -54,10 +53,6 @@ final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetail
     public function mailEventTones(): array
     {
         return [
-            'incident.opened' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.cause_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.resolved' => ['succeeded' => MailTone::Recovered, 'warning' => MailTone::Recovered],
-            'check.result_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
             'broken_links.new_broken_found' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Changed],
         ];
     }
@@ -88,7 +83,7 @@ final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetail
         $ids = array_values(array_unique([...$evidence->finding_ids, ...$newIds]));
         $rows = $event->run instanceof RunReference ? $this->store->mailFindings($event->checkId, $event->run, $ids) : null;
         if ($rows === null || $rows === []) {
-            return [new NoteBlock(__('broken_links.mail_details_not_retained', locale: $locale))];
+            return [NoteBlock::detailsNotRetained($locale)];
         }
         if ($event->type === 'broken_links.new_broken_found') {
             $lines = array_map(static fn (CrawlFinding $finding): array => [
@@ -115,16 +110,9 @@ final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetail
         return [new TableBlock(__('broken_links.mail_findings', locale: $locale), [__('broken_links.mail_url', locale: $locale), __('broken_links.mail_result', locale: $locale), __('broken_links.mail_found_on', locale: $locale)], $table, $more)];
     }
 
-    public function mailRecoveryEvidence(CheckRunPresentationInput $opening, CarbonImmutable $openedAt, ?CheckRunPresentationInput $recovery, CarbonImmutable $recoveredAt, string $locale, string $timezone, MailEventFacts $event): array
-    {
-        return $recovery instanceof CheckRunPresentationInput
-            ? $this->mailEvidence($recovery, $recoveredAt, $locale, $timezone, $event)
-            : [new NoteBlock(__('broken_links.mail_details_not_retained', locale: $locale))];
-    }
-
     public function definition(): CheckDefinition
     {
-        return new CheckDefinition(CheckKey::BrokenLinks, 'checks.broken_links.label', 'unlink', 'checks-crawl', Config::integer('heptapod.crawl.timeout_seconds'), Config::integer('heptapod.crawl.interval_seconds'), 1, ExecutionMode::Poll, self::configSchema(), CrawlMetrics::schema(), ['broken_links.new_broken_found'], detailDataClass: CrawlSnapshot::class, intervalPresetsMinutes: [360, 720, 1440, 10080]);
+        return new CheckDefinition(CheckKey::BrokenLinks, 'checks.broken_links.label', 'unlink', 'checks-crawl', Config::integer('heptapod.crawl.timeout_seconds'), Config::integer('heptapod.crawl.interval_seconds'), 1, self::configSchema(), CrawlMetrics::schema(), ['broken_links.new_broken_found'], detailDataClass: CrawlSnapshot::class, intervalPresetsMinutes: [360, 720, 1440, 10080]);
     }
 
     public function detail(int $checkId, ?LatestRunEvidence $latestRun = null): ?CrawlSnapshot
@@ -173,7 +161,13 @@ final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetail
 
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData
     {
-        return CrawlEvidence::presentCollection($run, $this->presentFindings($run));
+        $presentation = CheckRunPresentationData::withMappedHistory($this->presentFindings($run), $run, static fn (CheckRunPresentationPartData $first): ?string => match ($first->key) {
+            'broken_links.presentation.internal' => 'checks.history.broken_internal',
+            'broken_links.presentation.external' => 'checks.history.broken_external',
+            default => null,
+        });
+
+        return CrawlEvidence::presentCollection($run, $presentation);
     }
 
     private function presentFindings(CheckRunPresentationInput $run): ?CheckRunPresentationData
@@ -267,6 +261,11 @@ final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetail
         }
 
         return new CheckRunPresentationData($presentation->parts, headline_limit: $headlineLimit, changes: $changePart instanceof CheckRunPresentationPartData ? [$changePart] : [], details: $details);
+    }
+
+    public function namesCheck(string $key): bool
+    {
+        return CrawlEvidence::namesCheck($key);
     }
 
     /** @return list<CheckRunPresentationPartData> The count of not-verifiable links, then their most frequent reasons. */

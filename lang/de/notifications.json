@@ -229,5 +229,6 @@
     "recipient_settings.category.servers.label": "Server",
     "recipient_settings.category.servers.plural": "Serverprobleme",
     "recipient_settings.category.servers.description": "Ein Server braucht Aufmerksamkeit: Festplatte, Arbeitsspeicher, Last oder kein Bericht.",
-    "recipient_settings.servers_client_limited": "Serverwarnungen erreichen nie einen Kanal, der auf einen Kunden beschränkt ist."
+    "recipient_settings.servers_client_limited": "Serverwarnungen erreichen nie einen Kanal, der auf einen Kunden beschränkt ist.",
+    "notifications.mail_details_not_retained": "Details werden nicht mehr vorgehalten."
 }

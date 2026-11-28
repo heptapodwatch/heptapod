@@ -24,7 +24,7 @@ final class CrawlServiceProvider extends ServiceProvider
         Validator::replacer('crawl_url_pattern', static fn (string $message, string $attribute): string => __('validation.url', ['attribute' => $attribute]));
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         $this->loadJsonTranslationsFrom(__DIR__.'/../lang');
-        $registry->register(BrokenLinksCheck::class, new OhDearImportMapping([...array_keys(BrokenLinksCheck::configSchema()->fields), 'frequency_value', 'frequency_unit', 'failed_notification_threshold']));
+        $registry->register(BrokenLinksCheck::class, new OhDearImportMapping(array_keys(BrokenLinksCheck::configSchema()->fields)));
         $registry->register(MixedContentCheck::class, new OhDearImportMapping([]));
     }
 }

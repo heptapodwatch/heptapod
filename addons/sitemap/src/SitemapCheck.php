@@ -20,7 +20,6 @@ use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
-use Heptapod\Contracts\ExecutionMode;
 use Heptapod\Contracts\ExternalTimeoutException;
 use Heptapod\Contracts\Findings\FindingsCoverage;
 use Heptapod\Contracts\Http\AutomatedCheckBlock;
@@ -95,10 +94,6 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
     public function mailEventTones(): array
     {
         return [
-            'incident.opened' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.cause_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError],
-            'incident.resolved' => ['succeeded' => MailTone::Recovered, 'warning' => MailTone::Recovered],
-            'check.result_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Recovered],
             'sitemap.issues_changed' => ['failed' => MailTone::Failed, 'errored-or-timed-out' => MailTone::CheckError, 'warning' => MailTone::Warning, 'succeeded' => MailTone::Changed],
         ];
     }
@@ -121,7 +116,7 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
             $rows[] = [new Cell($issue['url'], mono: true), new Cell($reason, mono: true, tone: MailTone::Failed)];
         }
         if ($rows === []) {
-            return [new NoteBlock(__('sitemap.mail_details_not_retained', locale: $locale))];
+            return [NoteBlock::detailsNotRetained($locale)];
         }
 
         $more = $snapshot->totalIssuesCount > count($rows) ? __('sitemap.mail_more', ['count' => $snapshot->totalIssuesCount - count($rows)], $locale) : null;
@@ -133,13 +128,6 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
             new NoteBlock(trans_choice('sitemap.mail_total', $snapshot->totalUrlCount, ['count' => $snapshot->totalUrlCount], $locale))];
     }
 
-    public function mailRecoveryEvidence(CheckRunPresentationInput $opening, CarbonImmutable $openedAt, ?CheckRunPresentationInput $recovery, CarbonImmutable $recoveredAt, string $locale, string $timezone, MailEventFacts $event): array
-    {
-        return $recovery instanceof CheckRunPresentationInput
-            ? $this->mailEvidence($recovery, $recoveredAt, $locale, $timezone, $event)
-            : [new NoteBlock(__('sitemap.mail_details_not_retained', locale: $locale))];
-    }
-
     public function definition(): CheckDefinition
     {
         // PHP turns numeric-string keys into integers; the stored wire values remain the strings 0, 100, 500, 1000 and max.
@@ -147,7 +135,7 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
         $urlsPerRunChoices = ['0' => 'sitemap.urls_per_run.0', '100' => 'sitemap.urls_per_run.100', '500' => 'sitemap.urls_per_run.500', '1000' => 'sitemap.urls_per_run.1000', 'max' => 'sitemap.urls_per_run.max'];
 
         return new CheckDefinition(
-            CheckKey::Sitemap, 'checks.sitemap.label', 'map', 'checks-crawl', 300, 86400, 1, ExecutionMode::Poll,
+            CheckKey::Sitemap, 'checks.sitemap.label', 'map', 'checks-crawl', 300, 86400, 1,
             new Schema([
                 'path' => new Field(
                     FieldType::String,
@@ -179,6 +167,17 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
 
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData
     {
+        return CheckRunPresentationData::withMappedHistory($this->presentSnapshot($run), $run, static fn (CheckRunPresentationPartData $first): ?string => match ($first->key) {
+            'sitemap.presentation.http_status', 'sitemap.presentation.http_status_nonstandard' => 'checks.history.http_status',
+            'sitemap.presentation.timeout' => 'checks.history.timeout',
+            'sitemap.presentation.tls' => 'checks.history.tls',
+            'sitemap.presentation.size_limit' => 'checks.history.size_limit',
+            default => null,
+        });
+    }
+
+    private function presentSnapshot(CheckRunPresentationInput $run): ?CheckRunPresentationData
+    {
         $evidence = $run->observationEvidence();
         if ($evidence === []) {
             return null;
@@ -186,7 +185,7 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
         if (in_array($run->summary, ['sitemap.no_verified_issues_one', 'sitemap.no_verified_issues_other'], true)) {
             $part = new CheckRunPresentationPartData($run->summary, $run->summaryParams);
 
-            return new CheckRunPresentationData([$part], history_label: $part, names_check: true);
+            return new CheckRunPresentationData([$part], history_label: $part);
         }
         $snapshot = SitemapSnapshot::from($evidence);
         if ($snapshot->issue_counts === null) {
@@ -261,12 +260,17 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
             return new CheckRunPresentationData($presentation->parts, history_label: $label);
         }
 
-        $first = $presentation->parts[0] ?? null;
-        if ($first !== null && str_starts_with($first->key, 'sitemap.xml.')) {
+        $first = $presentation->parts[0];
+        if (str_starts_with($first->key, 'sitemap.xml.')) {
             return new CheckRunPresentationData($presentation->parts, history_label: $first);
         }
 
         return $presentation;
+    }
+
+    public function namesCheck(string $key): bool
+    {
+        return $key !== 'sitemap.presentation.not_verifiable';
     }
 
     public function persistence(): RunPersistence

@@ -17,7 +17,6 @@ declare namespace Heptapod {
             readonly timeout: number;
             readonly defaultInterval: number;
             readonly defaultFailureThreshold: number;
-            readonly executionMode: Heptapod.Contracts.ExecutionMode;
             readonly configSchema: Heptapod.Contracts.Schema.Schema;
             readonly metricSchema: Heptapod.Contracts.Schema.Schema;
             readonly emittedEvents: string[];
@@ -92,7 +91,6 @@ declare namespace Heptapod {
             readonly lists: Record<string, string[]>;
         };
         export type DomainRegistrationSource = 'rdap' | 'whois';
-        export type ExecutionMode = 'poll' | 'push' | 'derived';
         export type ListScore = {
             readonly label_key: string;
             readonly score: number;
