@@ -731,11 +731,13 @@ it('maps root HTTP seam failures to errored runs without caching a collection', 
 })->with([FetchFailureKind::Timeout, FetchFailureKind::TooLarge, FetchFailureKind::Tls, FetchFailureKind::Dns, FetchFailureKind::Connect, FetchFailureKind::RedirectBlocked, FetchFailureKind::InvalidRequest]);
 
 it('collects only once when two independent workers request the same site concurrently', function (): void {
-    $siteId = random_int(100000000, 200000000);
     $client = new Client;
     $client->get('http://fixtures.test/crawl-addon/reset');
-    $command = ['php', base_path('addons/crawl/tests/Fixtures/collect.php'), (string) $siteId];
     $env = ['APP_ENV' => 'testing', 'DB_DATABASE' => DB::connection()->getDatabaseName()];
+    // Both workers see the same committed site and check, outside this test's transaction.
+    $setup = new Process(['php', base_path('addons/crawl/tests/Fixtures/collect.php'), 'setup'], base_path(), $env);
+    [$siteId, $checkId] = explode(' ', trim($setup->mustRun()->getOutput()));
+    $command = ['php', base_path('addons/crawl/tests/Fixtures/collect.php'), $siteId, $checkId];
     $first = new Process($command, base_path(), $env);
     $second = new Process($command, base_path(), $env);
     try {
@@ -2490,4 +2492,8 @@ it('stores no collection once its site is marked for deletion and leaves no craw
         ->and(DB::table('crawl_collections')->where('site_id', $check->site_id)->exists())->toBeFalse()
         ->and(DB::table('crawl_snapshots')->where('check_id', $check->id)->exists())->toBeFalse()
         ->and(DB::table('crawl_findings')->count())->toBe(0);
+
+    // A worker still crawling after the deletion stores no cache for the gone check and site either.
+    app(CheckRegistry::class)->get(CheckKey::BrokenLinks)->execute($live);
+    expect(DB::table('crawl_collections')->where('site_id', $check->site_id)->exists())->toBeFalse();
 });

@@ -84,7 +84,8 @@ final class PurgeDeletedSite implements ShouldBeUniqueUntilProcessing, ShouldQue
         }
         // The history of a check whose addon is not loaded has no purge: DeleteSite's cascade takes it in one go. A site
         // with such checks stays deletable; if that cascade outgrows its transaction, the job fails, the sweep retries
-        // and site_deletion_stuck opens after an hour.
+        // and site_deletion_stuck opens after an hour. Its tables without a foreign key to checks or sites (as the crawl
+        // addon's) are not covered: their rows stay behind, as they do on any deletion without the addon's purge.
         $unloaded = array_filter($types, static fn (string $type): bool => ! in_array(CheckKey::tryFrom($type), $registry->keys(), true));
         if ($unloaded !== []) {
             Log::error('A site deletion leaves the history of unloaded addons to the final cascade.', ['site_id' => $this->siteId, 'checks' => $unloaded]);
