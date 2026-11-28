@@ -125,6 +125,7 @@ const RouteAccess = [
     'GET live/changes' => ['owner' => 422, 'admin' => 422, 'member' => 422, 'memberall' => 422, 'outsider' => 422, 'unroled' => 422, 'bearer' => 401, 'guest' => 401],
     'GET maintenance' => ['owner' => 200, 'admin' => 200, 'member' => 200, 'memberall' => 200, 'outsider' => 200, 'unroled' => 403, 'bearer' => 401, 'guest' => 401],
     'GET notifications/explain' => ['owner' => 422, 'admin' => 422, 'member' => 422, 'memberall' => 422, 'outsider' => 422, 'unroled' => 422, 'bearer' => 401, 'guest' => 401],
+    'GET pickers/{kind}' => ['owner' => 200, 'admin' => 200, 'member' => 200, 'memberall' => 200, 'outsider' => 200, 'unroled' => 403, 'bearer' => 401, 'guest' => 401],
     'GET runs' => ['owner' => 200, 'admin' => 200, 'member' => 200, 'memberall' => 200, 'outsider' => 200, 'unroled' => 403, 'bearer' => 401, 'guest' => 401],
     'GET search' => ['owner' => 200, 'admin' => 200, 'member' => 200, 'memberall' => 200, 'outsider' => 200, 'unroled' => 403, 'bearer' => 401, 'guest' => 401],
     'GET servers' => ['owner' => 200, 'admin' => 200, 'member' => 403, 'memberall' => 403, 'outsider' => 403, 'unroled' => 403, 'bearer' => 401, 'guest' => 401],
@@ -219,7 +220,7 @@ const RouteAccess = [
     'POST settings/import/ohdear/runs/{run}/start' => ['owner' => 422, 'admin' => 403, 'member' => 403, 'memberall' => 403, 'outsider' => 403, 'unroled' => 403, 'bearer' => 401, 'guest' => 401],
     'POST settings/members/invitations' => ['owner' => 422, 'admin' => 422, 'member' => 403, 'memberall' => 403, 'outsider' => 403, 'unroled' => 403, 'bearer' => 401, 'guest' => 401],
     'POST settings/members/invitations/{invitation}/resend' => ['owner' => 204, 'admin' => 204, 'member' => 403, 'memberall' => 403, 'outsider' => 403, 'unroled' => 403, 'bearer' => 401, 'guest' => 401],
-    'POST sites' => ['owner' => 422, 'admin' => 422, 'member' => 403, 'memberall' => 403, 'outsider' => 404, 'unroled' => 403, 'bearer' => 401, 'guest' => 401],
+    'POST sites' => ['owner' => 422, 'admin' => 422, 'member' => 403, 'memberall' => 403, 'outsider' => 422, 'unroled' => 403, 'bearer' => 401, 'guest' => 401],
     'POST sites/probe' => ['owner' => 422, 'admin' => 422, 'member' => 403, 'memberall' => 403, 'outsider' => 403, 'unroled' => 403, 'bearer' => 401, 'guest' => 401],
     'POST sites/{site}/checks/{check}/accept-dns' => ['owner' => 422, 'admin' => 422, 'member' => 403, 'memberall' => 403, 'outsider' => 404, 'unroled' => 403, 'bearer' => 401, 'guest' => 401],
     'POST sites/{site}/checks/{check}/cancel' => ['owner' => 422, 'admin' => 422, 'member' => 403, 'memberall' => 403, 'outsider' => 404, 'unroled' => 403, 'bearer' => 401, 'guest' => 401],
@@ -402,8 +403,10 @@ function routeAccessUri(RoutingRoute $route, array $parameters): string
         str_starts_with($route->uri(), 'clients/{client}/logo/') => $parameters['logoHash'],
         default => $parameters['hash'],
     };
+    // The site picker reads the sites the principal can see.
+    $kind = str_starts_with($route->uri(), 'pickers/') ? 'sites' : $parameters['kind'];
     $uri = preg_replace_callback('/\{(\w+)\??\}/', static fn (array $match): string => match ($match[1]) {
-        'check' => $check, 'hash' => $hash, default => $parameters[$match[1]],
+        'check' => $check, 'hash' => $hash, 'kind' => $kind, default => $parameters[$match[1]],
     }, $route->uri());
 
     return '/'.rtrim((string) $uri, '/');
