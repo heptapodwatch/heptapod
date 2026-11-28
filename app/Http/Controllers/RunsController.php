@@ -7,6 +7,7 @@ namespace Heptapod\Http\Controllers;
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\FilterKind;
+use Heptapod\Contracts\FilterSlot;
 use Heptapod\Contracts\ListFilters;
 use Heptapod\Contracts\RunPhase;
 use Heptapod\Data\Ui\RunsBoardData;
@@ -49,16 +50,11 @@ final class RunsController extends Controller
                 }],
             'client' => ['kind' => FilterKind::Combobox, 'label' => 'Client', 'empty_label' => 'All clients', 'source' => 'clients', 'rules' => ['integer', 'min:1'], 'disabled_by' => 'check'],
             'type' => ['kind' => FilterKind::Select, 'label' => 'Check type', 'empty_label' => 'All checks', 'enum' => CheckKey::class, 'disabled_by' => 'check',
-                'options' => [
-                    'uptime' => 'checks.uptime.label', 'performance' => 'checks.performance.label', 'certificate_health' => 'checks.certificate_health.label',
-                    'domain' => 'checks.domain.label', 'dns' => 'checks.dns.label', 'sitemap' => 'checks.sitemap.label',
-                    'broken_links' => 'checks.broken_links.label', 'mixed_content' => 'checks.mixed_content.label', 'lighthouse' => 'checks.lighthouse.label',
-                    'cron' => 'checks.cron.label', 'application_health' => 'checks.application_health.label',
-                ]],
+                'options' => ListFilters::checkOptions()],
             'state' => ['kind' => FilterKind::Select, 'label' => 'State', 'empty_label' => 'runs.screen.allStates', 'enum' => RunPhase::class,
                 'options' => ['scheduled' => 'Scheduled', 'queued' => 'Queued', 'running' => 'Running', 'late' => 'Late', 'done' => 'Done', 'failed' => 'Failed', 'skipped' => 'Skipped', 'cancelled' => 'Cancelled']],
-            'show_same_result' => ['kind' => FilterKind::Boolean, 'label' => 'Show runs with the same result as before', 'rules' => ['boolean'], 'slot' => 'history', 'widens' => true],
-            'period' => ['kind' => FilterKind::Segmented, 'label' => 'runs.board.historyRange', 'default' => '24h', 'options' => ['24h' => 'Last 24 hours', '7d' => 'Last 7 days'], 'slot' => 'history-range'],
+            'show_same_result' => ['kind' => FilterKind::Boolean, 'label' => 'Show runs with the same result as before', 'rules' => ['boolean'], 'slot' => FilterSlot::History, 'widens' => true],
+            'period' => ['kind' => FilterKind::Segmented, 'label' => 'runs.board.historyRange', 'default' => '24h', 'options' => ['24h' => 'Last 24 hours', '7d' => 'Last 7 days'], 'slot' => FilterSlot::HistoryRange],
             'started' => ['kind' => FilterKind::Select, 'label' => 'run.started', 'empty_label' => 'run.started.all', 'options' => ['manual' => 'run.started.manual']],
         ], ['before' => ['sometimes', 'integer', 'min:1']]);
         $period = $query->value('period') ?? throw new \LogicException('Missing runs period.');

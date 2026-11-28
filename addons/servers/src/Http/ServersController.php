@@ -36,13 +36,12 @@ final class ServersController
     {
         Gate::authorize('viewAny', Server::class);
         $sorts = array_keys(ServerReader::SortKeys);
-        $query = ListFilters::read($request, [
-            'search' => ['kind' => FilterKind::Search, 'label' => 'servers.list.search', 'rules' => ['nullable', 'string', 'max:255']],
+        $filters = ListFilters::read($request, [
+            'search' => ['kind' => FilterKind::Search, 'label' => 'servers.list.search', 'rules' => ['nullable', 'string', 'max:255'], 'predicate' => ListFilters::literalPredicate($reader->search(...))],
             'state' => ['kind' => FilterKind::Select, 'label' => 'Status', 'empty_label' => 'servers.list.all_states', 'rules' => ['nullable'],
-                'options' => [ServerReader::NeedsAttention => 'Needs attention', ServerState::NoReport->value => 'servers.state.no_report', ServerState::Awaiting->value => 'servers.state.awaiting', ServerState::Reporting->value => 'servers.state.reporting']],
+                'options' => [ServerReader::NeedsAttention => 'Needs attention', ServerState::NoReport->value => 'servers.state.no_report', ServerState::Awaiting->value => 'servers.state.awaiting', ServerState::Reporting->value => 'servers.state.reporting'], 'predicate' => ListFilters::literalPredicate($reader->filterState(...))],
         ], ['sort' => ['sometimes', 'string', Rule::in([...$sorts, ...array_map(static fn (string $key): string => '-'.$key, $sorts)])]], nested: 'filter', queryOnly: true);
-        $filters = ['search' => $query->value('search'), 'state' => $query->value('state')];
-        $requestedSort = $query->parameter('sort');
+        $requestedSort = $filters->parameter('sort');
         $sort = is_string($requestedSort) ? $requestedSort : 'status';
         $page = null;
         $read = static function () use ($reader, $filters, $sort, &$page): array {
@@ -52,7 +51,7 @@ final class ServersController
         return Inertia::render('servers/index', new ServersPageData(
             Lazy::closure(static fn (): array => $read()['servers']), Lazy::closure(static fn (): PaginationData => $read()['pagination']),
             ServerThresholdsData::defaults(),
-            $query->data(), $sort,
+            $filters->data(), $sort,
         ));
     }
 

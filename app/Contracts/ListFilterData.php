@@ -19,7 +19,7 @@ final class ListFilterData extends Data
         public readonly array $options,
         public readonly ?string $empty_label,
         public readonly ?string $option_source,
-        public readonly string $slot,
+        public readonly FilterSlot $slot,
         public readonly bool $widens,
         public readonly ?string $disabled_by,
         public readonly ?string $display,

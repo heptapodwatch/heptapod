@@ -50,7 +50,8 @@ final class MaintenanceController extends Controller
                 }],
             'state' => ['kind' => FilterKind::Segmented, 'label' => 'Window state', 'default' => 'all', 'options' => ['all' => 'All', 'active' => 'Active', 'planned' => 'Planned', 'done' => 'Done']],
         ], ['page' => ['sometimes', 'integer', 'between:1,10000']]);
-        $user = $this->user($request);
+        $user = $request->user();
+        abort_unless($user instanceof User, 401);
         $perPage = ListPageSize::resolve($request, 'maintenance');
         $page = $filters->parameter('page');
         $state = $filters->value('state') ?? throw new \LogicException('The maintenance state has no default.');

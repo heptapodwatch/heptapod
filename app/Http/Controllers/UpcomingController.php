@@ -39,7 +39,8 @@ final class UpcomingController extends Controller
         $read = $page > $maxPage
             ? []
             : $reader->read($user, $days === 'all' ? 365 : (int) $days, $type === 'all' || $type === null ? null : [$type], $clientId, limit: min($page * $perPage + 1, UpcomingReader::MaxItems));
-        $items = new Paginator($read === [] ? [] : array_slice($read, ($page - 1) * $perPage), $perPage, $page, ['path' => Paginator::resolveCurrentPath(), 'query' => $request->query()]);
+        $items = new Paginator($read === [] ? [] : array_slice($read, ($page - 1) * $perPage), $perPage, $page, ['path' => Paginator::resolveCurrentPath()]);
+        $items->withQueryString();
 
         return Inertia::render('upcoming/index', new UpcomingIndexPageData(
             items: array_values($items->items()),

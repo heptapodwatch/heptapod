@@ -9,6 +9,7 @@ use Heptapod\Actions\CompleteNotificationDelivery;
 use Heptapod\Checks\CheckRunPresentations;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\EngineMessage;
+use Heptapod\Contracts\ListFilters;
 use Heptapod\Contracts\ListPaging;
 use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Contracts\PaginationData;
@@ -41,10 +42,8 @@ use Heptapod\Policies\SitePolicy;
 use Heptapod\Support\RedactionContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilderBase;
-use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
 
 final readonly class IncidentsReader
@@ -133,45 +132,11 @@ final readonly class IncidentsReader
     }
 
     /** @return QueryBuilder<Incident> */
-    public function filtered(User $user, Request $request): QueryBuilder
+    public function filtered(User $user, ListFilters $filters): QueryBuilder
     {
-        $timezone = $user->resolvedTimezone();
-        $query = QueryBuilder::for($this->scoped($user), $request)->allowedFilters(
-            AllowedFilter::callback('status', static function (Builder $query, mixed $value): void {
-                match ($value) {
-                    'open' => $query->getQuery()->whereNull('resolved_at'),
-                    'resolved' => $query->getQuery()->whereNotNull('resolved_at'),
-                    'all' => null,
-                    default => throw new \LogicException('Incident status filter must be validated.'),
-                };
-            })->default(self::DefaultStatus),
-            AllowedFilter::callback('period', static function (Builder $query, mixed $value): void {
-                if ($value === '30d') {
-                    $query->getQuery()->where(static fn (QueryBuilderBase $period) => $period->where('first_failure_at', '>=', CarbonImmutable::now('UTC')->subDays(30)->format('Y-m-d H:i:s.uP'))->orWhereNull('resolved_at'));
-                }
-            }),
-            AllowedFilter::exact('cause'),
-            AllowedFilter::exact('check', 'check.type'),
-            AllowedFilter::exact('client_id', 'site.client_id'),
-            AllowedFilter::callback('started_after', static function (Builder $query, mixed $value) use ($timezone): void {
-                if (! is_string($value)) {
-                    throw new \LogicException('Incident date filter must be validated as a string.');
-                }
-                $start = CarbonImmutable::parse($value, $timezone)->utc();
-                $query->getQuery()->where('first_failure_at', '>=', $start->format('Y-m-d H:i:s.uP'));
-            }),
-            AllowedFilter::callback('started_before', static function (Builder $query, mixed $value) use ($timezone): void {
-                if (! is_string($value)) {
-                    throw new \LogicException('Incident date filter must be validated as a string.');
-                }
-                $end = CarbonImmutable::parse($value, $timezone);
-                $wholeDay = preg_match('/^\d{4}-\d{2}-\d{2}$/D', $value) === 1;
-                $end = $wholeDay ? $end->addDay() : $end;
-                $query->getQuery()->where('first_failure_at', $wholeDay ? '<' : '<=', $end->utc()->format('Y-m-d H:i:s.uP'));
-            }),
-        );
-        if (! $request->filled('filter.started_after') && ! $request->filled('filter.started_before')
-            && ! $request->filled('filter.period')) {
+        $query = $filters->query($this->scoped($user));
+        if ($filters->value('started_after') === null && $filters->value('started_before') === null
+            && ! $filters->hasValue('period')) {
             $query->getEloquentBuilder()->getQuery()->where(static fn (QueryBuilderBase $period) => $period->where('first_failure_at', '>=', CarbonImmutable::now('UTC')->subDays(30)->format('Y-m-d H:i:s.uP'))->orWhereNull('resolved_at'));
         }
         $query->getEloquentBuilder()->getQuery()->orderByRaw('resolved_at IS NOT NULL')->orderByDesc('opened_at')->orderByDesc('id');
@@ -180,9 +145,9 @@ final readonly class IncidentsReader
     }
 
     /** @return array{list<IncidentData>, PaginationData} */
-    public function index(User $user, Request $request, int $perPage): array
+    public function index(User $user, ListFilters $filters, int $perPage): array
     {
-        $page = $this->filtered($user, $request)->paginate($perPage)->withQueryString();
+        $page = $this->filtered($user, $filters)->paginate($perPage)->withQueryString();
         /** @var \Illuminate\Database\Eloquent\Collection<int, Incident> $incidents */
         $incidents = $page->getCollection();
 

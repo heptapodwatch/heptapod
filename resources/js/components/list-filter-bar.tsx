@@ -21,6 +21,15 @@ import {
 export type ListFilters = Record<string, Heptapod.Contracts.ListFilterData>;
 type Filter = Heptapod.Contracts.ListFilterData;
 type FilterKind = Heptapod.Contracts.FilterKind;
+type FilterSlot = Heptapod.Contracts.FilterSlot;
+type Placement = FilterSlot | 'search' | 'segmented';
+
+const placeFilter = {
+    bar: (kind: FilterKind) =>
+        kind === 'search' || kind === 'segmented' ? kind : 'bar',
+    'history-range': () => 'history-range',
+    history: () => 'history',
+} satisfies Record<FilterSlot, (kind: FilterKind) => Placement>;
 type Change = (changes: Record<string, string | null>) => void;
 
 type ControlProps = {
@@ -205,7 +214,7 @@ function FilterControls({
     count,
     optionNotices,
     slot,
-}: Controls & { slot: string }) {
+}: Controls & { slot: Placement }) {
     const { t } = useTranslation();
     const entries = Object.entries(filters);
     return entries.map(([key, definition]) => {
@@ -220,12 +229,7 @@ function FilterControls({
         const encode = (value: string | null) =>
             value === null ? null : `${selected.prefix ?? ''}${value}`;
         const filter = { ...definition, value: encode(selected.value) };
-        const placement = ['bar', 'segmented', 'search'].includes(filter.slot)
-            ? filter.kind === 'search' || filter.kind === 'segmented'
-                ? filter.kind
-                : 'bar'
-            : filter.slot;
-        if (placement !== slot) return null;
+        if (placeFilter[filter.slot](filter.kind) !== slot) return null;
         const dependency =
             filter.disabled_by === null
                 ? undefined

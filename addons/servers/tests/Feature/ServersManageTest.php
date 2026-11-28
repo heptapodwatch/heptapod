@@ -499,6 +499,18 @@ it('filters the list by name or host name and by state', function (): void {
         ->where('filters.search.value', null)->where('filters.state.value', 'awaiting')->where('pagination.total', 1));
 });
 
+it('searches for server names containing literal commas and boolean words', function (): void {
+    $this->actingAs(manageUser('Owner'));
+    Server::named('true host')->issueToken();
+    Server::named('east,west')->issueToken();
+    Server::named('east')->issueToken();
+
+    $this->get('/servers?filter[search]=true')->assertInertia(fn (Assert $page): Assert => $page
+        ->has('servers', 1)->where('servers.0.name', 'true host'));
+    $this->get('/servers?filter[search]=east%2Cwest')->assertInertia(fn (Assert $page): Assert => $page
+        ->has('servers', 1)->where('servers.0.name', 'east,west'));
+});
+
 it('installs the agent of the newest known release on a source build, and names none when none is known', function (?string $latest, ?string $version): void {
     config(['heptapod.version' => 'sha-1f1e83e9']);
     if ($latest !== null) {

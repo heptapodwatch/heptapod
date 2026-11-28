@@ -22,16 +22,17 @@ final class IncidentsIndexController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
+        $filters = $request->listFilters();
         $perPage = ListPageSize::resolve($request, 'incidents');
         $page = null;
-        $read = static function () use ($reader, $user, $request, $perPage, &$page): array {
-            return $page ??= $reader->index($user, $request, $perPage);
+        $read = static function () use ($reader, $user, $filters, $perPage, &$page): array {
+            return $page ??= $reader->index($user, $filters, $perPage);
         };
 
         return Inertia::render('incidents/index', new IncidentsIndexPageData(
             incidents: Lazy::closure(static fn (): array => $read()[0]),
             pagination: Lazy::closure(static fn (): PaginationData => $read()[1]),
-            filters: Lazy::closure(static fn (): array => $request->listFilters()->data()),
+            filters: Lazy::closure(static fn (): array => $filters->data()),
             clients: Lazy::closure(static fn (): array => $sites->clients($user)),
             summary: Lazy::closure(static fn (): IncidentSummaryData => $reader->summary($user)),
         ));

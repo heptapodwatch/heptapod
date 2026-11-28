@@ -730,6 +730,7 @@ readonly client_name: string | null,
 export type DomainRegistrationSource = 'rdap' | 'whois';
 export type ExecutionMode = 'poll' | 'push' | 'derived';
 export type FilterKind = 'select' | 'combobox' | 'segmented' | 'chip' | 'boolean' | 'search' | 'date';
+export type FilterSlot = 'bar' | 'history-range' | 'history';
 export type ListFilterData = {
 readonly kind: Heptapod.Contracts.FilterKind,
 readonly label: string,
@@ -741,7 +742,7 @@ label: string,
 }[],
 readonly empty_label: string | null,
 readonly option_source: string | null,
-readonly slot: string,
+readonly slot: Heptapod.Contracts.FilterSlot,
 readonly widens: boolean,
 readonly disabled_by: string | null,
 readonly display: string | null,

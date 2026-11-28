@@ -8,6 +8,7 @@ use Heptapod\Contracts\Export\ColumnType;
 use Heptapod\Contracts\ExternalNetworkException;
 use Heptapod\Contracts\ExternalTimeoutException;
 use Heptapod\Contracts\FilterKind;
+use Heptapod\Contracts\FilterSlot;
 use Heptapod\Contracts\Http\AutomatedCheckBlockReason;
 use Heptapod\Contracts\Http\FetchException;
 use Heptapod\Contracts\Http\FetchFailureKind;
@@ -46,7 +47,7 @@ pest()->presets()->custom('heptapodLaravel', fn (): array => [
     // Addons need these wire/schema enums in Contracts, not the core-only Enums namespace.
     expect('Heptapod')
         ->not->toBeEnums()
-        ->ignoring([...ArchDrift::EnumsOutsideEnums, 'Heptapod\Enums', CheckKey::class, CheckResult::class, RunResult::class, RunPhase::class, ExecutionMode::class, ColumnType::class, FieldType::class, FilterKind::class, DomainRegistrationSource::class, SuppressionComponent::class, AlertSeverity::class, DeliveryState::class, FetchFailureKind::class, AutomatedCheckBlockReason::class, RedirectPolicy::class]),
+        ->ignoring([...ArchDrift::EnumsOutsideEnums, 'Heptapod\Enums', CheckKey::class, CheckResult::class, RunResult::class, RunPhase::class, ExecutionMode::class, ColumnType::class, FieldType::class, FilterKind::class, FilterSlot::class, DomainRegistrationSource::class, SuppressionComponent::class, AlertSeverity::class, DeliveryState::class, FetchFailureKind::class, AutomatedCheckBlockReason::class, RedirectPolicy::class]),
 
     expect('Heptapod\Enums')
         ->toBeEnums()

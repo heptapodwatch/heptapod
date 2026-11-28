@@ -19,6 +19,7 @@ use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\CheckRunPresentationData;
 use Heptapod\Contracts\CheckRunPresentationInput;
+use Heptapod\Contracts\ListFilters;
 use Heptapod\Contracts\ListScore;
 use Heptapod\Contracts\ListScoresProvider;
 use Heptapod\Contracts\RunPhase;
@@ -50,11 +51,9 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\JoinClause;
-use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\AllowedSort;
 use Spatie\QueryBuilder\QueryBuilder;
 use Spatie\Tags\Tag;
@@ -186,58 +185,20 @@ final readonly class SitesReader
     }
 
     /** @return LengthAwarePaginator<int, Site> */
-    public function page(User $user, Request $request, int $perPage): LengthAwarePaginator
+    public function page(User $user, ListFilters $filters, int $perPage): LengthAwarePaginator
     {
-        return $this->pageQuery($this->projected($user), $request)->paginate($perPage)->withQueryString();
+        return $this->pageQuery($this->projected($user), $filters)->paginate($perPage)->withQueryString();
     }
 
     /** @param Builder<Site> $query
      * @return QueryBuilder<Site>
      */
-    private function pageQuery(Builder $query, Request $request): QueryBuilder
+    private function pageQuery(Builder $query, ListFilters $filters): QueryBuilder
     {
         $sortName = $this->orderByName(...);
         $sortStatus = $this->orderByStatus(...);
         $sortClient = $this->orderByClient(...);
-        $advisories = $this->advisoryFilter(...);
-        $builder = QueryBuilder::for($query, $request)
-            ->allowedFilters(
-                AllowedFilter::partial('search', 'name'),
-                AllowedFilter::exact('client_id'),
-                AllowedFilter::exact('state'),
-                AllowedFilter::callback('attention', static function (Builder $query, mixed $value): void {
-                    if (filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
-                        $query->getQuery()->whereIn('state', SiteStatus::attention());
-                    }
-                }),
-                AllowedFilter::callback('check', static function (Builder $query, mixed $value): void {
-                    if (! is_string($value)) {
-                        throw new \LogicException('Check filter must be validated as a string.');
-                    }
-                    $query->whereHas('checks', static function (Builder $checks) use ($value): void {
-                        $checks->where('type', $value)->where('enabled', true);
-                    });
-                }),
-                AllowedFilter::callback('advisories', static function (Builder $query, mixed $value) use ($advisories): void {
-                    if (filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
-                        $advisories($query);
-                    }
-                }),
-                AllowedFilter::callback('package', static function (Builder $query, mixed $value) use ($advisories): void {
-                    $advisories($query, package: is_string($value) ? $value : throw new \LogicException('Package filter must be validated as a string.'));
-                })->delimiter(''),
-                AllowedFilter::callback('advisory', static function (Builder $query, mixed $value) use ($advisories): void {
-                    $advisories($query, advisoryId: is_string($value) ? $value : throw new \LogicException('Advisory filter must be validated as a string.'));
-                })->delimiter(''),
-                AllowedFilter::callback('tag', static function (Builder $query, mixed $value): void {
-                    if (! is_string($value)) {
-                        throw new \LogicException('Tag filter must be validated as a string.');
-                    }
-                    $query->whereHas('tags', static function (Builder $tags) use ($value): void {
-                        $tags->getQuery()->where('name->en', $value);
-                    });
-                }),
-            )
+        $builder = $filters->query($query)
             ->allowedSorts(AllowedSort::callback('status', $sortStatus), AllowedSort::callback('name', $sortName), AllowedSort::callback('client', $sortClient), 'url')
             ->defaultSort(AllowedSort::callback('status', $sortStatus));
         $builder->getEloquentBuilder()->getQuery()->orderBy('sites.id');
@@ -246,7 +207,7 @@ final readonly class SitesReader
     }
 
     /** @param Builder<Model> $query Spatie query filters pass the projected site query untyped. */
-    private function advisoryFilter(Builder $query, ?string $package = null, ?string $advisoryId = null): void
+    public function advisoryFilter(Builder $query, ?string $package = null, ?string $advisoryId = null): void
     {
         $index = $this->advisoryIndex();
         $query->whereHas('checks', static function (Builder $checks) use ($index, $package, $advisoryId): void {
@@ -286,13 +247,13 @@ final readonly class SitesReader
      *
      * @return array{page: LengthAwarePaginator<int, Site>, attention: EloquentCollection<int, Site>, summary: SiteListSummaryData, states: array<string, int>}
      */
-    public function index(User $user, Request $request, int $perPage): array
+    public function index(User $user, ListFilters $filters, int $perPage): array
     {
         $siteColumns = ['sites.id', 'sites.client_id', 'sites.url', 'sites.friendly_name', 'sites.icon_hash', 'sites.icon_backing', 'sites.crawler_headers', 'sites.name', 'sites.state'];
         $visible = $this->projected($user)->getQuery()->select($siteColumns);
         $visibleSites = Site::query();
         $visibleSites->getQuery()->from('visible as sites');
-        $count = $this->pageQuery(clone $visibleSites, $request)->getEloquentBuilder()->getQuery()->reorder();
+        $count = $this->pageQuery(clone $visibleSites, $filters)->getEloquentBuilder()->getQuery()->reorder();
         $currentPage = LengthAwarePaginator::resolveCurrentPage();
         $attention = $this->attentionQuery(clone $visibleSites)->getQuery()->select($siteColumns);
         $states = [];

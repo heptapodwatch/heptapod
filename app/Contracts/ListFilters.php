@@ -6,6 +6,9 @@ namespace Heptapod\Contracts;
 
 use BackedEnum;
 use Closure;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Query\Builder as BaseBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Validator;
@@ -13,9 +16,11 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
 use Illuminate\Validation\Rules\In;
 use LogicException;
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\QueryBuilder;
 
 /**
- * @phpstan-type Filter array{kind: FilterKind, label: string, rules?: list<string>, enum?: class-string<BackedEnum>, options?: array<array-key, string|null>, default?: string, empty_label?: string, source?: string, slot?: string, widens?: bool, disabled_by?: string, display?: Closure(string, array<array-key, mixed>): array{display: string, clear_url?: string, detail_url?: string}, group?: string, prefix?: string, counted_option?: string, counted_label?: string}
+ * @phpstan-type Filter array{kind: FilterKind, label: string, rules?: list<string>, enum?: class-string<BackedEnum>, options?: array<array-key, string|null>, default?: string, empty_label?: string, source?: string, slot?: FilterSlot, predicate?: Closure(string): AllowedFilter, widens?: bool, disabled_by?: string, display?: Closure(string, array<array-key, mixed>): array{display: string, clear_url?: string, detail_url?: string}, group?: string, prefix?: string, counted_option?: string, counted_label?: string}
  */
 final readonly class ListFilters
 {
@@ -91,6 +96,11 @@ final readonly class ListFilters
         return is_scalar($value) ? (string) $value : ($filter['default'] ?? null);
     }
 
+    public function hasValue(string $key): bool
+    {
+        return isset($this->validated[$key]);
+    }
+
     public function integer(string $key): ?int
     {
         $value = $this->value($key);
@@ -116,7 +126,7 @@ final readonly class ListFilters
             $result[$key] = new ListFilterData(
                 kind: $filter['kind'], label: $filter['label'], value: $value, default: $filter['default'] ?? null,
                 options: $options, empty_label: $filter['empty_label'] ?? null, option_source: $filter['source'] ?? null,
-                slot: $filter['slot'] ?? 'bar', widens: $filter['widens'] ?? false, disabled_by: $filter['disabled_by'] ?? null,
+                slot: $filter['slot'] ?? FilterSlot::Bar, widens: $filter['widens'] ?? false, disabled_by: $filter['disabled_by'] ?? null,
                 display: $display['display'] ?? null, clear_url: $display['clear_url'] ?? null, detail_url: $display['detail_url'] ?? null,
                 group: $filter['group'] ?? null, prefix: $filter['prefix'] ?? null,
                 counted_option: $filter['counted_option'] ?? null, counted_label: $filter['counted_label'] ?? null,
@@ -124,6 +134,48 @@ final readonly class ListFilters
         }
 
         return $result;
+    }
+
+    /**
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $builder
+     * @return QueryBuilder<TModel>
+     */
+    public function query(Builder $builder): QueryBuilder
+    {
+        $allowed = [];
+        foreach ($this->definition as $key => $filter) {
+            $predicate = $filter['predicate'] ?? throw new LogicException("List filter $key has no predicate.");
+            $binding = $predicate($key);
+            if ($binding->getName() !== $key) {
+                throw new LogicException("List filter $key has a predicate for {$binding->getName()}.");
+            }
+            $allowed[] = $binding;
+        }
+
+        // Spatie gets only validated values, retaining its existing delimiter, null and default handling.
+        return QueryBuilder::for($builder, new Request([
+            'filter' => Arr::only($this->validated, array_keys($this->definition)),
+            'sort' => $this->parameter('sort'),
+        ]))->allowedFilters(...$allowed);
+    }
+
+    /**
+     * @param  Closure(BaseBuilder, string): void  $predicate
+     * @return Closure(string): AllowedFilter
+     */
+    public static function literalPredicate(Closure $predicate): Closure
+    {
+        return static fn (string $key): AllowedFilter => AllowedFilter::callback($key, static function (Builder $query, mixed $value) use ($predicate): void {
+            // QueryBuilderRequest maps exactly these two strings to booleans.
+            $value = match ($value) {
+                true => 'true', false => 'false', default => $value,
+            };
+            if (is_string($value) && $value !== '') {
+                $predicate($query->getQuery(), $value);
+            }
+        })->delimiter('');
     }
 
     /** @return array<string, string> Labels in the shared check picker order. */
