@@ -262,6 +262,11 @@ final readonly class RunsReader
         return $query->count();
     }
 
+    public function findVisibleCheck(User $user, int $checkId): ?Check
+    {
+        return $this->visibleChecks($user, $checkId, null, null)->first();
+    }
+
     /** @return Builder<Check> */
     private function visibleChecks(User $user, ?int $checkId, ?int $clientId, ?string $type): Builder
     {

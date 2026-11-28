@@ -386,6 +386,8 @@ function runs(filters: Partial<Heptapod.Data.Ui.RunsFilterData>) {
             next_cursor={null}
             clients={[]}
             filters={{ ...runFilters, ...filters }}
+            check_filter={null}
+            attempt_retention_days={7}
         />,
     );
 }

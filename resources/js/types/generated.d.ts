@@ -2020,6 +2020,15 @@ readonly runs: Heptapod.Data.Ui.RunRowData[],
 readonly next_cursor: string | null,
 readonly clients: Heptapod.Data.Ui.ClientData[],
 readonly filters: Heptapod.Data.Ui.RunsFilterData,
+readonly check_filter: {
+clear_url: string,
+check: {
+type: Heptapod.Contracts.CheckKey,
+site_name: string,
+history_url: string,
+} | null,
+} | null,
+readonly attempt_retention_days: number,
 };
 export type SearchResultsData = {
 readonly sites: Heptapod.Data.Ui.SearchSiteData[],

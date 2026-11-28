@@ -1,3 +1,4 @@
+import { Link } from '@inertiajs/react';
 import { ChevronDown, SlidersHorizontal, X } from 'lucide-react';
 import { Collapsible as CollapsiblePrimitive } from 'radix-ui';
 import type { ComponentProps, ReactNode } from 'react';
@@ -128,23 +129,45 @@ function filterTriggerClass(active: boolean) {
 }
 
 /** The × inside an active filter control: its own button, so it resets only that filter and never opens the menu. */
+type FilterClearAction =
+    | { onClear: () => void; clearHref?: never }
+    | { clearHref: string; onClear?: never };
+
 function FilterClearButton({
     label,
     onClear,
-}: {
-    label: string;
-    onClear: () => void;
-}) {
+    clearHref,
+}: { label: string } & FilterClearAction) {
     const { t } = useTranslation();
+    const props = {
+        'aria-label': t('Clear :label filter', { label }),
+        className:
+            'absolute inset-y-0 right-0 flex w-10 cursor-pointer items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:w-8',
+        children: <X aria-hidden="true" className="size-4" />,
+    };
+    return clearHref !== undefined ? (
+        <Link {...props} href={clearHref} preserveScroll preserveState />
+    ) : (
+        <button {...props} type="button" onClick={onClear} />
+    );
+}
+
+export function FilterChip({
+    label,
+    value,
+    ...clear
+}: { label: string; value: string } & FilterClearAction) {
     return (
-        <button
-            type="button"
-            aria-label={t('Clear :label filter', { label })}
-            onClick={onClear}
-            className="absolute inset-y-0 right-0 flex w-10 cursor-pointer items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:w-8"
+        <div
+            className="relative max-w-full min-w-0"
+            role="group"
+            aria-label={label}
         >
-            <X aria-hidden="true" className="size-4" />
-        </button>
+            <span className="flex min-h-10 items-center rounded-md border border-border-strong bg-secondary py-1 pr-11 pl-3 text-cell [overflow-wrap:anywhere] text-foreground sm:min-h-8 sm:pr-9">
+                {value}
+            </span>
+            <FilterClearButton label={label} {...clear} />
+        </div>
     );
 }
 
@@ -160,7 +183,9 @@ export function FilterCombobox({
     onValueChange,
     onClear,
     notice,
-}: {
+    disabled,
+    describedBy,
+}: Pick<ComponentProps<typeof Combobox>, 'disabled' | 'describedBy'> & {
     id?: string;
     ariaLabel: string;
     options: ComboboxOption[];
@@ -183,6 +208,8 @@ export function FilterCombobox({
                 triggerClassName={filterTriggerClass(onClear !== null)}
                 ariaLabel={ariaLabel}
                 notice={notice}
+                disabled={disabled}
+                describedBy={describedBy}
             />
             {onClear && (
                 <FilterClearButton label={ariaLabel} onClear={onClear} />

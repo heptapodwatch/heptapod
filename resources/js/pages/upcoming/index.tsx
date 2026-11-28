@@ -121,6 +121,7 @@ export default function Upcoming({
                         value={days}
                         onValueChange={(days) => apply({ days })}
                         options={[
+                            { value: '14', label: t('14 days') },
                             { value: '30', label: t('30 days') },
                             { value: '90', label: t('90 days') },
                             { value: 'all', label: t('All') },

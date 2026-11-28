@@ -6,7 +6,7 @@ import { ClientMark } from '@/components/client-mark';
 import { CalendarDays } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { RowActions } from '@/components/row-actions';
-import { FilterBar, FilterCombobox } from '@/components/filter-bar';
+import { FilterBar, FilterChip, FilterCombobox } from '@/components/filter-bar';
 import {
     EntityCombobox,
     clientComboboxOptions,
@@ -601,7 +601,6 @@ export default function MaintenanceIndex({
             <Head title={t('Maintenance')} />
             <PageHeader
                 title={t('Maintenance')}
-                // A site-scoped view names its site in the shared trail; Clear filters returns to all windows.
                 trail={
                     site_id !== null ? (
                         <TextLink
@@ -696,6 +695,19 @@ export default function MaintenanceIndex({
                             : null
                     }
                 />
+                {site_name !== null && (
+                    <FilterChip
+                        label={t('Site')}
+                        value={site_name}
+                        onClear={() =>
+                            router.get(
+                                maintenanceIndex.url(),
+                                { client_id: client_id ?? undefined, state },
+                                { preserveState: true, preserveScroll: true },
+                            )
+                        }
+                    />
+                )}
             </FilterBar>
             <PendingChanges
                 count={buffered.pendingCount}
