@@ -2,7 +2,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
 import internal from './internal'
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:19
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:25
 * @route '/api/openapi.json'
 */
 export const getOpenApiDocument = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -17,7 +17,7 @@ getOpenApiDocument.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:19
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:25
 * @route '/api/openapi.json'
 */
 getOpenApiDocument.url = (options?: RouteQueryOptions) => {
@@ -26,7 +26,7 @@ getOpenApiDocument.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:19
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:25
 * @route '/api/openapi.json'
 */
 getOpenApiDocument.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -36,7 +36,7 @@ getOpenApiDocument.get = (options?: RouteQueryOptions): RouteDefinition<'get'> =
 
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:19
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:25
 * @route '/api/openapi.json'
 */
 getOpenApiDocument.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -46,7 +46,7 @@ getOpenApiDocument.head = (options?: RouteQueryOptions): RouteDefinition<'head'>
 
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:19
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:25
 * @route '/api/openapi.json'
 */
 const getOpenApiDocumentForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -56,7 +56,7 @@ const getOpenApiDocumentForm = (options?: RouteQueryOptions): RouteFormDefinitio
 
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:19
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:25
 * @route '/api/openapi.json'
 */
 getOpenApiDocumentForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -66,7 +66,7 @@ getOpenApiDocumentForm.get = (options?: RouteQueryOptions): RouteFormDefinition<
 
 /**
 * @see \Heptapod\Http\Controllers\Api\OpenApiDocumentController::__invoke
-* @see app/Http/Controllers/Api/OpenApiDocumentController.php:19
+* @see app/Http/Controllers/Api/OpenApiDocumentController.php:25
 * @route '/api/openapi.json'
 */
 getOpenApiDocumentForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

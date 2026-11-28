@@ -202,7 +202,9 @@ arch('core presentation contains no addon summary keys', function () use ($addon
     }
 });
 
-test('core names no addon API operation, schema, tag or switch', function () use ($addonPrefixes): void {
+// Covers the API an addon routes itself (addons/*/routes/api.php) and documents as an ApiDocumentPart. An API whose routes
+// and controllers still live in core, such as the cron tasks, is core text by this rule.
+test('core names no operation, schema or tag of an addon-routed API, nor an addon switch', function () use ($addonPrefixes): void {
     $root = dirname(__DIR__, 2);
     $names = [];
     foreach (glob($root.'/addons/*/routes/api.php') as $routes) {

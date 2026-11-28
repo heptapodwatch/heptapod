@@ -11,4 +11,9 @@ return new class extends SettingsMigration
     {
         $this->migrator->add('instance.servers_enabled', false);
     }
+
+    public function down(): void
+    {
+        $this->migrator->delete('instance.servers_enabled');
+    }
 };

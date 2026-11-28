@@ -2080,7 +2080,7 @@
             "dist": {
                 "type": "path",
                 "url": "addons/servers",
-                "reference": "8be09322e32d5e3dd858436bf4ade4792f7f4dac"
+                "reference": "f166df21bbf63ec1e747567aac2c0589575b6f4c"
             },
             "require": {
                 "illuminate/auth": "^13.34",
@@ -2096,6 +2096,7 @@
                 "nesbot/carbon": "^3.14",
                 "php": "^8.5",
                 "spatie/laravel-data": "^4.22",
+                "spatie/laravel-settings": "^3.9",
                 "spatie/typescript-transformer": "^3.3"
             },
             "type": "library",
