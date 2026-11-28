@@ -9,6 +9,7 @@ use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\User;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Testing\TestResponse;
 use Illuminate\Validation\ValidationException;
@@ -26,7 +27,13 @@ function localeApi(string $method, string $path, string $token, array $body = []
 }
 
 beforeEach(function (): void {
-    config(['app.supported_locales' => ['en', 'de', 'es-ES']]);
+    config(['app.supported_locales' => [...config()->array('app.supported_locales'), 'es-ES']]);
+});
+
+it('keeps supported locale codes in the notification channel storage format', function (): void {
+    foreach (config()->array('app.supported_locales') as $locale) {
+        expect($locale)->toMatch('/^[a-z]{2}(-[A-Z]{2})?$/D');
+    }
 });
 
 it('persists a configured profile language and shares its endonym after reload', function (): void {
@@ -37,14 +44,13 @@ it('persists a configured profile language and shares its endonym after reload',
         ->assertSessionHasNoErrors()->assertPlainCookie('locale', 'es-ES');
 
     expect($user->refresh()->locale)->toBe('es-ES');
-    $endonyms = [
-        ['code' => 'en', 'name' => 'English'],
-        ['code' => 'de', 'name' => 'Deutsch'],
-        ['code' => 'es-ES', 'name' => 'español'],
-    ];
-    $this->withoutVite()->get(route('profile.edit'))->assertOk()->assertInertia(
-        fn (AssertableInertia $page): AssertableInertia => $page->where('locale', 'es-ES')->where('supportedLocales', $endonyms),
-    );
+    $this->withoutVite()->get(route('profile.edit'))->assertOk()->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+        ->where('locale', 'es-ES')
+        ->where('supportedLocales', function (Collection $locales): bool {
+            $names = $locales->pluck('name', 'code');
+
+            return $names->get('en') === 'English' && $names->get('de') === 'Deutsch' && $names->get('es-ES') === 'español (España)';
+        }));
     expect(__('Language'))->toBe('Idioma');
 });
 

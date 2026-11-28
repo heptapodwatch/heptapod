@@ -36,11 +36,10 @@ final readonly class ClientsReader
         }
         $query = $filters->query($clients);
         $query->getEloquentBuilder()->with(Client::AvatarRelations);
-        $collation = SitesReader::collation();
         if (! $archived) {
             $query->getEloquentBuilder()->getQuery()->orderByRaw('coalesce(attention.attention_rank, '.SiteStatus::quietRankLiteral().')');
         }
-        $query->getEloquentBuilder()->getQuery()->orderByRaw('clients.name COLLATE "'.$collation.'"')->orderBy('clients.id');
+        $query->getEloquentBuilder()->getQuery()->orderBy(SitesReader::collated('clients.name'))->orderBy('clients.id');
         $page = $query->paginate($perPage)->withQueryString();
         /** @var list<int> $ids */
         $ids = $page->getCollection()->pluck('id')->all();

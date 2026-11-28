@@ -33,6 +33,17 @@ it('requires authentication and an instance role for the sites list', function (
     $this->actingAs(User::factory()->create())->get('/sites')->assertForbidden();
 });
 
+it('sorts site names using the viewer’s configured regional collation', function (): void {
+    config(['app.supported_locales' => [...config()->array('app.supported_locales'), 'sv-SE']]);
+    $viewer = User::factory()->owner()->create(['locale' => 'sv-SE']);
+    Site::factory()->create(['friendly_name' => 'Åland']);
+    Site::factory()->create(['friendly_name' => 'Zulu']);
+
+    $this->withoutVite()->actingAs($viewer)->get('/sites?sort=name')->assertOk()->assertInertia(fn (Assert $page): Assert => $page
+        ->loadDeferredProps(['list'], fn (Assert $list): Assert => $list
+            ->where('sites.0.name', 'Zulu')->where('sites.1.name', 'Åland')));
+});
+
 it('orders sites by severity then locale-aware name and permits explicit sorting and filters', function (): void {
     $user = User::factory()->create(['locale' => 'de']);
     $user->assignRole('Owner');

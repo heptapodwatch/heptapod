@@ -1,4 +1,4 @@
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { Send } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -56,7 +56,7 @@ type Draft = {
 type Preview = {
     subject: string;
     html: string;
-    locale: 'en' | 'de';
+    locale: string;
     total: number | null;
 };
 
@@ -81,6 +81,7 @@ export function SendToClientSheet({
     initialDesign: MailDesign;
 }) {
     const { t } = useTranslation();
+    const { supportedLocales } = usePage().props;
     const id = useId();
     const [channels, setChannels] = useState<Channel[] | null>(null);
     const [loadFailed, setLoadFailed] = useState(false);
@@ -445,11 +446,13 @@ export function SendToClientSheet({
                         </SectionHeading>
                         {preview && (
                             <Badge variant="outline">
-                                {t(
-                                    preview.locale === 'de'
-                                        ? 'client_messages.sheet.language_de'
-                                        : 'client_messages.sheet.language_en',
-                                )}
+                                {t('client_messages.sheet.language', {
+                                    language:
+                                        supportedLocales.find(
+                                            ({ code }) =>
+                                                code === preview.locale,
+                                        )?.name ?? preview.locale,
+                                })}
                             </Badge>
                         )}
                     </div>

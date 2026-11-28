@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 
 const directory = 'public/build';
@@ -21,7 +21,11 @@ const budgets = [
     ['sites/show', 'resources/js/pages/sites/show.tsx', 2050],
     ['settings/profile', 'resources/js/pages/settings/profile.tsx', 1450],
 ];
-for (const locale of ['en', 'de']) {
+const locales = readdirSync('lang', { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name !== 'vendor')
+    .map((entry) => entry.name)
+    .sort();
+for (const locale of locales) {
     for (const [name, page, budgetKiB] of budgets) {
         const files = collectFiles('resources/js/app.tsx');
         const catalog = `resources/js/lib/catalogs/${locale}.ts`;

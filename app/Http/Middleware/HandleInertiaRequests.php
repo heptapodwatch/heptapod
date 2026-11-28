@@ -67,7 +67,7 @@ class HandleInertiaRequests extends Middleware
                 $supported = config()->array('app.supported_locales');
 
                 return array_map(static function (string $code): array {
-                    $name = \Locale::getDisplayLanguage($code, $code);
+                    $name = \Locale::getDisplayName($code, $code);
                     if ($name === false) {
                         throw new \LogicException('No display language for locale '.$code.'.');
                     }

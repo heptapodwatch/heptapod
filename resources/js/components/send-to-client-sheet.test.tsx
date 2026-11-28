@@ -20,6 +20,11 @@ let sendResponse: HttpResponse;
 vi.mock('@inertiajs/react', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@inertiajs/react')>()),
     router: { on: () => () => {}, visit: vi.fn(), flushAll: vi.fn() },
+    usePage: () => ({
+        props: {
+            supportedLocales: [{ code: 'es-ES', name: 'español (España)' }],
+        },
+    }),
 }));
 /** The real Inertia useHttp over a fake transport: what the server answers is all that is faked. */
 function fakeTransport(config: HttpRequestConfig): Promise<HttpResponse> {
@@ -30,9 +35,9 @@ function fakeTransport(config: HttpRequestConfig): Promise<HttpResponse> {
     });
     const response = config.url.endsWith('/preview')
         ? json(200, {
-              subject: 'Defekte Links auf shop.test: 7 gefunden',
-              html: '<p>Guten Tag,</p>',
-              locale: 'de',
+              subject: 'Enlaces rotos en shop.test: 7 encontrados',
+              html: '<p>Hola,</p>',
+              locale: 'es-ES',
               total: 7,
           })
         : sendResponse;
@@ -133,11 +138,15 @@ it('starts with the first email channel, warns about a paused one and sends once
     ).toBeTruthy();
     // The preview renders in the client's language before anything is sent.
     expect(
-        await screen.findByText('Defekte Links auf shop.test: 7 gefunden', {
+        await screen.findByText('Enlaces rotos en shop.test: 7 encontrados', {
             exact: true,
         }),
     ).toBeTruthy();
-    expect(screen.getByText('client_messages.sheet.language_de')).toBeTruthy();
+    expect(
+        screen.getByText(
+            'client_messages.sheet.language({"language":"español (España)"})',
+        ),
+    ).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('client_messages.sheet.note'), {
         target: { value: 'Bitte prüfen.' },

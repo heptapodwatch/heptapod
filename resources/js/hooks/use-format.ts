@@ -12,6 +12,11 @@ import { formatUptimePercentage } from '@/lib/uptime-percentage';
 export function useFormat() {
     const { i18n } = useTranslation();
     const timezone = useViewerTimezone();
+    // German uses the familiar "Std." instead of Intl's narrow hour symbol.
+    const hours =
+        new Intl.Locale(i18n.language).language === 'de'
+            ? ('short' as const)
+            : undefined;
     const number = (value: number, options?: Intl.NumberFormatOptions) =>
         numberFormat(i18n.language, options).format(value);
     const milliseconds = (value: number) =>
@@ -103,9 +108,7 @@ export function useFormat() {
         const zero = Object.keys(values).length === 0;
         return durationFormat(i18n.language, {
             style: 'narrow',
-            ...(i18n.language.startsWith('de')
-                ? { hours: 'short' as const }
-                : {}),
+            hours,
             hoursDisplay: 'auto',
             minutesDisplay: 'auto',
             secondsDisplay: zero ? 'always' : 'auto',
@@ -159,9 +162,7 @@ export function useFormat() {
         const value = Math.floor(Math.round(seconds) / size);
         return durationFormat(i18n.language, {
             style: 'narrow',
-            ...(i18n.language.startsWith('de')
-                ? { hours: 'short' as const }
-                : {}),
+            hours,
             hoursDisplay: 'auto',
             minutesDisplay: 'auto',
             secondsDisplay: value === 0 ? 'always' : 'auto',

@@ -50,6 +50,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Query\Expression;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -135,17 +136,40 @@ final readonly class SitesReader
         $this->orderByName($query, false);
     }
 
-    /** @return 'de-x-icu'|'en-x-icu' */
     public static function collation(): string
     {
-        return app()->getLocale() === 'de' ? 'de-x-icu' : 'en-x-icu';
+        $locale = app()->getLocale();
+        if (preg_match('/^[a-z]{2}(-[A-Z]{2})?$/D', $locale) !== 1) {
+            return 'en-x-icu';
+        }
+
+        // Postgres may not have the exact region; try the language before the default collation.
+        return once(static function () use ($locale): string {
+            foreach (array_unique([$locale, substr($locale, 0, 2)]) as $tag) {
+                $name = $tag.'-x-icu';
+                if (DB::scalar('SELECT to_regcollation(?) IS NOT NULL', ['pg_catalog."'.$name.'"']) === true) {
+                    return $name;
+                }
+            }
+
+            return 'en-x-icu';
+        });
+    }
+
+    /**
+     * @param  literal-string  $expression
+     * @return Expression<float|int|literal-string>
+     */
+    public static function collated(string $expression): Expression
+    {
+        // The expression is static SQL; collation() only returns a format-checked ICU identifier.
+        return new Expression($expression.' COLLATE "'.self::collation().'"'); // @phpstan-ignore argument.type
     }
 
     /** @param Builder<Site> $query */
     private function orderByName(Builder $query, bool $descending): void
     {
-        $collation = self::collation();
-        $query->getQuery()->orderByRaw('name COLLATE "'.$collation.'" '.($descending ? 'DESC' : 'ASC'));
+        $query->getQuery()->orderBy(self::collated('name'), $descending ? 'desc' : 'asc');
     }
 
     /**
@@ -156,9 +180,9 @@ final readonly class SitesReader
      */
     private function orderByClient(Builder $query, bool $descending): void
     {
-        $collation = self::collation();
-        $query->getQuery()->orderByRaw('(SELECT '.Client::displayNameSql().' FROM clients WHERE clients.id = sites.client_id) COLLATE "'.$collation.'" '
-            .($descending ? 'DESC' : 'ASC'), [__('No client')]);
+        $query->getQuery()
+            ->orderBy(self::collated('(SELECT '.Client::displayNameSql().' FROM clients WHERE clients.id = sites.client_id)'), $descending ? 'desc' : 'asc')
+            ->addBinding(__('No client'), 'order');
         $this->orderByName($query, false);
     }
 
@@ -651,9 +675,8 @@ final readonly class SitesReader
      */
     private function clientOptions(Builder $clients): array
     {
-        $collation = self::collation();
         $clients->with(Client::AvatarRelations);
-        $clients->getQuery()->orderByDesc('is_internal')->orderByRaw('name COLLATE "'.$collation.'"')->orderBy('id');
+        $clients->getQuery()->orderByDesc('is_internal')->orderBy(self::collated('name'))->orderBy('id');
         $options = $clients->get()->map(fn (Client $client): ClientData => ClientData::fromClient($client))->all();
 
         return array_values($options);

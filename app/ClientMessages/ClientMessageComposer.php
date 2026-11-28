@@ -250,6 +250,11 @@ final class ClientMessageComposer
 
     private function time(CarbonImmutable $at, string $locale): string
     {
-        return __('client_messages.when', ['date' => $at->format($locale === 'de' ? 'd.m.Y' : 'j M Y'), 'time' => $at->format('H:i')]);
+        $at->locale($locale);
+
+        return __('client_messages.when', [
+            'date' => $at->translatedFormat(__('client_messages.date_format')),
+            'time' => $at->format('H:i'),
+        ]);
     }
 }

@@ -112,6 +112,15 @@ it('updates the same Oh Dear channels on CLI rerun without printing secrets or s
     expect(NotificationDestination::query()->whereNotNull('oh_dear_id')->count())->toBe(9);
 });
 
+it('uses the fallback locale for team channels imported with an unsupported process locale', function (): void {
+    config(['app.fallback_locale' => 'de']);
+    app()->setLocale('en_US');
+
+    expect(Artisan::call('heptapod:import-ohdear', ['--token' => 'fixture-secret-import-token', '--only' => 'channels']))->toBe(0);
+
+    expect(NotificationDestination::query()->where('oh_dear_id', 101)->firstOrFail()->locale)->toBe('de');
+});
+
 it('writes no further channel once the starter of a channels-only import loses access', function (): void {
     $starter = User::factory()->owner()->create(['locale' => 'en']);
     $otherOwner = User::factory()->owner()->create();

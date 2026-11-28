@@ -96,8 +96,12 @@ final readonly class SaveNotificationChannel
             foreach ($categories as $category) {
                 $grid[$category->value] = NotificationMode::Immediate;
             }
+            $locale = app()->getLocale();
+            if (! in_array($locale, config()->array('app.supported_locales'), true)) {
+                $locale = config()->string('app.fallback_locale');
+            }
             $attributes = ['oh_dear_id' => $sourceId, 'recipient_kind' => $recipient, 'client_id' => $clientId, 'channel' => $kind, 'label' => $label,
-                'locale' => $clientId === null ? ($existing->locale ?? app()->getLocale()) : null,
+                'locale' => $clientId === null ? ($existing->locale ?? $locale) : null,
                 'scope_client_id' => $clientId === null ? ($existing->scope_client_id ?? null) : null,
                 'config' => $config, 'enabled' => $enabled, 'check_types' => $checks];
             if ($existing === null) {
