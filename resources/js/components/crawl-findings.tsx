@@ -1,3 +1,4 @@
+import { AbsoluteTime } from '@/components/absolute-time';
 import { CardToolbarActions } from '@/components/card-toolbar-actions';
 import { ListFooter } from '@/components/list-footer';
 import { TooltipHint } from '@/components/truncated-text';
@@ -265,7 +266,7 @@ export function FindingsTable({
                                 {showFindingDetails ? (
                                     <>
                                         <TableHead>{t('Link text')}</TableHead>
-                                        <TableHead className="w-24">
+                                        <TableHead className="w-44">
                                             {t('Since')}
                                         </TableHead>
                                     </>
@@ -317,7 +318,7 @@ export function FindingsTable({
                                                     row.linkText,
                                                 ) ?? t('No link text recorded')}
                                             </TableCell>
-                                            <TableCell className="text-xs whitespace-normal text-muted-foreground">
+                                            <TableCell className="text-xs text-muted-foreground">
                                                 {row.since}
                                             </TableCell>
                                         </>
@@ -584,7 +585,8 @@ export function CrawlFindings({
                             source: finding.found_on,
                             linkText: finding.link_text,
                             since: finding.first_seen_in_retained_history_at ? (
-                                <MonitoringTime
+                                <AbsoluteTime
+                                    mode="listTime"
                                     value={
                                         finding.first_seen_in_retained_history_at
                                     }
@@ -621,7 +623,8 @@ export function CrawlFindings({
                                                 'First seen in retained history',
                                             )}{' '}
                                             ·{' '}
-                                            <MonitoringTime
+                                            <AbsoluteTime
+                                                mode="listTime"
                                                 value={
                                                     finding.first_seen_in_retained_history_at
                                                 }

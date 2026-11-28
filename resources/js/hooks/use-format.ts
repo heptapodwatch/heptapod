@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useViewerTimezone } from '@/hooks/use-viewer-timezone';
-import { formatDateTime, zoneCity } from '@/lib/date-time';
+import { calendarDay, formatDateTime, zoneCity } from '@/lib/date-time';
 import {
     dateTimeFormat,
     durationFormat,
@@ -28,6 +28,51 @@ export function useFormat() {
         }).format(new Date(value));
     const timestamp = (value: string, displayTimezone = timezone) =>
         formatDateTime(value, i18n.language, displayTimezone, 'timestamp');
+    const listTime = (
+        value: string,
+        {
+            end,
+            seconds,
+            displayTimezone = timezone,
+        }: {
+            end?: string;
+            seconds?: boolean;
+            displayTimezone?: string;
+        } = {},
+    ) => {
+        const localDay = (instant: string) =>
+            calendarDay(instant, displayTimezone);
+        const today = localDay(new Date().toISOString());
+        const dayLabel = (instant: string) => {
+            const day = localDay(instant);
+            if (day === today) return i18n.t('Today');
+            if (day === today - 86_400_000) return i18n.t('Yesterday');
+            return date(instant, {
+                timeZone: displayTimezone,
+                month: 'short',
+                day: 'numeric',
+                ...(new Date(day).getUTCFullYear() !==
+                new Date(today).getUTCFullYear()
+                    ? { year: 'numeric' }
+                    : {}),
+            });
+        };
+        const clock = (instant: string) =>
+            formatDateTime(
+                instant,
+                i18n.language,
+                displayTimezone,
+                seconds ? 'eventTime' : 'time',
+            );
+        const label = `${dayLabel(value)} · ${clock(value)}`;
+        if (end === undefined || Date.parse(value) === Date.parse(end))
+            return { label };
+        const endLabel =
+            localDay(value) === localDay(end)
+                ? clock(end)
+                : `${dayLabel(end)} · ${clock(end)}`;
+        return { label, end: { value: end, label: endLabel } };
+    };
     const dateRange = (
         from: string,
         to: string,
@@ -292,6 +337,13 @@ export function useFormat() {
         compactDuration,
         intervalPhrase,
         timestamp,
+        messageWithTime: (
+            key: string,
+            params: Record<string, string | number | boolean | null>,
+        ) =>
+            typeof params.time === 'string'
+                ? i18n.t(key, { ...params, time: timestamp(params.time) })
+                : i18n.t(key),
         exact: (value: string, displayTimezone = timezone) =>
             formatDateTime(value, i18n.language, displayTimezone, 'exact'),
         calendarDate: (value: string, displayTimezone = timezone) =>
@@ -370,25 +422,7 @@ export function useFormat() {
             });
         },
         dateRange,
-        historyRange: (from: string, to: string) => {
-            const day = (value: string) =>
-                date(value, {
-                    year: 'numeric',
-                    month: 'numeric',
-                    day: 'numeric',
-                });
-            const today = day(new Date().toISOString());
-            if (day(from) === day(to)) {
-                const label =
-                    day(to) === today
-                        ? i18n.t('Today')
-                        : date(to, { month: 'short', day: 'numeric' });
-                return `${label} · ${dateRange(from, to, { hour: '2-digit', minute: '2-digit', second: Date.parse(to) - Date.parse(from) < 120000 ? '2-digit' : undefined, hourCycle: 'h23' })}`;
-            }
-            return day(to) === today
-                ? `${date(from, { month: 'short', day: 'numeric' })} – ${i18n.t('Today')}`
-                : dateRange(from, to, { month: 'short', day: 'numeric' });
-        },
+        listTime,
         duration,
         summaryParams,
         monitorTime,

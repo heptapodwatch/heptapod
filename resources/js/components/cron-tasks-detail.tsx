@@ -16,11 +16,7 @@ import {
     TooltipDetails,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import {
-    MonitoringTime,
-    StatusBadge,
-    statusColor,
-} from '@/components/monitoring';
+import { StatusBadge, statusColor } from '@/components/monitoring';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFormat } from '@/hooks/use-format';
@@ -104,7 +100,7 @@ export function CronTasksDetail({
                                             value: (
                                                 <>
                                                     {task.last_ping_at ? (
-                                                        <MonitoringTime
+                                                        <AbsoluteTime
                                                             value={
                                                                 task.last_ping_at
                                                             }

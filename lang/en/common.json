@@ -531,6 +531,7 @@
     "State": "State",
     "Unavailable": "Unavailable",
     "Today": "Today",
+    "Yesterday": "Yesterday",
     "Upcoming": "Upcoming",
     "Upcoming items_one": "Upcoming · {{count}} item",
     "Upcoming items_other": "Upcoming · {{count}} items",

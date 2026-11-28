@@ -11,6 +11,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 #[TypeScript]
 final class IncidentDeliveryData extends Data
 {
+    /** @param array{time: string, minutes?: int}|null $diagnosis_params */
     public function __construct(
         public readonly string $address,
         public readonly string $event_type,
@@ -26,5 +27,6 @@ final class IncidentDeliveryData extends Data
         public readonly ?string $timeline_time = null,
         public readonly ?int $sent_delay_seconds = null,
         public readonly int $retry_count = 0,
+        public readonly ?array $diagnosis_params = null,
     ) {}
 }

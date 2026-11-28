@@ -21,7 +21,8 @@ import { PageContainer } from '@/components/page-container';
 import { SegmentedControl } from '@/components/segmented-control';
 import { ListHeader, ListRow } from '@/components/ui/table';
 import { useFormat } from '@/hooks/use-format';
-import { calendarDay, calendarGroup } from '@/lib/upcoming-calendar';
+import { calendarDay } from '@/lib/date-time';
+import { calendarGroup } from '@/lib/upcoming-calendar';
 import { index as upcomingIndex } from '@/routes/upcoming';
 import {
     Select,

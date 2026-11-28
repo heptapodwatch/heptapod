@@ -93,6 +93,22 @@ export function formatDateTime(
     }).format(new Date(value));
 }
 
+// Calendar days use the viewer's timezone; elapsed 24-hour periods fail across DST.
+export function calendarDay(value: string, timezone: string): number {
+    const parts = dateTimeFormat('en', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+    }).formatToParts(new Date(value));
+    const part = (type: Intl.DateTimeFormatPartTypes) => {
+        const value = parts.find((part) => part.type === type)?.value;
+        if (value === undefined) throw new Error(`Missing calendar ${type}`);
+        return Number(value);
+    };
+    return Date.UTC(part('year'), part('month') - 1, part('day'));
+}
+
 /** The readable short form of an IANA zone: its city ("Europe/Berlin" → "Berlin", "America/Argentina/Buenos_Aires" → "Buenos Aires"). */
 export function zoneCity(timezone: string): string {
     return (timezone.split('/').at(-1) ?? timezone).replaceAll('_', ' ');

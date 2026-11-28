@@ -531,6 +531,7 @@
     "State": "Zustand",
     "Unavailable": "Nicht verfügbar",
     "Today": "Heute",
+    "Yesterday": "Gestern",
     "Upcoming": "Demnächst",
     "Upcoming items_one": "Demnächst · {{count}} Eintrag",
     "Upcoming items_other": "Demnächst · {{count}} Einträge",

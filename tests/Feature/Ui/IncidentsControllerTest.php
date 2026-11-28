@@ -101,6 +101,23 @@ it('shows each recipient only the observed SMTP acceptance or rejection for an i
         ->where('expanded_notifications.deliveries.1.address', 'accepted@example.test')->where('expanded_notifications.deliveries.1.state', 'accepted'));
 });
 
+it('shares a deferred incident notification deadline as an instant for the viewer to format', function (): void {
+    $this->withoutVite();
+    $this->travelTo(CarbonImmutable::parse('2026-10-05T00:30:00Z'));
+    $owner = User::factory()->owner()->create(['timezone' => 'Europe/Berlin']);
+    $incident = Incident::factory()->create();
+    $event = Event::factory()->for($incident)->create(['site_id' => $incident->site_id,
+        'check_id' => $incident->check_id, 'type' => 'check.result_changed']);
+    $destination = NotificationDestination::factory()->create();
+    Delivery::query()->create(['event_id' => $event->id, 'destination_id' => $destination->id,
+        'state' => DeliveryState::Pending, 'last_reason' => 'deferred_by_snooze',
+        'next_attempt_at' => now()->addMinutes(15), 'suppression_evaluated_at' => now()]);
+
+    $this->actingAs($owner)->get('/incidents/'.$incident->id)->assertOk()->assertInertia(fn (Assert $page): Assert => $page
+        ->where('other_deliveries.0.diagnosis', 'notifications.deferred_by_snooze')
+        ->where('other_deliveries.0.diagnosis_params.time', '2026-10-05T00:45:00+00:00'));
+});
+
 it('pages the other incident mail deliveries newest first and remembers the page size', function (): void {
     $this->withoutVite();
     $owner = User::factory()->create();

@@ -3,7 +3,13 @@ import { PresentationChanges } from '@/components/presentation-changes';
 import { SiteAvatar } from '@/components/site-avatar';
 import { EmptyState } from '@/components/empty-state';
 import { AlertCircle, Globe, Server } from 'lucide-react';
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import {
+    useEffect,
+    useLayoutEffect,
+    useRef,
+    useState,
+    type ReactNode,
+} from 'react';
 import { AbsoluteTime } from '@/components/absolute-time';
 import { EntityLink } from '@/components/entity-link';
 import { useTranslation } from 'react-i18next';
@@ -615,7 +621,13 @@ export function MonitoringTime({
     label?: string;
 }) {
     const { monitorTime } = useFormat();
-    const { label, exact } = monitorTime(value, mode);
+    const [now, setNow] = useState(Date.now);
+    useEffect(() => {
+        if (mode === 'since') return;
+        const timer = window.setInterval(() => setNow(Date.now()), 1000);
+        return () => window.clearInterval(timer);
+    }, [mode]);
+    const { label, exact } = monitorTime(value, mode, now);
     return (
         <Tooltip>
             <TooltipTrigger asChild>
@@ -643,7 +655,7 @@ export function EventTimeline({
     showSiteName?: boolean;
     /** Cross-site lists (Activity): the client after the check in the detail line. */
     showClientName?: boolean;
-    /** Day-grouped lists: the event clock (seconds) instead of the relative time. */
+    /** Day-grouped lists show the event clock without repeating the date. */
     clock?: boolean;
     /** Text before the message, e.g. the earlier state of a collapsed pair ("Failed →"). */
     lead?: (event: EventDto) => ReactNode;
@@ -655,7 +667,10 @@ export function EventTimeline({
     return (
         <ol className="space-y-0">
             {events.map((event) => {
-                let message = t(event.message);
+                let message = format.messageWithTime(
+                    event.message,
+                    event.message_params,
+                );
                 if (
                     event.severity === 'recovered' &&
                     event.duration_seconds !== null &&
@@ -686,18 +701,16 @@ export function EventTimeline({
                         </span>
                         <div className="min-w-0 space-y-1">
                             <div className="grid grid-cols-[6rem_1fr] items-baseline gap-4">
-                                {clock ? (
-                                    <AbsoluteTime
-                                        value={event.time}
-                                        mode="eventTime"
-                                        className="font-mono text-xs text-muted-foreground tabular-nums"
-                                    />
-                                ) : (
-                                    <MonitoringTime
-                                        value={event.time}
-                                        className="font-mono text-xs text-muted-foreground tabular-nums"
-                                    />
-                                )}
+                                <AbsoluteTime
+                                    value={event.time}
+                                    {...(clock
+                                        ? { mode: 'eventTime' as const }
+                                        : {
+                                              mode: 'listTime' as const,
+                                              seconds: true,
+                                          })}
+                                    className="text-xs text-muted-foreground"
+                                />
 
                                 <span className="text-sm">
                                     {showSiteName && (

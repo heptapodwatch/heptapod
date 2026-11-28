@@ -66,8 +66,7 @@ Use `TooltipHint` for a supplementary value (an exact time) and `TruncatedText` 
 
 ## Dates and durations
 
-- Instants use `AbsoluteTime`; `MonitoringTime`'s relative label is only for a single last-seen fact. One kind of time per column.
-- Seconds only where they distinguish recorded events (attempts, event clocks).
+- Lists, tables and history use `AbsoluteTime` in the viewer’s time zone, with one precision per list (including range endpoints); show seconds only where they distinguish events. Reserve `MonitoringTime` for status statements, with the exact instant in its tooltip.
 - Table cells use `compactDuration`, so a German duration never widens a column.
 - Weeks start on Monday.
 

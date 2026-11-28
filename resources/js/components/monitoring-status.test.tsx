@@ -7,7 +7,7 @@ import {
     within,
 } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { CheckStrip, StatusBadge } from './monitoring';
+import { CheckStrip, MonitoringTime, StatusBadge } from './monitoring';
 import { Sparkline } from './sparkline';
 import { galleryChecks } from '@/fixtures/design';
 import { checkState } from '@/lib/status';
@@ -232,4 +232,26 @@ it('keeps a snoozed failure failed when an uptime outage also suppresses its fre
     );
     expect(checkState({ ...gap, snoozed_until: null })).toBe('pending');
     vi.useRealTimers();
+});
+
+it('keeps a relative status ticking without new check data', () => {
+    vi.useFakeTimers();
+    try {
+        vi.setSystemTime(new Date('2026-11-28T12:00:00Z'));
+        render(
+            <MonitoringTime
+                value="2026-11-28T11:59:59Z"
+                prefix="Last checked"
+            />,
+            { wrapper: TooltipProvider },
+        );
+
+        expect(screen.getByText('Last checked 1 sec. ago')).not.toBeNull();
+        act(() => {
+            vi.advanceTimersByTime(1000);
+        });
+        expect(screen.getByText('Last checked 2 sec. ago')).not.toBeNull();
+    } finally {
+        vi.useRealTimers();
+    }
 });

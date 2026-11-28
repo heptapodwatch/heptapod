@@ -64,6 +64,7 @@ const delivery: Heptapod.Data.Ui.IncidentDeliveryData = {
     diagnosis: null,
     sent_at: null,
     scheduled_at: '2026-10-21T11:50:00Z',
+    diagnosis_params: null,
     event_id: 900,
     id: 901,
     digest: false,

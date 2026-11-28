@@ -16,7 +16,7 @@ import {
     runState,
     statusLabels,
 } from '@/lib/status';
-import { calendarDay } from '@/lib/upcoming-calendar';
+import { calendarDay } from '@/lib/date-time';
 import { index as activityIndex } from '@/routes/activity';
 import type { EventDto } from '@/types/monitoring';
 
@@ -134,7 +134,10 @@ export function ActivityTimeline({
                                     label={eventLabel(item)}
                                 />
                                 <span className="text-xs break-words">
-                                    {item.message}
+                                    {format.messageWithTime(
+                                        item.message,
+                                        item.message_params,
+                                    )}
                                     <span className="block">
                                         <PresentationChanges
                                             changes={item.changes}
@@ -162,6 +165,7 @@ export function ActivityTimeline({
     };
     const today = calendarDay(new Date().toISOString(), timezone);
     const dayLabel = (day: number) => {
+        if (day === today) return t('Today');
         const label = new Intl.RelativeTimeFormat(i18n.language, {
             numeric: 'auto',
         }).format(Math.round((day - today) / 86_400_000), 'day');
