@@ -28,7 +28,7 @@ final class UpdateClient
             'short_name' => ['sometimes', 'nullable', 'string', 'max:8'],
             // A client's contacts are its mail channels (/clients/{client}/notifications) since 2026-10-30.
             'contact_email' => ['prohibited'],
-            'locale' => ['sometimes', Rule::in(['en', 'de'])],
+            'locale' => ['sometimes', Rule::in(config()->array('app.supported_locales'))],
             // Null clears the client's own zone, so it follows the instance again.
             'timezone' => ['sometimes', 'nullable', 'timezone:all'],
             'accent_color' => ['sometimes', Rule::in(['#7C5E10', '#3B5068', '#2F5D4A', '#5B3A4A', '#4B4B57', '#3F4A3A', '#4A4A2F', '#3F3F46'])],

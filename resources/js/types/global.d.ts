@@ -13,7 +13,8 @@ declare module '@inertiajs/core' {
             mailLogOnly: boolean;
             mailConfigurationAction: { action_key: string; href: string };
             mailMayOnlyBeLogged: boolean;
-            locale: 'en' | 'de';
+            locale: string;
+            supportedLocales: { code: string; name: string }[];
             timezone: string;
             /** Rows one export holds (Table::RowLimit, app/Contracts/Export). */
             exportRowLimit: number;

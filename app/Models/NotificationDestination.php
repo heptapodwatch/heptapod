@@ -154,7 +154,7 @@ final class NotificationDestination extends Model
             RecipientKind::Client => $this->client->locale ?? $this->locale,
         };
 
-        return in_array($locale, ['en', 'de'], true) ? $locale : 'en';
+        return $locale !== null && in_array($locale, config()->array('app.supported_locales'), true) ? $locale : 'en';
     }
 
     /**

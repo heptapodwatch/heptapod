@@ -15,11 +15,16 @@ class AreaTranslationLoader implements Loader
         /** @var array<string, mixed> $lines */
         $lines = $this->loader->load($locale, $group, $namespace);
 
-        if ($group !== '*' || $namespace !== '*' || ! in_array($locale, ['en', 'de'], true)) {
+        if ($group !== '*' || $namespace !== '*' || ! in_array($locale, config()->array('app.supported_locales'), true)) {
             return $lines;
         }
 
-        foreach (File::files($this->langPath.'/'.$locale) as $file) {
+        $directory = $this->langPath.'/'.$locale;
+        if (! File::isDirectory($directory)) {
+            return $lines;
+        }
+
+        foreach (File::files($directory) as $file) {
             if ($file->getExtension() !== 'json') {
                 continue;
             }

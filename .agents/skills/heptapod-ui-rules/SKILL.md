@@ -105,6 +105,7 @@ One summary: the state ring, the health headline and one meta line. While monito
   - data (sites, clients, tags, members, timezones, checks) or more than 7 fixed options, previews included: the `Combobox` family;
   - up to four fixed multi-choices: checkboxes.
 - `CheckIntervalField` uses a bounded Select of schema-declared intervals and reveals the number and unit only for Custom.
+- Language choice uses `LanguageSelect`.
 - A short list of user-entered rows is `ReplicatorField`, never a comma-separated text field.
 - Creating a related record from inside a flow opens a SheetForm and then selects the new record; the flow is never left.
 - `FormSection` `preview` is for the one artefact the page exists to shape (a rendered email), rendered by the server from the draft.

@@ -31,7 +31,14 @@ vi.mock('@inertiajs/react', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@inertiajs/react')>()),
     usePage: () => ({
         url: mockedPageUrl ?? window.location.pathname + window.location.search,
-        props: { auth: { canManageInstance: true }, timezone: 'UTC' },
+        props: {
+            auth: { canManageInstance: true },
+            supportedLocales: [
+                { code: 'en', name: 'English' },
+                { code: 'de', name: 'Deutsch' },
+            ],
+            timezone: 'UTC',
+        },
     }),
     router: { on: () => () => {}, reload: vi.fn(), flushAll: vi.fn() },
 }));

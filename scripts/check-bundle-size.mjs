@@ -25,8 +25,7 @@ for (const locale of ['en', 'de']) {
     for (const [name, page, budgetKiB] of budgets) {
         const files = collectFiles('resources/js/app.tsx');
         const catalog = `resources/js/lib/catalogs/${locale}.ts`;
-        // Eager catalogs are already included in the shell's static closure.
-        if (manifest[catalog]) collectFiles(catalog, files);
+        collectFiles(catalog, files);
         if (page) collectFiles(page, files);
         let bytes = 0;
         let gzipBytes = 0;

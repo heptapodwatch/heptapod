@@ -17,7 +17,7 @@ final readonly class DestinationConfig implements \JsonSerializable
         public string $instanceName,
         public string $instanceUrl,
     ) {
-        if (! in_array($locale, ['en', 'de'], true)) {
+        if (! in_array($locale, config()->array('app.supported_locales'), true)) {
             throw new \InvalidArgumentException('Unsupported destination locale.');
         }
     }

@@ -29,7 +29,7 @@ class ProfileUpdateRequest extends FormRequest
             ...$this->profileRules($user->id),
             // The address receives password reset links, so changing it needs the current password, like a password change.
             'current_password' => [Rule::excludeIf($this->input('email') === $user->email), ...$this->currentPasswordRules()],
-            'locale' => ['sometimes', 'required', 'string', 'in:en,de'],
+            'locale' => ['sometimes', 'required', 'string', Rule::in(config()->array('app.supported_locales'))],
             // Null returns to the default: the instance zone.
             'timezone' => ['sometimes', 'nullable', 'string', 'timezone:all'],
         ];

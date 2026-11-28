@@ -44,7 +44,7 @@ final class IncidentController extends Controller
         $user = $this->principal($request);
         $token = $this->token($user);
         /** @var array{state?: 'open'|'resolved', site_id?: int|string, client_id?: int|string, check_id?: int|string, since?: string, limit?: int|string, cursor?: string, locale?: string} $input */
-        $input = Validator::make($request->query(), ['locale' => ApiHeadline::LocaleRule, 'state' => ['sometimes', 'in:open,resolved'], 'site_id' => ['sometimes', 'integer', 'min:1'],
+        $input = Validator::make($request->query(), ['locale' => ApiHeadline::localeRules(), 'state' => ['sometimes', 'in:open,resolved'], 'site_id' => ['sometimes', 'integer', 'min:1'],
             'client_id' => ['sometimes', 'integer', 'min:1'], 'check_id' => ['sometimes', 'integer', 'min:1'],
             'since' => ['sometimes', 'date', 'regex:/(Z|[+-]\d{2}:\d{2})$/'], 'limit' => ['sometimes', 'integer', 'min:1', 'max:100'], 'cursor' => ['sometimes', 'string']])->validate();
         ApiHeadline::applyLocale($input['locale'] ?? null);
@@ -107,7 +107,7 @@ final class IncidentController extends Controller
         $user = $this->principal($request);
         $token = $this->token($user);
         /** @var array{include_note?: string, timeline_limit?: int|string, timeline_cursor?: string, locale?: string} $input */
-        $input = Validator::make($request->query(), ['locale' => ApiHeadline::LocaleRule, 'include_note' => ['sometimes', 'in:true,false,1,0'],
+        $input = Validator::make($request->query(), ['locale' => ApiHeadline::localeRules(), 'include_note' => ['sometimes', 'in:true,false,1,0'],
             'timeline_limit' => ['sometimes', 'integer', 'min:1', 'max:'.self::TimelineLimit], 'timeline_cursor' => ['sometimes', 'string']])->validate();
         ApiHeadline::applyLocale($input['locale'] ?? null);
         $includeNote = in_array($input['include_note'] ?? 'false', ['true', '1'], true);

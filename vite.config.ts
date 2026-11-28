@@ -1,3 +1,4 @@
+import { languageCatalogs } from './scripts/language-catalogs';
 import inertia from '@inertiajs/vite';
 import { wayfinder } from '@laravel/vite-plugin-wayfinder';
 import babel from '@rolldown/plugin-babel';
@@ -11,6 +12,7 @@ import { defineConfig, lazyPlugins } from 'vite-plus';
 export default defineConfig(({ command }) => ({
     base: command === 'serve' ? '/vite/' : '/build/',
     plugins: lazyPlugins(() => [
+        languageCatalogs(),
         laravel({
             input: [
                 'resources/css/app.css',

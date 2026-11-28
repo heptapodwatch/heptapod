@@ -2,14 +2,9 @@ import { router } from '@inertiajs/react';
 import type { GlobalEvent } from '@inertiajs/core';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-export type Locale = 'en' | 'de';
+import catalogModules from 'virtual:language-catalogs';
 
-type CatalogModule = typeof import('@/lib/catalogs/en');
-
-const catalogModules: Record<Locale, () => Promise<CatalogModule>> = {
-    en: () => import('@/lib/catalogs/en'),
-    de: () => import('@/lib/catalogs/de'),
-};
+type CatalogModule = Awaited<ReturnType<(typeof catalogModules)[string]>>;
 
 /** Adds the addon's keys to `root` in place; copying the growing catalog once per area cost a quadratic startup. */
 export function mergeCatalogs(
@@ -57,19 +52,17 @@ function catalog({ core, addons }: CatalogModule): Record<string, string> {
 }
 
 /** Adds a locale's catalog once; the app shell preloads the page locale's (resources/views/app.blade.php). */
-export async function loadLocale(locale: Locale): Promise<void> {
+export async function loadLocale(locale: string): Promise<void> {
     if (i18n.hasResourceBundle(locale, 'translation')) return;
-    i18n.addResourceBundle(
-        locale,
-        'translation',
-        catalog(await catalogModules[locale]()),
-    );
+    const load = Object.hasOwn(catalogModules, locale)
+        ? catalogModules[locale]
+        : undefined;
+    if (!load) throw new Error(`Missing translation catalog for ${locale}`);
+    i18n.addResourceBundle(locale, 'translation', catalog(await load()));
 }
 
-const initialLocale: Locale =
-    typeof document !== 'undefined' && document.documentElement.lang === 'de'
-        ? 'de'
-        : 'en';
+const initialLocale =
+    (typeof document !== 'undefined' && document.documentElement.lang) || 'en';
 
 void i18n.use(initReactI18next).init({
     resources: {},
@@ -96,7 +89,7 @@ formatter.add(
         String(value).slice(1),
 );
 
-function synchronizeLocale(locale: Locale): void {
+function synchronizeLocale(locale: string): void {
     document.documentElement.lang = locale;
     if (i18n.language !== locale) {
         void loadLocale(locale).then(() => i18n.changeLanguage(locale));
@@ -117,7 +110,7 @@ import.meta.hot?.dispose(() => {
     removeSuccessListener();
 });
 
-export function setLocale(locale: Locale): void {
+export function setLocale(locale: string): void {
     document.cookie = `locale=${locale};path=/;max-age=31536000;SameSite=Lax`;
     synchronizeLocale(locale);
 }

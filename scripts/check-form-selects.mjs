@@ -130,7 +130,10 @@ for (const file of [
             const chartRange =
                 file === 'resources/js/components/chart-range-control.tsx' &&
                 node.getText(source).includes("aria-label={t('Time range')}");
-            const exception = inFilterBar || hasFilterTrigger || chartRange;
+            const language =
+                file === 'resources/js/components/language-select.tsx';
+            const exception =
+                inFilterBar || hasFilterTrigger || chartRange || language;
             const line =
                 source.getLineAndCharacterOfPosition(node.getStart(source))
                     .line + 1;
@@ -169,7 +172,7 @@ for (const file of [
             // Toolbar Selects may only map over fixed registries or literal
             // option lists; mapping over props/server data is data-driven and
             // belongs on FilterCombobox.
-            if (exception && !chartRange) {
+            if ((inFilterBar || hasFilterTrigger) && !chartRange) {
                 const toolbarAllowList = new Set([
                     'checkTypes',
                     'phases',
@@ -202,7 +205,7 @@ for (const file of [
                     `${file}:${line}: static form Select with ${count} options; use RadioGroup/RadioCards (or checkboxes for multi choice)`,
                 );
             console.log(
-                `${file}:${line}: ${Number.isFinite(count) ? count : 'data/schema-driven'} options${exception ? ' — toolbar/chart exception' : ''}`,
+                `${file}:${line}: ${Number.isFinite(count) ? count : 'data/schema-driven'} options${exception ? ' — shared exception' : ''}`,
             );
         }
         ts.forEachChild(node, inspect);

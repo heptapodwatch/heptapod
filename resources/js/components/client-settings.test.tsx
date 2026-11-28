@@ -32,7 +32,16 @@ vi.mock('@inertiajs/react', async (importOriginal) => ({
         prefetch: _prefetch,
         ...props
     }: ComponentProps<'a'> & { prefetch?: boolean }) => <a {...props} />,
-    usePage: () => ({ props: { timezone: 'UTC', instanceTimezone: 'UTC' } }),
+    usePage: () => ({
+        props: {
+            timezone: 'UTC',
+            supportedLocales: [
+                { code: 'en', name: 'English' },
+                { code: 'de', name: 'Deutsch' },
+            ],
+            instanceTimezone: 'UTC',
+        },
+    }),
 }));
 
 /** The move-blockers check's answer: the sites that cannot move right now. */
