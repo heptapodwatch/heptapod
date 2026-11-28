@@ -93,7 +93,7 @@ it('keeps list actions and readers behind the declared request boundary', functi
         ClientsReader::class, EventsReader::class, IncidentsReader::class, MaintenanceReader::class,
         RunsReader::class, ServerReader::class, SitesReader::class, UpcomingReader::class,
     ] as $reader) {
-        $path = (new ReflectionClass($reader))->getFileName();
+        $path = new ReflectionClass($reader)->getFileName();
         expect((string) file_get_contents((string) $path))->not->toMatch('/\$request\b|\brequest\s*\(|\bRequest::|use Illuminate\\\\Http\\\\Request\b/');
     }
 });
