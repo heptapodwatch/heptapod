@@ -34,7 +34,6 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
@@ -1123,14 +1122,4 @@ it('counts "No report" as without a heartbeat once /up has not been called for 1
     $this->travel(2)->minutes();
     alertsScheduledPass();
     expect(ServerIssue::query()->where('server_id', $server->id)->sole()->opened_at->equalTo($reported->addMinutes(2)))->toBeTrue();
-});
-
-it('answers /up with 200 and reports the failure when the heartbeat cannot be written', function (): void {
-    Exceptions::fake();
-    // A cache whose Redis connection does not exist: every read and write throws.
-    config(['cache.stores.unreachable' => ['driver' => 'redis', 'connection' => 'unreachable'], 'cache.default' => 'unreachable']);
-
-    $this->get('/up')->assertOk();
-
-    Exceptions::assertReported(fn (InvalidArgumentException $exception): bool => str_contains($exception->getMessage(), '[unreachable]'));
 });

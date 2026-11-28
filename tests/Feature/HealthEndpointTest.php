@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Foundation\Events\DiagnosingHealth;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Exceptions;
 
 it('serves the public health endpoint as non-cacheable plain text without third-party scripts', function (): void {
     $response = $this->get('/up');
@@ -35,4 +36,14 @@ it('serves JSON status when requested and remains reachable during maintenance m
     }
 
     Event::assertDispatchedTimes(DiagnosingHealth::class, 2);
+});
+
+it('answers /up with 200 and reports the failure when the heartbeat cannot be written', function (): void {
+    Exceptions::fake();
+    // A cache whose Redis connection does not exist: every read and write throws.
+    config(['cache.stores.unreachable' => ['driver' => 'redis', 'connection' => 'unreachable'], 'cache.default' => 'unreachable']);
+
+    $this->get('/up')->assertOk();
+
+    Exceptions::assertReported(fn (InvalidArgumentException $exception): bool => str_contains($exception->getMessage(), '[unreachable]'));
 });
