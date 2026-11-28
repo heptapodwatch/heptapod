@@ -13,7 +13,7 @@ use Heptapod\Contracts\SuppressionSubject;
 use Heptapod\Enums\DeliveryDecisionKind;
 use Heptapod\Events\Notifications\AlertConfirmation;
 use Heptapod\Events\Notifications\DeliveryDecision;
-use Heptapod\Events\Notifications\DeliveryPlan;
+use Heptapod\Events\Notifications\DigestRule;
 use Heptapod\Events\Notifications\NotificationEventTypes;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Events\Notifications\NotificationTiming;
@@ -38,7 +38,7 @@ final readonly class EmitNotificationDigests
     private const string ArchivedMoreCacheKey = 'heptapod:notifications:digests_archived_more';
 
     public function __construct(private NotificationSuppression $suppression, private NotificationTiming $timing,
-        private NotificationEventTypes $types, private DeliveryPlan $plan) {}
+        private NotificationEventTypes $types, private DigestRule $digests) {}
 
     /** @return bool whether more digest work remains after this bounded pass */
     public function __invoke(bool $continuation = false): bool
@@ -118,7 +118,7 @@ final readonly class EmitNotificationDigests
                 $servers = [];
                 foreach ($sources as $source) {
                     $event = $source->event ?? throw new \LogicException('Digest source event is missing.');
-                    $refusal = $this->plan->sourceDecision($source, $event, $destination, $at);
+                    $refusal = $this->digests->itemDecision($source, $event, $destination, $at);
                     if ($refusal instanceof DeliveryDecision) {
                         // A waiting item that may never go is suppressed; a sent one that recurs stays: recurrence ends on
                         // terminal conditions (ServerIssueMailer::resolved, an archived channel). A held item (a snoozed or
@@ -175,7 +175,7 @@ final readonly class EmitNotificationDigests
                     return;
                 }
                 $digest = Event::query()->create(['type' => 'notification.digest', 'site_id' => null, 'occurred_at' => $at,
-                    'payload' => ['count' => count($included), ...DeliveryPlan::digestLabels($sites, $servers), 'delivery_ids' => $included],
+                    'payload' => ['count' => count($included), ...DigestRule::labels($sites, $servers), 'delivery_ids' => $included],
                     'suppressed' => false, 'suppression_reason' => null,
                     'suppression_evaluated_at' => $at, 'notification_routed_at' => $at,
                 ]);

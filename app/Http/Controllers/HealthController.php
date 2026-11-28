@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Heptapod\Http\Controllers;
 
+use Carbon\CarbonImmutable;
+use Heptapod\SystemHealth\WebHeartbeat;
 use Illuminate\Foundation\Events\DiagnosingHealth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -12,8 +14,14 @@ use Throwable;
 
 final class HealthController
 {
-    public function __invoke(Request $request): Response|JsonResponse
+    public function __invoke(Request $request, WebHeartbeat $heartbeat): Response|JsonResponse
     {
+        // Bookkeeping, not readiness: a failure is reported, never an unhealthy /up.
+        try {
+            $heartbeat->record(CarbonImmutable::now('UTC'), app()->isDownForMaintenance());
+        } catch (Throwable $exception) {
+            report($exception);
+        }
         $healthy = true;
 
         try {

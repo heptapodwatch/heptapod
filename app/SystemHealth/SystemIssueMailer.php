@@ -19,6 +19,9 @@ use Heptapod\Enums\HealthStatus;
 use Heptapod\Enums\NotificationCategory;
 use Heptapod\Enums\NotificationMode;
 use Heptapod\Enums\RecipientKind;
+use Heptapod\Events\Notifications\AlertRule;
+use Heptapod\Events\Notifications\DeliveryDecision;
+use Heptapod\Events\Notifications\IssueAlerts;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Models\Delivery;
 use Heptapod\Models\Event;
@@ -33,7 +36,7 @@ use Illuminate\Support\Facades\DB;
  * System issue mail and messages in the delivery ledger (design §3.4). Recipients are account channels of Owners and
  * opted-in Admins plus team channels with the System cell on; never site routing, mutes or client channels.
  */
-final readonly class SystemIssueMailer
+final readonly class SystemIssueMailer implements AlertRule
 {
     /** Log-only mail is rechecked at this cadence, as system mail always was. */
     public const int RecheckSeconds = 300;
@@ -99,22 +102,13 @@ final readonly class SystemIssueMailer
     /** @return Collection<int, NotificationDestination> current eligible channels in id order */
     public function recipients(): Collection
     {
-        // Bounded by the channel count, in three queries: channels with their System cell, their users, and those users'
-        // roles. Team channels without the System cell on are dropped in SQL; ineligibility() stays the one rule.
-        $query = NotificationDestination::query()->with('user.roles');
-        $query->getQuery()->select('notification_destinations.*')
-            ->selectSub(DB::table('notification_preferences')->select('mode')->whereColumn('destination_id', 'notification_destinations.id')
-                ->where('category', NotificationCategory::System->value), 'system_mode')
-            ->whereNull('removed_at')
-            ->where(static fn (Builder $kinds): Builder => $kinds
-                ->where(static fn (Builder $account): Builder => $account->where('recipient_kind', RecipientKind::User->value)->where('account_mail', true))
-                ->orWhere(static fn (Builder $team): Builder => $team->where('recipient_kind', RecipientKind::Team->value)
-                    ->whereExists(static fn (Builder $cell): Builder => $cell->from('notification_preferences')->whereColumn('destination_id', 'notification_destinations.id')
-                        ->where('category', NotificationCategory::System->value)->where('mode', NotificationMode::Immediate->value))))
-            ->orderBy('id');
-        $channels = $query->get();
+        // Team channels without the System cell on are dropped in SQL; ineligibility() stays the one rule.
+        $channels = IssueAlerts::channels(NotificationCategory::System, 'system_mode', static fn (Builder $kinds): Builder => $kinds
+            ->where(static fn (Builder $account): Builder => $account->where('recipient_kind', RecipientKind::User->value)->where('account_mail', true))
+            ->orWhere(static fn (Builder $team): Builder => IssueAlerts::cellIn($team->where('recipient_kind', RecipientKind::Team->value),
+                NotificationCategory::System, NotificationMode::Immediate->value)));
 
-        return $channels->filter(static fn (NotificationDestination $channel): bool => self::ineligibility($channel) === null)->values()->toBase();
+        return $channels->filter(static fn (NotificationDestination $channel): bool => self::ineligibility($channel) === null)->values();
     }
 
     /** One opening event per issue, and one pending delivery per current recipient the kind can reach. */
@@ -188,23 +182,15 @@ final readonly class SystemIssueMailer
     }
 
     /**
-     * One event per issue and phase; a concurrent second insert is a no-op (unique (system_issue_id, type)).
+     * One event per issue and phase (IssueAlerts::event()). Each evaluation pass and transport probe asks again, so an
+     * existing event is read without an insert.
      *
      * @param  array<string, bool>  $payload
      */
     public function event(SystemIssue $issue, string $type, CarbonImmutable $at, array $payload): Event
     {
-        $existing = Event::query()->where('system_issue_id', $issue->id)->where('type', $type)->first();
-        if ($existing instanceof Event) {
-            return $existing;
-        }
-        $now = CarbonImmutable::now('UTC')->format('Y-m-d H:i:s.uP');
-        DB::table('events')->insertOrIgnore(['type' => $type, 'system_issue_id' => $issue->id, 'occurred_at' => $at->format('Y-m-d H:i:s.uP'),
-            'payload' => json_encode((object) $payload, JSON_THROW_ON_ERROR), 'suppressed' => false, 'suppression_evaluated_at' => $now,
-            // System events are routed here, never by the event planner.
-            'notification_routed_at' => $now]);
-
-        return Event::query()->where('system_issue_id', $issue->id)->where('type', $type)->firstOrFail();
+        return Event::query()->where('system_issue_id', $issue->id)->where('type', $type)->first()
+            ?? IssueAlerts::event('system_issue_id', $issue->id, $type, $at, $payload);
     }
 
     /**
@@ -214,11 +200,9 @@ final readonly class SystemIssueMailer
      */
     public function insertDeliveries(Event $event, Collection $channels, ?string $reason = null, int $probeRound = 0): void
     {
-        $now = CarbonImmutable::now('UTC')->format('Y-m-d H:i:s.uP');
-        DB::table('deliveries')->insertOrIgnore($channels->map(static fn (NotificationDestination $channel): array => [
-            'event_id' => $event->id, 'destination_id' => $channel->id, 'probe_round' => $probeRound, 'state' => DeliveryState::Pending, 'next_attempt_at' => $now,
-            'suppression_evaluated_at' => $now, 'last_reason' => $reason, 'origin' => 'system', 'category' => NotificationCategory::System->value,
-        ])->values()->all());
+        IssueAlerts::insertDeliveries($event->id, NotificationCategory::System, $channels->map(static fn (NotificationDestination $channel): array => [
+            'destination_id' => $channel->id, 'probe_round' => $probeRound, 'last_reason' => $reason,
+        ]));
     }
 
     /** A log-only mailer and a dead transport cannot deliver an opening mail: those kinds open on other channels only. */
@@ -260,8 +244,28 @@ final readonly class SystemIssueMailer
         return array_values($rows);
     }
 
+    /**
+     * The send-time rule of System deliveries (design §3.4): no site, access, maintenance or quiet hours; account channels
+     * of Owners and opted-in Admins also skip pause and verification. Mail waits while the mailer only logs.
+     */
+    public function decide(Delivery $delivery, NotificationDestination $channel, Event $event, CarbonImmutable $at, bool $claimed): DeliveryDecision
+    {
+        $ineligible = self::ineligibility($channel);
+        if ($ineligible !== null) {
+            return DeliveryDecision::suppress($ineligible);
+        }
+        if ($channel->channel === 'mail' && ! self::canDeliver()) {
+            return DeliveryDecision::hold($at->addSeconds(self::RecheckSeconds), self::LogOnlyReason, setReason: true);
+        }
+        if ($delivery->last_reason === self::LogOnlyReason) {
+            $delivery->last_reason = null;
+        }
+
+        return DeliveryDecision::send();
+    }
+
     /** The localized notification for one System delivery. */
-    public function notification(Event $event, NotificationDestination $channel): SystemIssueNotification
+    public function notification(Delivery $delivery, Event $event, NotificationDestination $channel): SystemIssueNotification
     {
         $issue = SystemIssue::query()->findOrFail($event->system_issue_id);
         $recovered = $event->type === 'system.issue_resolved';

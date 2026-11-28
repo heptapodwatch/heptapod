@@ -20,7 +20,9 @@ use Heptapod\Contracts\ServersAccess;
 use Heptapod\Enums\NotificationCategory;
 use Heptapod\Enums\NotificationMode;
 use Heptapod\Enums\RecipientKind;
+use Heptapod\Events\Notifications\AlertRule;
 use Heptapod\Events\Notifications\DeliveryDecision;
+use Heptapod\Events\Notifications\IssueAlerts;
 use Heptapod\Events\Notifications\NotificationLocks;
 use Heptapod\Events\Notifications\NotificationTiming;
 use Heptapod\Models\Delivery;
@@ -37,7 +39,7 @@ use Illuminate\Support\Facades\DB;
  * channels of Owners and Admins and team channels without a client limit, with the Servers cell on; never site routing,
  * mutes or client channels. Like the Warning category they wait for quiet hours and may go to the digest.
  */
-final readonly class ServerIssueMailer implements ServerIssueAlerts
+final readonly class ServerIssueMailer implements AlertRule, ServerIssueAlerts
 {
     public const string OpenedType = 'server.issue_opened';
 
@@ -71,7 +73,7 @@ final readonly class ServerIssueMailer implements ServerIssueAlerts
     }
 
     /**
-     * The server alert part of DeliveryPlan, also for digest items: servers on, the channel may hear about servers, an
+     * The server alert part of the send-time rule, also for digest items: servers on, the channel may hear about servers, an
      * opening's issue is still open, and the server is not snoozed. A snooze holds an opening until it ends and silences
      * a recovery. Null when the alert may go.
      */
@@ -107,13 +109,13 @@ final readonly class ServerIssueMailer implements ServerIssueAlerts
         $eventId = $this->event($issueId, self::OpenedType, $serverId, $serverName, $at, $facts);
         $schedules = NotificationSchedule::forChannels($recipients);
         // A snoozed server's openings are held by the claim (refusal), so they are planned like any other.
-        $this->insertDeliveries($eventId, array_values($recipients->map(function (NotificationDestination $channel) use ($schedules, $now): array {
+        IssueAlerts::insertDeliveries($eventId, NotificationCategory::Servers, $recipients->map(function (NotificationDestination $channel) use ($schedules, $now): array {
             $schedule = $schedules[$channel->id];
             $digest = $channel->getAttribute('servers_mode') === NotificationMode::Digest->value;
 
             return ['destination_id' => $channel->id, 'digest' => $digest, 'last_reason' => null,
                 'next_attempt_at' => $digest ? $this->timing->nextDailyDigest($now, $schedule->effectiveDigestWeekdays(), $schedule->digest_time, $schedule->timezone()) : $now];
-        })->all()));
+        }));
     }
 
     public function resolved(int $issueId, int $serverId, string $serverName, CarbonImmutable $at, array $facts, ?string $silencedBy): void
@@ -141,9 +143,9 @@ final readonly class ServerIssueMailer implements ServerIssueAlerts
         /** @var list<int> $reached */
         $reached = DB::table('deliveries')->where('event_id', $openingId)->where('digest', false)->where('suppressed', false)
             ->whereIn('state', [DeliveryState::Sent->value, DeliveryState::Sending->value])->pluck('destination_id')->all();
-        $this->insertDeliveries($eventId, array_values($recipients->only($reached)->map(static fn (NotificationDestination $channel): array => [
-            'destination_id' => $channel->id, 'digest' => false, 'last_reason' => null, 'next_attempt_at' => $now,
-        ])->all()));
+        IssueAlerts::insertDeliveries($eventId, NotificationCategory::Servers, $recipients->only($reached)->map(static fn (NotificationDestination $channel): array => [
+            'destination_id' => $channel->id, 'next_attempt_at' => $now,
+        ]));
     }
 
     public function snoozeChanged(array $openIssueIds): void
@@ -163,12 +165,16 @@ final readonly class ServerIssueMailer implements ServerIssueAlerts
     }
 
     /**
-     * The rest of DeliveryPlan for a server issue delivery that refusal() lets through: a recovery goes only after its
-     * opening was sent to this channel (an opening suppressed at its send is Pending again, so its recovery ends too), then
-     * verification and quiet hours.
+     * The send-time rule of a server issue delivery: refusal(), then a recovery goes only after its opening was sent to this
+     * channel (an opening suppressed at its send is Pending again, so its recovery ends too), then verification and quiet
+     * hours.
      */
-    public function plan(Delivery $delivery, NotificationDestination $destination, Event $event, CarbonImmutable $at): DeliveryDecision
+    public function decide(Delivery $delivery, NotificationDestination $channel, Event $event, CarbonImmutable $at, bool $claimed): DeliveryDecision
     {
+        $refusal = $this->refusal($event, $channel, $at);
+        if ($refusal instanceof DeliveryDecision) {
+            return $refusal;
+        }
         if ($event->type === self::ResolvedType) {
             $opening = DB::table('deliveries')->join('events', 'events.id', '=', 'deliveries.event_id')->where('events.server_issue_id', $event->server_issue_id)
                 ->where('events.type', self::OpenedType)->where('deliveries.destination_id', $delivery->destination_id)->value('deliveries.state');
@@ -179,10 +185,10 @@ final readonly class ServerIssueMailer implements ServerIssueAlerts
                 return DeliveryDecision::hold($at->addMinute());
             }
         }
-        if (! $destination->addressVerified()) {
+        if (! $channel->addressVerified()) {
             return DeliveryDecision::hold($at->addHour(), 'personal_email_unverified', setReason: true);
         }
-        $due = $this->timing->afterQuietHours(NotificationSchedule::forChannel($destination), $at);
+        $due = $this->timing->afterQuietHours(NotificationSchedule::forChannel($channel), $at);
         if ($due->greaterThan($at)) {
             return DeliveryDecision::hold($due);
         }
@@ -194,7 +200,7 @@ final readonly class ServerIssueMailer implements ServerIssueAlerts
     }
 
     /** The localized alert for one server issue delivery: the server issue mail, or its facts as lines elsewhere. */
-    public function notification(Event $event, NotificationDestination $channel): SystemIssueNotification
+    public function notification(Delivery $delivery, Event $event, NotificationDestination $channel): SystemIssueNotification
     {
         $recovered = $event->type === self::ResolvedType;
         $locale = $channel->effectiveLocale();
@@ -239,40 +245,19 @@ final readonly class ServerIssueMailer implements ServerIssueAlerts
      */
     private function recipients(): Collection
     {
-        $query = NotificationDestination::query()->with('user.roles');
-        $query->getQuery()->select('notification_destinations.*')
-            ->selectSub(DB::table('notification_preferences')->select('mode')->whereColumn('destination_id', 'notification_destinations.id')
-                ->where('category', NotificationCategory::Servers->value), 'servers_mode')
-            ->whereNull('removed_at')->where('enabled', true)->where('recipient_kind', '<>', RecipientKind::Client->value)
-            ->whereExists(static fn (Builder $cell): Builder => $cell->from('notification_preferences')->whereColumn('destination_id', 'notification_destinations.id')
-                ->where('category', NotificationCategory::Servers->value)->where('mode', '<>', NotificationMode::Off->value))
-            ->orderBy('id');
-
-        return $query->get()->filter(static fn (NotificationDestination $channel): bool => self::ineligibility($channel) === null)->keyBy('id')->toBase();
+        return IssueAlerts::channels(NotificationCategory::Servers, 'servers_mode', static fn (Builder $channels): Builder => IssueAlerts::cellIn(
+            $channels->where('enabled', true)->where('recipient_kind', '<>', RecipientKind::Client->value),
+            NotificationCategory::Servers, NotificationMode::Immediate->value, NotificationMode::Digest->value))
+            ->filter(static fn (NotificationDestination $channel): bool => self::ineligibility($channel) === null)->keyBy('id');
     }
 
     /**
-     * One event per issue and phase, routed here and never by the event planner; a second insert is a no-op.
+     * One event per issue and phase (IssueAlerts::event()), with the server's name and id.
      *
      * @param  array<string, string|int|float|null>  $facts
      */
     private function event(int $issueId, string $type, int $serverId, string $serverName, CarbonImmutable $at, array $facts): int
     {
-        $now = CarbonImmutable::now('UTC')->format('Y-m-d H:i:s.uP');
-        DB::table('events')->insertOrIgnore(['type' => $type, 'server_issue_id' => $issueId, 'server_name' => $serverName,
-            'occurred_at' => $at->utc()->format('Y-m-d H:i:s.uP'), 'payload' => json_encode(['server_id' => $serverId, ...$facts], JSON_THROW_ON_ERROR),
-            'suppressed' => false, 'suppression_evaluated_at' => $now, 'notification_routed_at' => $now]);
-        $id = DB::table('events')->where('server_issue_id', $issueId)->where('type', $type)->value('id');
-
-        return is_int($id) ? $id : throw new \LogicException('A server issue event must exist after its insert.');
-    }
-
-    /** @param list<array{destination_id: int, digest: bool, last_reason: string|null, next_attempt_at: CarbonImmutable}> $rows */
-    private function insertDeliveries(int $eventId, array $rows): void
-    {
-        $now = CarbonImmutable::now('UTC')->format('Y-m-d H:i:s.uP');
-        DB::table('deliveries')->insertOrIgnore(array_map(static fn (array $row): array => [...$row, 'event_id' => $eventId, 'probe_round' => 0,
-            'state' => DeliveryState::Pending->value, 'next_attempt_at' => $row['next_attempt_at']->utc()->format('Y-m-d H:i:s.uP'),
-            'suppression_evaluated_at' => $now, 'origin' => 'system', 'category' => NotificationCategory::Servers->value], $rows));
+        return IssueAlerts::event('server_issue_id', $issueId, $type, $at, ['server_id' => $serverId, ...$facts], ['server_name' => $serverName])->id;
     }
 }
