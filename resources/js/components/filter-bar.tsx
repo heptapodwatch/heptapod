@@ -154,14 +154,14 @@ function FilterClearButton({
 
 export function FilterChip({
     label,
-    value,
+    value = label,
     ...clear
-}: { label: string; value: string } & FilterClearAction) {
+}: { label: string; value?: ReactNode } & FilterClearAction) {
     return (
         <div
             className="relative max-w-full min-w-0"
             role="group"
-            aria-label={label}
+            aria-label={value === label ? undefined : label}
         >
             <span className="flex min-h-10 items-center rounded-md border border-border-strong bg-secondary py-1 pr-11 pl-3 text-cell [overflow-wrap:anywhere] text-foreground sm:min-h-8 sm:pr-9">
                 {value}

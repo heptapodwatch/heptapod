@@ -3,6 +3,8 @@
     "Incidents": "Störungen",
     "Resolved": "Behoben",
     "Resolver": "Resolver",
+    "Started on or after": "Beginn ab",
+    "Started on or before": "Beginn bis",
     "incidents.state.open": "Offen",
     "Open incidents": "Offene Störungen",
     "No incidents for this client.": "Keine Störungen für diesen Kunden.",

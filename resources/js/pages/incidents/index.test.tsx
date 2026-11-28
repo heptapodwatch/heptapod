@@ -101,6 +101,11 @@ function renderIncidents(
                         next_page_url: null,
                         page_name: 'page',
                     }}
+                    filter_chips={{
+                        cause: null,
+                        started_after: null,
+                        started_before: null,
+                    }}
                     summary={{
                         count: 2,
                         total_duration_seconds: 0,

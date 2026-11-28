@@ -1632,6 +1632,22 @@ readonly pagination: Heptapod.Contracts.PaginationData,
 readonly filters: Heptapod.Data.Ui.IncidentFilterData,
 readonly clients: Heptapod.Data.Ui.ClientData[],
 readonly summary: Heptapod.Data.Ui.IncidentSummaryData,
+readonly filter_chips: {
+cause: {
+value: Heptapod.Enums.IncidentCause,
+clear_url: string,
+} | null,
+started_after: {
+timestamp: string,
+whole_day: boolean,
+clear_url: string,
+} | null,
+started_before: {
+timestamp: string,
+whole_day: boolean,
+clear_url: string,
+} | null,
+},
 };
 export type InstancePageData = {
 readonly instancePage: Heptapod.Data.Ui.InstanceSettingsData,

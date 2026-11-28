@@ -12,6 +12,7 @@ import { CircleAlert } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import {
     FilterBar,
+    FilterChip,
     FilterCombobox,
     FilterSelectTrigger,
 } from '@/components/filter-bar';
@@ -55,6 +56,10 @@ type Incident = Heptapod.Data.Ui.IncidentData;
 type Filter = Heptapod.Data.Ui.IncidentFilterData;
 /** The server's default status (IncidentsReader::DefaultStatus): the URL omits it. */
 const defaultStatus = 'open';
+const causeLabels = {
+    errored: 'Check could not run',
+    failed: 'Check failed',
+} satisfies Record<Heptapod.Enums.IncidentCause, string>;
 
 export default function IncidentsIndex({
     incidents,
@@ -62,6 +67,7 @@ export default function IncidentsIndex({
     filters,
     pagination,
     summary,
+    filter_chips,
 }: Heptapod.Data.Ui.IncidentsIndexPageData) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -157,11 +163,7 @@ export default function IncidentsIndex({
             ...incident,
             fallback: incident.summary
                 ? format.summary(incident.summary, incident.summary_params)
-                : t(
-                      incident.cause === 'errored'
-                          ? 'Check could not run'
-                          : 'Check failed',
-                  ),
+                : t(causeLabels[incident.cause]),
         });
     const incidentLabel = (incident: Incident) =>
         t('Open incident {{id}} for {{site}}', {
@@ -355,6 +357,43 @@ export default function IncidentsIndex({
                         <SelectItem value="all">{t('All time')}</SelectItem>
                     </SelectContent>
                 </Select>
+                {filter_chips.cause && (
+                    <FilterChip
+                        label={t('Cause')}
+                        value={t(causeLabels[filter_chips.cause.value])}
+                        clearHref={filter_chips.cause.clear_url}
+                    />
+                )}
+                {(
+                    [
+                        ['started_after', 'Started on or after'],
+                        ['started_before', 'Started on or before'],
+                    ] as const
+                ).map(([key, label]) => {
+                    const date = filter_chips[key];
+                    return (
+                        date && (
+                            <FilterChip
+                                key={key}
+                                label={t(label)}
+                                value={
+                                    <span>
+                                        {t(label)}:{' '}
+                                        <AbsoluteTime
+                                            value={date.timestamp}
+                                            mode={
+                                                date.whole_day
+                                                    ? 'calendarDate'
+                                                    : 'timestamp'
+                                            }
+                                        />
+                                    </span>
+                                }
+                                clearHref={date.clear_url}
+                            />
+                        )
+                    );
+                })}
             </FilterBar>
             <PendingChanges
                 count={buffered.pendingCount}

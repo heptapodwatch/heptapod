@@ -3,6 +3,8 @@
     "Incidents": "Incidents",
     "Resolved": "Resolved",
     "Resolver": "Resolver",
+    "Started on or after": "Started on or after",
+    "Started on or before": "Started on or before",
     "incidents.state.open": "Open",
     "Open incidents": "Open incidents",
     "No incidents for this client.": "No incidents for this client.",

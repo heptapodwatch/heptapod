@@ -384,7 +384,6 @@ export default function SitesIndex({
                         {filters.attention && (
                             <FilterChip
                                 label={t('Needs attention')}
-                                value={t('Needs attention')}
                                 onClear={() => visit({ attention: null })}
                             />
                         )}

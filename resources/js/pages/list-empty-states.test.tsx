@@ -154,6 +154,11 @@ function incidents(filters: Partial<Heptapod.Data.Ui.IncidentFilterData>) {
             clients={[]}
             filters={{ ...incidentFilters, ...filters }}
             pagination={pagination}
+            filter_chips={{
+                cause: null,
+                started_after: null,
+                started_before: null,
+            }}
             summary={{
                 count: 0,
                 total_duration_seconds: 0,
