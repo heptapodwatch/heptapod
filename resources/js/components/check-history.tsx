@@ -6,7 +6,8 @@ import { index as runsIndex } from '@/routes/runs';
 import { Disclosure } from '@/components/ui/disclosure';
 import { PresentationChanges } from '@/components/presentation-changes';
 import { useTranslation } from 'react-i18next';
-import { MonitoringTime, StatusDot } from '@/components/monitoring';
+import { AbsoluteTime } from '@/components/absolute-time';
+import { StatusDot } from '@/components/monitoring';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { ListRow } from '@/components/ui/table';
 import { useFormat } from '@/hooks/use-format';
@@ -27,6 +28,7 @@ export function CheckHistory({
             ? page.history.observations
             : [];
     const runs = page.runs;
+    const seconds = page.schedule.interval_seconds <= 60;
     const visibleLabel = (run: Run): string => {
         const change = observations.find(
             (item) => item.run_id === run.id,
@@ -170,10 +172,14 @@ export function CheckHistory({
                                                 count: item.repeats.length,
                                             })}
                                         </span>,
-                                        format.historyRange(
-                                            item.repeats.at(-1)!.ended_at,
-                                            item.run.ended_at,
-                                        ),
+                                        <AbsoluteTime
+                                            value={
+                                                item.repeats.at(-1)!.ended_at
+                                            }
+                                            end={item.run.ended_at}
+                                            mode="listTime"
+                                            seconds={seconds}
+                                        />,
                                         <span className="text-xs">
                                             {t('Show')}
                                         </span>,
@@ -185,8 +191,10 @@ export function CheckHistory({
                                                 {row(
                                                     run,
                                                     label(run),
-                                                    <MonitoringTime
+                                                    <AbsoluteTime
                                                         value={run.ended_at}
+                                                        mode="listTime"
+                                                        seconds={seconds}
                                                     />,
                                                 )}
                                             </li>
@@ -197,8 +205,10 @@ export function CheckHistory({
                                 row(
                                     item.run,
                                     label(item.run),
-                                    <MonitoringTime
+                                    <AbsoluteTime
                                         value={item.run.ended_at}
+                                        mode="listTime"
+                                        seconds={seconds}
                                     />,
                                 )
                             )}

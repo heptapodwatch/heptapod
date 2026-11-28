@@ -141,3 +141,30 @@ it('starts a new streak when the headline median or result changes and never joi
     ).toHaveLength(5);
     expect(screen.getAllByText(/Median 1,951 ms/)).toHaveLength(2);
 });
+
+it('uses the same absolute seconds for individual, grouped and expanded minute-frequency runs', async () => {
+    await i18n.changeLanguage('en');
+    vi.useFakeTimers();
+    try {
+        vi.setSystemTime(new Date('2026-10-25T17:05:00Z'));
+        const data = page([run(5), run(4), run(3), run(2), run(1)]);
+        render(
+            <I18nextProvider i18n={i18n}>
+                <CheckHistory
+                    page={{
+                        ...data,
+                        schedule: { ...data.schedule, interval_seconds: 60 },
+                    }}
+                />
+            </I18nextProvider>,
+            { wrapper: TooltipProvider },
+        );
+
+        expect(screen.getByText('Today · 17:00:00')).not.toBeNull();
+        expect(screen.getByText('Today · 14:00:00 – 16:00:00')).not.toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: /Unchanged/ }));
+        expect(screen.getByText('Today · 16:00:00')).not.toBeNull();
+    } finally {
+        vi.useRealTimers();
+    }
+});

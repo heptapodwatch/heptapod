@@ -82,3 +82,35 @@ it('formats maintenance source wall times only when the window zone differs from
         berlinEn.instantSourceTime('2026-11-22T03:00:00Z', 'America/New_York'),
     ).toBe('(Nov 21, 2026, 22:00 New York)');
 });
+
+it('labels both calendar days and keeps seconds on both range endpoints in the viewer zone', () => {
+    vi.useFakeTimers();
+    try {
+        vi.setSystemTime(new Date('2026-10-25T23:05:00Z'));
+        const berlin = formatter('de', 'Europe/Berlin');
+
+        expect(
+            berlin.listTime('2026-10-25T22:59:12Z', {
+                end: '2026-10-25T23:01:25Z',
+                seconds: true,
+            }),
+        ).toBe('Gestern · 23:59:12 – Heute · 00:01:25');
+    } finally {
+        vi.useRealTimers();
+    }
+});
+
+it('shows the year only on older calendar years and uses minute precision by default', () => {
+    vi.useFakeTimers();
+    try {
+        vi.setSystemTime(new Date('2026-11-28T12:00:00Z'));
+        const london = formatter('en', 'Europe/London');
+
+        expect(london.listTime('2025-11-25T18:25:14Z')).toBe(
+            'Nov 25, 2025 · 18:25',
+        );
+        expect(london.listTime('2026-11-25T18:25:14Z')).toBe('Nov 25 · 18:25');
+    } finally {
+        vi.useRealTimers();
+    }
+});

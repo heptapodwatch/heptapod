@@ -1,3 +1,4 @@
+import { AbsoluteTime } from '@/components/absolute-time';
 import { TooltipHint, TruncatedText } from '@/components/truncated-text';
 import { SiteAvatar } from '@/components/site-avatar';
 import {
@@ -281,25 +282,27 @@ function SiteTableCheckedAtCell({
 }: CellContext<typeof features, SiteDto, string | null>) {
     const { t } = useTranslation();
     const format = useFormat();
-    return row.original.checked_at === null ? (
-        <span className="font-mono text-xs">—</span>
-    ) : (
-        <Tooltip>
-            <TooltipTrigger asChild>
-                <time
-                    dateTime={row.original.checked_at ?? undefined}
-                    tabIndex={-1}
-                    className="font-mono text-xs whitespace-nowrap tabular-nums"
-                >
-                    {['paused', 'disabled'].includes(row.original.state)
-                        ? t(statusLabels[row.original.state])
-                        : format.monitorTime(row.original.checked_at!).label}
-                </time>
-            </TooltipTrigger>
-            <TooltipContent>
-                {format.monitorTime(row.original.checked_at!).exact}
-            </TooltipContent>
-        </Tooltip>
+    const checkedAt = row.original.checked_at;
+    if (checkedAt === null) return <span className="font-mono text-xs">—</span>;
+    if (row.original.state === 'paused' || row.original.state === 'disabled') {
+        return (
+            <TooltipHint
+                label={t('Last checked')}
+                content={format.exact(checkedAt)}
+            >
+                <span className="font-mono text-xs whitespace-nowrap">
+                    {t(statusLabels[row.original.state])}
+                </span>
+            </TooltipHint>
+        );
+    }
+    return (
+        <AbsoluteTime
+            value={checkedAt}
+            mode="listTime"
+            label={t('Last checked')}
+            className="text-xs whitespace-nowrap"
+        />
     );
 }
 

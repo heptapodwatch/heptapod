@@ -21,7 +21,8 @@ import { PageContainer } from '@/components/page-container';
 import { SegmentedControl } from '@/components/segmented-control';
 import { ListHeader, ListRow } from '@/components/ui/table';
 import { useFormat } from '@/hooks/use-format';
-import { calendarDay, calendarGroup } from '@/lib/upcoming-calendar';
+import { calendarDay } from '@/lib/date-time';
+import { calendarGroup } from '@/lib/upcoming-calendar';
 import { index as upcomingIndex } from '@/routes/upcoming';
 import {
     Select,
@@ -58,7 +59,7 @@ export default function Upcoming({
     client_id: number | null;
     calendar_now: string;
 }) {
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
     const { timezone } = usePage().props;
     const format = useFormat();
     useLiveReload(
@@ -80,11 +81,6 @@ export default function Upcoming({
         section.set(day, [...(section.get(day) ?? []), item]);
         groups.set(group, section);
     }
-    const relative = (day: number) =>
-        new Intl.RelativeTimeFormat(i18n.language, { numeric: 'auto' }).format(
-            Math.round((day - today) / 86_400_000),
-            'day',
-        );
     const apply = (
         changes: Partial<{
             days: string;
@@ -221,7 +217,6 @@ export default function Upcoming({
                                             timezone={'UTC'}
                                             className="font-mono tabular-nums"
                                         />
-                                        <span>{relative(day)}</span>
                                     </ListHeader>
                                     {datedItems.map((item) => (
                                         <ListRow

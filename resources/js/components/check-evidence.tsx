@@ -1,3 +1,4 @@
+import { AbsoluteTime } from '@/components/absolute-time';
 import { CardToolbarActions } from '@/components/card-toolbar-actions';
 import { cn } from '@/lib/utils';
 import { type ReactNode } from 'react';
@@ -508,8 +509,10 @@ export function CheckEvidence({
                                         )}
                                     >
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <MonitoringTime
+                                            <AbsoluteTime
                                                 value={failure.ended_at}
+                                                mode="listTime"
+                                                seconds
                                                 className="font-mono text-xs tabular-nums"
                                             />
                                             <StatusBadge

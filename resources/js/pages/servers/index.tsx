@@ -12,7 +12,7 @@ import { FilterBar, FilterSelectTrigger } from '@/components/filter-bar';
 import { FormSecondaryAction } from '@/components/form-section';
 import InputError from '@/components/input-error';
 import { ListFooter } from '@/components/list-footer';
-import { MonitoringTime } from '@/components/monitoring';
+import { AbsoluteTime } from '@/components/absolute-time';
 import { PageContainer } from '@/components/page-container';
 import { PageHeader } from '@/components/page-header';
 import { PendingChanges } from '@/components/pending-changes';
@@ -385,7 +385,11 @@ export default function ServersIndex({
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     {server.last_report_at && (
-                                                        <MonitoringTime
+                                                        <AbsoluteTime
+                                                            mode="listTime"
+                                                            label={t(
+                                                                'servers.last_report',
+                                                            )}
                                                             value={
                                                                 server.last_report_at
                                                             }
@@ -446,13 +450,12 @@ export default function ServersIndex({
                                                     </span>
                                                 </span>
                                                 {server.last_report_at && (
-                                                    <span className="font-mono tabular-nums">
-                                                        {
-                                                            format.monitorTime(
-                                                                server.last_report_at,
-                                                            ).label
+                                                    <AbsoluteTime
+                                                        value={
+                                                            server.last_report_at
                                                         }
-                                                    </span>
+                                                        mode="listTime"
+                                                    />
                                                 )}
                                             </span>
                                         </Link>

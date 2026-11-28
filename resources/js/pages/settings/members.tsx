@@ -1,3 +1,4 @@
+import { AbsoluteTime } from '@/components/absolute-time';
 import { ActionNoteSlot } from '@/components/action-note-slot';
 import { InfoTooltip } from '@/components/info-tooltip';
 import { TooltipHint, TruncatedText } from '@/components/truncated-text';
@@ -33,7 +34,6 @@ import {
     useHttpRequest,
 } from '@/hooks/use-http-request';
 import { useInitials } from '@/hooks/use-initials';
-import { formatMonitorTime } from '@/lib/monitor-time';
 import {
     data as rosterRoute,
     invite,
@@ -562,7 +562,6 @@ function EditMemberSheet({
 export default function Members({ roster: initialRoster }: { roster: Roster }) {
     const { t } = useTranslation();
     const format = useFormat();
-    const { locale, timezone } = usePage().props;
     const initials = useInitials();
     const [roster, setRoster] = useState(initialRoster);
     useEffect(() => setRoster(initialRoster), [initialRoster]);
@@ -654,24 +653,23 @@ export default function Members({ roster: initialRoster }: { roster: Roster }) {
                             )}
                         </span>
                     ));
-    const activity = (date: string | null) => {
-        if (date === null) return <span>{t('No recorded activity')}</span>;
-        const time = formatMonitorTime(date, locale, timezone);
-        return (
-            <TooltipHint label={t('Last active')} content={time.exact}>
-                <time dateTime={date} className="font-mono tabular-nums">
-                    {time.label}
-                </time>
-            </TooltipHint>
+    const activity = (date: string | null) =>
+        date === null ? (
+            <span>{t('No recorded activity')}</span>
+        ) : (
+            <AbsoluteTime
+                value={date}
+                mode="listTime"
+                label={t('Last active')}
+            />
         );
-    };
     const expires = (date: string, expired: boolean) => {
-        const time = formatMonitorTime(date, locale, timezone);
+        const exact = format.exact(date);
         return (
-            <TooltipHint content={time.exact}>
+            <TooltipHint content={exact}>
                 <time dateTime={date} className="font-mono tabular-nums">
                     {t(expired ? 'Expired :date' : 'Expires :date', {
-                        date: time.exact,
+                        date: exact,
                     })}
                 </time>
             </TooltipHint>
