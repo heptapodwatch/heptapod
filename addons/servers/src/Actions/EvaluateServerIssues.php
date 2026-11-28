@@ -32,11 +32,12 @@ final readonly class EvaluateServerIssues
     public const int GapSeconds = 90;
 
     /**
-     * After the instance was down, an agent whose last report predates that may still be in its failure backoff: the
-     * agent's longest failure wait (maxFailureWait, 10 minutes) plus its report interval (defaultInterval, 1 minute) in
-     * agent/send.go. Change it together with those.
+     * After the instance was down, an agent whose last report predates that may still be in its failure backoff: its
+     * longest failure wait (maxFailureWait, 1 minute) plus its report interval (defaultInterval, 1 minute) in
+     * agent/send.go, plus a minute of headroom. The headroom covers a first retry that only resends the sample stored
+     * before the downtime (a duplicate does not count as a report) and request latency. Change it together with those.
      */
-    public const int ResumeGraceMinutes = 10 + 1;
+    public const int ResumeGraceMinutes = 1 + 1 + 1;
 
     /** Cache entry {seen_at, available_since} (ISO 8601 or null) written by ingestHeartbeat(). */
     public const string IngestKey = 'heptapod:servers:ingest';

@@ -13,13 +13,17 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * Global middleware for /agent, a namespace reserved for agent traffic: switched off, every method answers 404 before
  * routing; switched on, every refusal (from the controller, the throttle or the web fallback route for a wrong method)
- * gets one small JSON word as its body and no-store, never a page. The framework's other headers (Retry-After) stay.
+ * gets one small JSON word as its body and no-store, never a page. The framework's other headers (Retry-After) stay;
+ * a 503 without one (maintenance mode, `artisan down` without --retry) gets MaintenanceRetryAfterSeconds.
  */
 final readonly class AgentResponses
 {
     /** The agent reads only the status and Retry-After; the body never echoes input. */
     private const array Errors = [401 => 'unauthorized', 404 => 'not_found', 413 => 'too_large', 415 => 'unsupported_media_type',
         422 => 'invalid_report', 429 => 'too_many_reports'];
+
+    /** The agent's first failure wait (firstFailureWait in agent/send.go): soon back after maintenance ends. */
+    public const int MaintenanceRetryAfterSeconds = 30;
 
     public function __construct(private ServersAccess $access) {}
 
@@ -41,6 +45,9 @@ final readonly class AgentResponses
         $response->setContent(self::body($response->getStatusCode()));
         $response->headers->remove('Content-Length');
         $response->headers->set('Content-Type', 'application/json');
+        if ($response->getStatusCode() === 503 && ! $response->headers->has('Retry-After')) {
+            $response->headers->set('Retry-After', (string) self::MaintenanceRetryAfterSeconds);
+        }
 
         return $response;
     }

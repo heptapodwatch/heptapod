@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"io"
-	"math"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -40,19 +39,27 @@ func TestScheduleFollowsContractResponseTable(t *testing.T) {
 		{status: 429, retryAfter: "45", wait: 45 * time.Second, logs: true},
 		{status: 429, retryAfter: "Fri, 27 Nov 2026 07:02:00 GMT", wait: 2 * time.Minute},
 		{status: 429, wait: 20 * time.Second}, // no Retry-After: the current interval
-		{status: 429, retryAfter: "7200", wait: 2 * time.Hour},
-		{status: 429, retryAfter: "99999999999999999999", wait: math.MaxInt64}, // saturates, never overflows
-		{status: 429, retryAfter: "99999999999999999999junk", wait: 20 * time.Second}, // invalid: the current interval
+		{status: 429, retryAfter: "7200", wait: time.Hour}, // capped at an hour
+		{status: 429, retryAfter: "Fri, 27 Nov 2026 09:00:00 GMT", wait: time.Hour},
+		{status: 429, retryAfter: "99999999999999999999", wait: time.Hour}, // saturates, never overflows
+		{status: 429, retryAfter: "0", wait: time.Second},
+		{status: 429, retryAfter: "Fri, 27 Nov 2026 06:00:00 GMT", wait: time.Second}, // a past date
+		{status: 429, retryAfter: "-5", wait: 20 * time.Second}, // invalid: the current interval
+		{status: 429, retryAfter: "soon", wait: 20 * time.Second},
+		{status: 429, retryAfter: "99999999999999999999junk", wait: 20 * time.Second},
 		{status: 429, retryAfter: "+30", wait: 20 * time.Second},
 		{status: 500, wait: 30 * time.Second, keepSample: true, logs: true},
 		{status: 502, wait: time.Minute, keepSample: true, logs: true},
-		{status: 503, wait: 2 * time.Minute, keepSample: true, logs: true},
-		{status: 504, wait: 4 * time.Minute, keepSample: true, logs: true},
-		{status: 500, wait: 8 * time.Minute, keepSample: true, logs: true},
-		{status: 500, wait: 10 * time.Minute, keepSample: true, logs: true},
-		{status: 500, wait: 10 * time.Minute, keepSample: true, logs: true},
+		{status: 503, wait: time.Minute, keepSample: true, logs: true}, // never longer than a minute
+		{status: 504, wait: time.Minute, keepSample: true, logs: true},
+		{status: 500, wait: time.Minute, keepSample: true, logs: true},
 		{status: 202, body: `{"interval_seconds": 60}`, wait: time.Minute, logs: true},
 		{status: 503, wait: 30 * time.Second, keepSample: true, logs: true}, // a success resets the backoff
+		{status: 503, retryAfter: "15", wait: 15 * time.Second, keepSample: true, logs: true}, // maintenance: Retry-After wins
+		{status: 503, retryAfter: "Fri, 27 Nov 2026 07:00:40 GMT", wait: 40 * time.Second, keepSample: true, logs: true},
+		{status: 503, retryAfter: "3600", wait: time.Minute, keepSample: true, logs: true}, // bounded by the longest failure wait
+		{status: 503, retryAfter: "junk", wait: time.Minute, keepSample: true, logs: true},
+		{status: 500, retryAfter: "5", wait: time.Minute, keepSample: true, logs: true}, // only a 503 is read
 	}
 	var current step
 	var received []*http.Request
