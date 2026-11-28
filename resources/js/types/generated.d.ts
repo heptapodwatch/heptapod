@@ -1530,6 +1530,10 @@ readonly event_label: string,
 readonly timeline_time: string | null,
 readonly sent_delay_seconds: number | null,
 readonly retry_count: number,
+readonly diagnosis_params: {
+time: string,
+minutes?: number,
+} | null,
 };
 export type IncidentDetailPageData = {
 readonly site: Heptapod.Data.Ui.SiteRowData,

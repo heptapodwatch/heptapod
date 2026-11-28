@@ -192,7 +192,8 @@ final readonly class EventPresenter
 
         return new EventData($event->id, $severity,
             null, $event->server_name ?? throw new \LogicException('A server issue event needs its server name.'), null, null, $event->type,
-            $event->occurred_at->toIso8601String(), $message->summary, [], null, '',
+            $event->occurred_at->toIso8601String(), $message->activitySummary['key'] ?? $message->summary,
+            $message->activitySummary['params'] ?? [], null, '',
             server_id: $message->url !== null && is_int($serverId) ? $serverId : null);
     }
 }

@@ -337,6 +337,13 @@ export function useFormat() {
         compactDuration,
         intervalPhrase,
         timestamp,
+        messageWithTime: (
+            key: string,
+            params: Record<string, string | number | boolean | null>,
+        ) =>
+            typeof params.time === 'string'
+                ? i18n.t(key, { ...params, time: timestamp(params.time) })
+                : i18n.t(key),
         exact: (value: string, displayTimezone = timezone) =>
             formatDateTime(value, i18n.language, displayTimezone, 'exact'),
         calendarDate: (value: string, displayTimezone = timezone) =>

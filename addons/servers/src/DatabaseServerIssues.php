@@ -39,8 +39,9 @@ final class DatabaseServerIssues implements ServerIssues
             'recovered' => __('servers.alert.'.$kind->value.'.recovered', $params, $locale),
             default => __('servers.alert.ended.'.$resolution, ['mount' => $scope], $locale),
         };
+        $summaryKey = 'servers.alert.'.$kind->value.'.summary';
         $summary = match ($resolution) {
-            null => __('servers.alert.'.$kind->value.'.summary', $params, $locale),
+            null => __($summaryKey, $params, $locale),
             'recovered' => __('servers.alert.resolved', ['name' => $name], $locale),
             default => __('servers.alert.ended', ['name' => $name, 'reason' => $lead], $locale),
         };
@@ -64,7 +65,9 @@ final class DatabaseServerIssues implements ServerIssues
         }
 
         return new ServerIssueMessage(__('servers.alert.'.$kind->value.'.title', ['server' => $serverName], $locale), $summary, $lead, $rows,
-            $this->exists($serverId) ? route('servers.show', $serverId) : null);
+            $this->exists($serverId) ? route('servers.show', $serverId) : null,
+            $kind === ServerIssueKind::NoReport && $resolution === null
+                ? ['key' => $summaryKey, 'params' => ['time' => $this->text($facts, 'last_report_at')]] : null);
     }
 
     public function snoozedUntil(int $serverId): ?CarbonImmutable

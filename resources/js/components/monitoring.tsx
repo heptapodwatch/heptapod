@@ -667,7 +667,10 @@ export function EventTimeline({
     return (
         <ol className="space-y-0">
             {events.map((event) => {
-                let message = t(event.message);
+                let message = format.messageWithTime(
+                    event.message,
+                    event.message_params,
+                );
                 if (
                     event.severity === 'recovered' &&
                     event.duration_seconds !== null &&

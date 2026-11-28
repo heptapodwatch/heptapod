@@ -373,6 +373,19 @@ it('lists server issues in Activity for Owners and Admins with a link to the ser
         ->where('events.data.0.latest.site_name', 'web-1'));
 });
 
+it('shares the last report instant with Activity without formatting it in the viewer timezone on the server', function (): void {
+    $owner = User::factory()->owner()->create(['timezone' => 'Europe/Berlin']);
+    [, $token] = alertsServer(settings: ['no_report_minutes' => 5]);
+    alertsReport($this, $token);
+    $this->travel(7)->minutes();
+    app(EvaluateServerIssues::class)->noReports(now());
+
+    $this->actingAs($owner)->get('/activity')->assertOk()->assertInertia(fn (Assert $page): AssertableInertia => $page
+        ->has('events.data', 1)->where('events.data.0.latest.type', 'server.issue_opened')
+        ->where('events.data.0.latest.message', 'servers.alert.no_report.summary')
+        ->where('events.data.0.latest.message_params.time', '2026-11-27T07:00:00+00:00'));
+});
+
 it('shows open issues and the snooze on the server page and filters the list to servers that need attention', function (): void {
     $owner = User::factory()->owner()->create();
     [$busy, $token] = alertsServer('busy');

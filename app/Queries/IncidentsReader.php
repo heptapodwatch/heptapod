@@ -583,19 +583,18 @@ final readonly class IncidentsReader
                 CompleteNotificationDelivery::GivenUpReason => __('notifications.given_up', ['diagnosis' => $transportDiagnosis ?? '—']),
                 default => $transportDiagnosis,
             };
+            $diagnosisParams = null;
             if (! $delivery->suppressed && in_array($delivery->last_reason, ['deferred_by_maintenance', 'deferred_by_snooze'], true)) {
-                $diagnosis = __('notifications.'.$delivery->last_reason, [
-                    'time' => $delivery->next_attempt_at->setTimezone($user->resolvedTimezone())->format('Y-m-d H:i T'),
-                ]);
+                $diagnosis = 'notifications.'.$delivery->last_reason;
+                $diagnosisParams = ['time' => $delivery->next_attempt_at->toIso8601String()];
             } elseif (! $delivery->suppressed && $delivery->last_reason === UptimeAlertEpisode::WaitingReason) {
                 $diagnosis = __('notifications.recovery_checks_pending');
             } elseif (! $delivery->suppressed && $delivery->state === DeliveryState::Pending
                 && UptimeAlertEpisode::isOpeningEvent($event)
                 && $event->incident !== null && UptimeAlertEpisode::appliesTo($event->incident) && $delivery->next_attempt_at->isFuture()) {
-                $diagnosis = __('notifications.alert_delay_due', [
-                    'time' => $delivery->next_attempt_at->setTimezone($user->resolvedTimezone())->format('Y-m-d H:i T'),
-                    'minutes' => UptimeAlertEpisode::alertAfterMinutes($event->incident),
-                ]);
+                $diagnosis = 'notifications.alert_delay_due';
+                $diagnosisParams = ['time' => $delivery->next_attempt_at->toIso8601String(),
+                    'minutes' => UptimeAlertEpisode::alertAfterMinutes($event->incident)];
             }
             if ($diagnosis !== null && ! is_string($diagnosis)) {
                 throw new \LogicException('Delivery diagnosis must be text.');
@@ -620,7 +619,7 @@ final readonly class IncidentsReader
                 $previewId !== null && (int) $previewId === $delivery->id, $this->deliveryEventLabel($event),
                 ($delivery->sent_at ?? $event->occurred_at)->format('Y-m-d\TH:i:s.uP'),
                 $delivery->sent_at === null ? null : (int) $event->occurred_at->diffInSeconds($delivery->sent_at, false),
-                max(0, $delivery->attempts - 1));
+                max(0, $delivery->attempts - 1), $diagnosisParams);
         })->filter()->values()->all();
 
         return array_values($deliveries);

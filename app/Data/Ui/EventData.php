@@ -20,7 +20,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 final class EventData extends Data
 {
     /**
-     * @param  array<string, string|int|float|bool|null>  $message_params
+     * @param  array<string, string|int|float|bool|null>  $message_params  The time parameter, when set, is an instant for the viewer to format.
      * @param  list<CheckRunPresentationPartData>  $changes
      */
     public function __construct(

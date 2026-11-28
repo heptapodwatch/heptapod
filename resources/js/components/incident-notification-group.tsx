@@ -272,7 +272,12 @@ export function IncidentDeliveryRow({
             )}
             {delivery.diagnosis && (
                 <p className="break-words text-muted-foreground">
-                    {delivery.diagnosis}
+                    {delivery.diagnosis_params
+                        ? format.messageWithTime(
+                              delivery.diagnosis,
+                              delivery.diagnosis_params,
+                          )
+                        : delivery.diagnosis}
                 </p>
             )}
             {previewAvailable && delivery.can_preview && (

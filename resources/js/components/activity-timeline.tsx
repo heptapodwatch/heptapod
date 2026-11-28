@@ -134,7 +134,10 @@ export function ActivityTimeline({
                                     label={eventLabel(item)}
                                 />
                                 <span className="text-xs break-words">
-                                    {item.message}
+                                    {format.messageWithTime(
+                                        item.message,
+                                        item.message_params,
+                                    )}
                                     <span className="block">
                                         <PresentationChanges
                                             changes={item.changes}
