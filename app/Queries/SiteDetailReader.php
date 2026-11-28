@@ -240,7 +240,7 @@ final readonly class SiteDetailReader
             }),
             client: Lazy::closure(static fn (): ClientData => $getClient()),
             run_all_checks: Lazy::closure(fn (): array => $this->runAllChecks($site, $storedSite->checks)),
-            can_manage: Lazy::closure(static fn (): bool => $getClient()->archived_at === null && $user->hasAnyRole(['Owner', 'Admin'])),
+            can_manage: Lazy::closure(static fn (): bool => Gate::forUser($user)->allows('update', $storedSite)),
             uptime_ranges: Lazy::closure(fn (): array => $this->uptimeRanges($site, $getHistory()['uptime_percentage'])),
             run_all_result: Lazy::closure(static function (): ?array {
                 $result = request()->session()->get('run_all');
@@ -255,7 +255,7 @@ final readonly class SiteDetailReader
             alert_channels: Lazy::inertiaDeferred(fn (): ?int => $uptime?->enabled === true ? $this->alertChannels($user, $uptime->id, NotificationCategory::Outage) : null, 'overview'),
             lighthouse: Lazy::inertiaDeferred(fn (): ?CheckHistoryData => $lighthouse instanceof CheckStripData
                 ? $this->checkHistory($user, Check::query()->with('site')->findOrFail($lighthouse->id)) : null, 'overview'),
-            can_move: Lazy::closure(static fn (): bool => $user->hasAnyRole(['Owner', 'Admin'])),
+            can_move: Lazy::closure(static fn (): bool => Gate::forUser($user)->allows('move', $storedSite)),
             resume_at: Lazy::closure(static fn (): ?string => $storedSite->resume_at?->toIso8601String()),
             repositories: Lazy::closure(static fn (): array => SiteRepositoryData::forSite($siteId)),
             server: Lazy::closure(fn (): ?Data => $this->siteServers($user)?->ofSite($siteId)),
@@ -401,7 +401,7 @@ final readonly class SiteDetailReader
             mail_design: Lazy::closure(fn (): MailDesign => $this->instanceSettings->mail_design),
             alert_channels: Lazy::inertiaDeferred(fn (): ?int => $check->enabled
                 ? $this->alertChannels($user, $checkId, $check->type === CheckKey::Uptime ? NotificationCategory::Outage : NotificationCategory::Failure) : null),
-            can_move: Lazy::closure(static fn (): bool => $user->hasAnyRole(['Owner', 'Admin'])),
+            can_move: Lazy::closure(static fn (): bool => Gate::forUser($user)->allows('move', $storedSite)),
             cooldown_until: Lazy::closure(fn (): ?string => $this->claims->cooldownUntil($check)?->toIso8601String()),
         );
     }

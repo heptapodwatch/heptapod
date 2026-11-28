@@ -114,7 +114,7 @@ it('pauses a site at once when its deletion is requested, shows it as deleting a
     $this->get('/sites')->assertInertia(fn (Assert $page): Assert => $page
         ->loadDeferredProps(['list'], fn (Assert $list): Assert => $list->where('sites.0.identity.deleting', true)));
 
-    $this->post('/sites/'.$site->id.'/resume')->assertRedirect();
+    $this->post('/sites/'.$site->id.'/resume')->assertForbidden();
     expect($site->refresh()->paused_at)->not->toBeNull();
 });
 
@@ -267,4 +267,27 @@ it('deletes at most one batch of runs per statement, even when runs share an ins
     purgeSlice($site->id, seconds: 0);
 
     expect(DB::table('check_runs')->where('check_id', $check->id)->count())->toBe(200);
+});
+
+it('offers and accepts no change or new work for a site whose deletion is pending, and stays readable', function (): void {
+    $owner = User::factory()->owner()->create();
+    $site = siteWithHistory(1);
+    $check = $site->checks()->sole();
+    $this->actingAs($owner)->delete('/sites/'.$site->id, ['name' => 'Purge shop'])->assertRedirect('/sites');
+    $token = $owner->createToken('write', ['*'])->plainTextToken;
+
+    $this->get('/sites/'.$site->id)->assertOk()->assertInertia(fn (Assert $page): Assert => $page
+        ->where('can_manage', false)->where('can_move', false));
+    $this->get('/sites/'.$site->id.'/checks/'.$check->id)->assertOk()->assertInertia(fn (Assert $page): Assert => $page->where('can_run', false));
+    $this->get('/sites/'.$site->id.'/settings')->assertForbidden();
+    $this->post('/maintenance', ['target_type' => 'site', 'target_id' => $site->id, 'starts_local' => '2026-10-04 00:00',
+        'ends_local' => '2026-10-04 01:00', 'timezone' => 'UTC', 'recurrence_type' => 'once'])->assertForbidden();
+    $this->post('/sites/'.$site->id.'/checks/'.$check->id.'/run')->assertForbidden();
+    $this->post('/sites/'.$site->id.'/pause')->assertForbidden();
+    $this->withToken($token)->postJson('/api/checks/'.$check->id.'/snooze', ['minutes' => 5])->assertForbidden();
+    $this->withToken($token)->putJson('/api/monitors/'.$site->id, ['friendly_name' => 'Renamed'])->assertForbidden();
+
+    expect(DB::table('maintenance_periods')->where('site_id', $site->id)->exists())->toBeFalse()
+        ->and(DB::table('check_run_attempts')->where('check_id', $check->id)->where('origin', 'manual')->exists())->toBeFalse()
+        ->and($site->refresh()->friendly_name)->toBe('Purge shop');
 });

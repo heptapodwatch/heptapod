@@ -24,11 +24,14 @@ final class SitePolicy
 
     public function update(User $user, Site $site): Response
     {
-        return $this->writable($user, $site->client_id);
+        return self::deleting($site) ?? $this->writable($user, $site->client_id);
     }
 
     public function move(User $user, Site $site): Response
     {
+        if (($deleting = self::deleting($site)) instanceof Response) {
+            return $deleting;
+        }
         $access = $this->accessible($user, $site->client_id);
         if ($access->denied()) {
             return $access;
@@ -39,7 +42,16 @@ final class SitePolicy
 
     public function delete(User $user, Site $site): Response
     {
-        return $this->writable($user, $site->client_id);
+        return self::deleting($site) ?? $this->writable($user, $site->client_id);
+    }
+
+    /**
+     * A site whose deletion is pending (RequestSiteDeletion) takes no change and starts no work until PurgeDeletedSite
+     * deletes it; it stays readable.
+     */
+    public static function deleting(Site $site): ?Response
+    {
+        return $site->marked_for_deletion_at !== null ? Response::deny() : null;
     }
 
     public function create(User $user, int $clientId): Response

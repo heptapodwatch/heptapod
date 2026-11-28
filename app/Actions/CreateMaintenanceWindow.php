@@ -12,7 +12,9 @@ use Heptapod\Maintenance\MaintenanceTargets;
 use Heptapod\Maintenance\RecurringMaintenanceAttributes;
 use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\RecurringMaintenancePeriod;
+use Heptapod\Models\Site;
 use Heptapod\Models\User;
+use Heptapod\Policies\SitePolicy;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -47,6 +49,9 @@ final readonly class CreateMaintenanceWindow
             'site' => 'sites', 'client' => 'clients', 'tag' => 'tags'
         };
         Validator::make(['target_id' => $id], ['target_id' => Rule::exists($table, 'id')])->validate();
+        if ($type === 'site') {
+            SitePolicy::deleting(Site::query()->findOrFail($id))?->authorize();
+        }
         $start = $this->localTime->resolve(substr($data['starts_local'], 0, 10), substr($data['starts_local'], 11), $data['timezone']);
         $end = $this->localTime->resolve(substr($data['ends_local'], 0, 10), substr($data['ends_local'], 11), $data['timezone']);
         Validator::make(['ends_at' => $end, 'starts_at' => $start], ['ends_at' => 'after:starts_at'])->validate();
