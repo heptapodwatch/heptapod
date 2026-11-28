@@ -34,7 +34,7 @@ These links appear in their own group and do not count as broken:
 - **Not verifiable**: the site blocks automated checks (bot protection), is rate-limited, or the link points to a private network address.
 - **Not verifiable, external links only**: the site requires a login, refuses the request, its host name does not resolve, its certificate chain cannot be verified, or the TLS handshake fails. The same cause on an internal link is broken.
 
-Identifying the client does not get past a challenge or WAF rule. Use **Allowed broken URLs** for links you know are fine.
+Identifying the client does not get past a challenge or WAF rule. Use **Ignored URLs** for links you know are fine.
 
 ## Settings
 
@@ -49,9 +49,16 @@ Identifying the client does not get past a challenge or WAF rule. Use **Allowed 
 | **Exclude patterns**     | Empty   | Up to 1,000                                                           | URLs or `*` patterns that are never crawled.                                        |
 | **Do not crawl URLs**    | Empty   | Up to 1,000                                                           | URLs or `*` patterns that are never crawled.                                        |
 | **Always crawl URLs**    | Empty   | Up to 1,000                                                           | URLs or `*` patterns crawled even when robots.txt or another rule skips them.       |
-| **Allowed broken URLs**  | Empty   | Up to 1,000                                                           | Full HTTP(S) URLs or wildcard patterns that never count as broken.                  |
+| **Ignored URLs**         | Empty   | Up to 1,000                                                           | Full HTTP(S) URLs or wildcard patterns that never count as broken.                  |
 
-### Allowed broken URLs
+### Ignore a broken link
+
+1. On the **Broken links** check, select **Ignore** next to the link. The check updates without a new crawl.
+2. To bring a link back into the report, switch to **Ignored** and select **Stop ignoring**. For links ignored by a pattern, change the pattern in **Check settings** instead.
+
+Only people who can change the check's settings can ignore or restore links. Ignoring a link does not send an alert. **Send to client** does not include ignored links.
+
+### Ignored URLs
 
 - Entries match the full URL. Scheme and host case, path spaces and trailing slashes are normalized. Path and query keep their case, and fragments are ignored.
 - `*` matches across path and query, for example `*/news/sample?edition=*`. An exact entry needs an exact query.
@@ -87,7 +94,7 @@ Progress reads "N pages checked · M URLs discovered · limit reached". M includ
 Both checks run once a day and share one recent crawl.
 
 - A change to depth, limits, resource types, crawl lists, external checking or robots.txt starts a new crawl.
-- A change to **Allowed broken URLs** re-evaluates the current crawl without a new one.
+- A change to **Ignored URLs** re-evaluates the current crawl without a new one.
 - **Run check** on either check always starts a new crawl.
 
 ## Mixed content

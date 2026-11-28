@@ -12,6 +12,7 @@ use Heptapod\Contracts\Findings\FindingsFilter;
 use Heptapod\Contracts\Findings\FindingsPage;
 use Heptapod\Contracts\Findings\FindingsPosition;
 use Heptapod\Contracts\Findings\FindingStatus;
+use Heptapod\Contracts\Findings\FindingsView;
 use Heptapod\Contracts\Findings\UnavailableFindingsSnapshot;
 use Heptapod\Contracts\FindingsExportProvider;
 use Heptapod\Contracts\FindingsQueryProvider;
@@ -19,6 +20,7 @@ use Heptapod\Contracts\ListPaging;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunReference;
+use Heptapod\Contracts\SiteCheckSettingsReader;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -37,7 +39,7 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
     /** Aggregate byte budget for one crawl artifact (3-5 MiB for a 10,000-page site; 16 MiB leaves >3x headroom). */
     public const int MAX_ARTIFACT_BYTES = 16 * 1024 * 1024;
 
-    public function __construct(private CrawlFindingsQuery $findingsQuery, private ListPaging $paging) {}
+    public function __construct(private CrawlFindingsQuery $findingsQuery, private ListPaging $paging, private SiteCheckSettingsReader $settingsReader) {}
 
     public function snapshot(CheckKey $type, int $checkId, RunReference $run): AvailableFindingsSnapshot|UnavailableFindingsSnapshot
     {
@@ -248,14 +250,75 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
         return array_values($rows->map(static fn (\stdClass $row): MixedContentFinding => MixedContentFinding::from((array) $row))->all());
     }
 
+    /**
+     * @param  list<string>  $before
+     * @param  list<string>  $after
+     * @param  array<array-key, mixed>  $secrets
+     * @return array{internal: int, external: int, rate_limited: bool, ids: list<string>}|null
+     */
+    public function reEvaluateIgnoredUrls(int $checkId, RunReference $run, array $before, array $after, array $secrets, string $siteUrl): ?array
+    {
+        $query = DB::table('crawl_snapshots')->where('check_id', $checkId)->where('run_id', $run->id)
+            ->where('run_ended_at', $run->endedAt->format('Y-m-d H:i:s.uP'));
+        $snapshot = $query->first(['id', 'classification_policy_version', 'settings', 'evaluated_finding_ids']);
+        if ($snapshot === null) {
+            return null;
+        }
+        /** @var \stdClass&object{id: int, classification_policy_version: int|null, settings: string, evaluated_finding_ids: string} $snapshot */
+        $old = new CrawlWhitelist(CrawlWhitelist::redact($before, $secrets, $siteUrl));
+        $new = new CrawlWhitelist(CrawlWhitelist::redact($after, $secrets, $siteUrl));
+        /** @var array{check_include_external_links?: bool} $settings */
+        $settings = json_decode($snapshot->settings, true, flags: JSON_THROW_ON_ERROR);
+        /** @var list<string> $previousIds */
+        $previousIds = json_decode($snapshot->evaluated_finding_ids, true, flags: JSON_THROW_ON_ERROR);
+        $previous = array_fill_keys($previousIds, true);
+        $ids = [];
+        $internal = 0;
+        $external = 0;
+        $rateLimited = false;
+        foreach ($this->urls($snapshot->id, $snapshot->classification_policy_version) as $finding) {
+            $rateLimited = $rateLimited || in_array('rate_limited', [$finding->error_message, $finding->current_error_message], true);
+            if (! $finding->broken()) {
+                continue;
+            }
+            $url = $finding->crawled_url;
+            $id = hash('sha256', $url);
+            $ignorable = $finding->error_message !== 'invalid URL';
+            if ($ignorable && $new->matches($url)) {
+                continue;
+            }
+            // Restore only failures omitted by the old list; leave other exclusions and legacy classifications alone.
+            if (! isset($previous[$id]) && (! $ignorable || ! $old->matches($url) || (! $finding->internal && ! ($settings['check_include_external_links'] ?? true)) || BrowserUrl::isEmailProtection($url, $siteUrl))) {
+                continue;
+            }
+            $ids[$id] = true;
+            if ($finding->internal) {
+                $internal++;
+            } else {
+                $external++;
+            }
+        }
+        $ids = array_keys($ids);
+        sort($ids);
+        $previousIdsSorted = $previousIds;
+        sort($previousIdsSorted);
+        if ($ids === $previousIdsSorted) {
+            return null;
+        }
+        // The last run no longer represents the original comparison configuration.
+        $query->update(['evaluated_finding_ids' => json_encode($ids, JSON_THROW_ON_ERROR), 'comparison_key' => null]);
+
+        return ['internal' => $internal, 'external' => $external, 'rate_limited' => $rateLimited, 'ids' => $ids];
+    }
+
     public function findings(int $checkId, bool $mixed): CrawlFindingsData
     {
         $query = DB::table('crawl_snapshots')->where('check_id', $checkId)->whereNotNull('run_ended_at');
-        $latest = (clone $query)->orderByDesc('run_ended_at')->orderByDesc('run_id')->first(['id', 'run_id', 'run_ended_at', 'time_limit_reached', 'page_cap_reached', 'resource_cap_reached', 'settings', 'classification_policy_version']);
+        $latest = (clone $query)->orderByDesc('run_ended_at')->orderByDesc('run_id')->first(['id', 'site_id', 'run_id', 'run_ended_at', 'time_limit_reached', 'page_cap_reached', 'resource_cap_reached', 'settings', 'classification_policy_version']);
         if ($latest === null) {
             return new CrawlFindingsData($mixed ? CheckKey::MixedContent : CheckKey::BrokenLinks, null, false, false, false, 0, [], null);
         }
-        /** @var \stdClass&object{id: int, run_id: int, run_ended_at: string, time_limit_reached: bool, page_cap_reached: bool, resource_cap_reached: bool, settings: string, classification_policy_version: int|null} $latest */
+        /** @var \stdClass&object{id: int, site_id: int, run_id: int, run_ended_at: string, time_limit_reached: bool, page_cap_reached: bool, resource_cap_reached: bool, settings: string, classification_policy_version: int|null} $latest */
         $legacy = LinkClassificationPolicy::legacySql($latest->classification_policy_version);
         $grammar = DB::connection()->getQueryGrammar();
         $table = $mixed ? 'mixed_content_findings' : 'crawl_findings';
@@ -266,7 +329,12 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
                     $query->where('status_code', '>=', 400)->orWhereNull('status_code');
                 })->whereRaw(LinkClassificationPolicy::verifiableSql($legacy));
         }
+        $ignoredView = ! $mixed && request()->query('findings_view') === 'ignored';
+        $ignored = $mixed ? [] : $this->filterFindings($findingQuery, $latest->site_id, $legacy, $ignoredView ? FindingsView::Ignored : FindingsView::Current);
         $findingsPage = $this->paging->paginate($findingQuery->orderBy('id'), 'findings');
+        if ($findingsPage->currentPage() > $findingsPage->lastPage()) {
+            $findingsPage = $this->paging->paginate($findingQuery, 'findings', $findingsPage->lastPage());
+        }
         $rows = collect($findingsPage->items());
         $notVerifiableQuery = DB::table('crawl_findings')->where('snapshot_id', $latest->id)
             ->whereRaw(LinkClassificationPolicy::notVerifiableSql('', $legacy));
@@ -289,7 +357,7 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
         $firstCompleteCrawlAt = $this->firstCompleteCrawlAt($checkId, $latestRun);
         $findings = [];
         foreach ($rows as $row) {
-            /** @var \stdClass&object{crawled_url: string, mixed_content_url: string, found_on_url: string|null, link_text: string|null, status_code: int|null, type: string, element_name: string, internal: bool, error_message: string|null, current_error_message: string|null} $row */
+            /** @var \stdClass&object{id: int, crawled_url: string, mixed_content_url: string, found_on_url: string|null, link_text: string|null, status_code: int|null, type: string, element_name: string, internal: bool, error_message: string|null, current_error_message: string|null} $row */
             $findings[] = [
                 'url' => $mixed ? $row->mixed_content_url : $row->crawled_url,
                 'found_on' => $row->found_on_url,
@@ -304,6 +372,7 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
                 'first_seen_in_retained_history_at' => $mixed || ! isset($firstSeen[$row->crawled_url]) ? null : CarbonImmutable::parse($firstSeen[$row->crawled_url])->utc()->toIso8601String(),
                 'current_reason_key' => $mixed || $row->current_error_message === null ? null : CrawlFindingValues::resultKey($row->current_error_message),
                 'after_first_complete_crawl' => ! $mixed && $this->firstSeenAfterFirstCompleteCrawl($firstSeen[$row->crawled_url] ?? null, $firstCompleteCrawlAt),
+                'ignored_by' => $ignored[$row->id] ?? null,
             ];
         }
         $previous = (clone $query)->where('run_ended_at', '<=', now('UTC')->subDays(7)->format('Y-m-d H:i:s.uP'))
@@ -338,7 +407,7 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
             $latestVersion = $latest->classification_policy_version;
             $previousVersion = $previous->classification_policy_version;
             $weekly = [
-                'current' => $count($latest->id, $latestVersion), 'previous' => $count($previous->id, $previousVersion),
+                'current' => $count($latest->id, $latestVersion) - count($ignored), 'previous' => $count($previous->id, $previousVersion),
                 'new' => $difference($latest->id, $latestVersion, $previous->id, $previousVersion), 'fixed' => $difference($previous->id, $previousVersion, $latest->id, $latestVersion, true),
                 'since' => CarbonImmutable::parse($previous->run_ended_at)->utc()->toIso8601String(),
             ];
@@ -347,26 +416,57 @@ final readonly class CrawlPersistence implements FindingsExportProvider, Finding
         $settings = json_decode($latest->settings, true, flags: JSON_THROW_ON_ERROR);
 
         return new CrawlFindingsData($mixed ? CheckKey::MixedContent : CheckKey::BrokenLinks,
-            CarbonImmutable::parse($latest->run_ended_at)->utc()->toIso8601String(), $latest->time_limit_reached, $latest->page_cap_reached, $latest->resource_cap_reached, $settings['max_pages'] ?? 0, $findings, $weekly, new RunReference($latest->run_id, CarbonImmutable::parse($latest->run_ended_at)), PaginationData::fromPaginator($findingsPage), $notVerifiable, PaginationData::fromPaginator($notVerifiablePage));
+            CarbonImmutable::parse($latest->run_ended_at)->utc()->toIso8601String(), $latest->time_limit_reached, $latest->page_cap_reached, $latest->resource_cap_reached, $settings['max_pages'] ?? 0, $findings, $weekly, new RunReference($latest->run_id, CarbonImmutable::parse($latest->run_ended_at)), PaginationData::fromPaginator($findingsPage), $notVerifiable, PaginationData::fromPaginator($notVerifiablePage), count($ignored), $ignoredView);
     }
 
-    public function exportFindings(CheckKey $type, int $checkId, RunReference $run): ?iterable
+    /** @param literal-string $legacy
+     * @return array<int, string>
+     */
+    private function filterFindings(Builder $query, int $siteId, string $legacy, FindingsView $view): array
+    {
+        $settings = $this->settingsReader->read($siteId, CheckKey::BrokenLinks);
+        /** @var list<string> $entries */
+        $entries = $settings->config['whitelisted_urls'] ?? [];
+        $ignored = [];
+        if ($entries !== []) {
+            $whitelist = new CrawlWhitelist(CrawlWhitelist::redact($entries, $settings->crawlerSecrets ?? [], $settings->siteUrl ?? ''));
+            $candidates = (clone $query)->whereRaw(LinkClassificationPolicy::brokenSql('', $legacy));
+            foreach ($candidates->select(['id', 'crawled_url'])->addSelect(LinkClassificationPolicy::labelSql($legacy))->cursor() as $row) {
+                /** @var \stdClass&object{id: int, crawled_url: string, error_message: string|null} $row */
+                if ($row->error_message !== 'invalid URL' && ($kind = $whitelist->match($row->crawled_url)) !== null) {
+                    $ignored[$row->id] = $kind;
+                }
+            }
+        }
+        if ($view === FindingsView::Ignored) {
+            $query->whereIntegerInRaw('id', array_keys($ignored));
+        } elseif ($ignored !== []) {
+            $query->whereIntegerInRaw('id', array_keys($ignored), not: true);
+        }
+
+        return $ignored;
+    }
+
+    public function exportFindings(CheckKey $type, int $checkId, RunReference $run, FindingsView $view = FindingsView::Raw): ?iterable
     {
         if (! in_array($type, [CheckKey::BrokenLinks, CheckKey::MixedContent], true)) {
             throw new \InvalidArgumentException('Crawl export requires a crawl check.');
         }
         $snapshot = DB::table('crawl_snapshots')->where('check_id', $checkId)->where('run_id', $run->id)
-            ->where('run_ended_at', $run->endedAt->format('Y-m-d H:i:s.uP'))->sharedLock()->first(['id', 'classification_policy_version']);
+            ->where('run_ended_at', $run->endedAt->format('Y-m-d H:i:s.uP'))->sharedLock()->first(['id', 'site_id', 'classification_policy_version']);
         if ($snapshot === null) {
             return null;
         }
-        /** @var \stdClass&object{id: int, classification_policy_version: int|null} $snapshot */
+        /** @var \stdClass&object{id: int, site_id: int, classification_policy_version: int|null} $snapshot */
         $mixed = $type === CheckKey::MixedContent;
         $query = DB::table($mixed ? 'mixed_content_findings' : 'crawl_findings')->where('snapshot_id', $snapshot->id);
         if (! $mixed) {
             $query->select(['id', 'crawled_url', 'status_code', 'found_on_url', 'link_text', 'internal', 'current_error_message'])
-                ->addSelect(LinkClassificationPolicy::labelSql(LinkClassificationPolicy::legacySql($snapshot->classification_policy_version)));
+                ->addSelect(LinkClassificationPolicy::labelSql($legacy = LinkClassificationPolicy::legacySql($snapshot->classification_policy_version)));
             $query->where(static fn (Builder $query) => $query->where('status_code', '>=', 400)->orWhereNull('status_code'));
+            if ($view !== FindingsView::Raw) {
+                $this->filterFindings($query, $snapshot->site_id, $legacy, $view);
+            }
         }
 
         $firstCompleteCrawlAt = $mixed ? null : $this->firstCompleteCrawlAt($checkId, $run);

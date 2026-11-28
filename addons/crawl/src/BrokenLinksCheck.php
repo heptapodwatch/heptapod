@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Addons\Crawl;
 
 use Carbon\CarbonImmutable;
+use Heptapod\Contracts\BrokenLinkSettings;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\CheckDefinition;
 use Heptapod\Contracts\CheckDetailProvider;
@@ -33,8 +34,9 @@ use Heptapod\Contracts\Schema\FieldPresentation;
 use Heptapod\Contracts\Schema\FieldType;
 use Heptapod\Contracts\Schema\Schema;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Validation\ValidationException;
 
-final readonly class BrokenLinksCheck implements CheckDetailProvider, CheckHistoryProvider, CheckRunPresenter, CheckType, MailEvidenceProvider
+final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetailProvider, CheckHistoryProvider, CheckRunPresenter, CheckType, MailEvidenceProvider
 {
     public function __construct(private CrawlEvaluation $evaluation, private CrawlPersistence $store) {}
 
@@ -132,6 +134,28 @@ final readonly class BrokenLinksCheck implements CheckDetailProvider, CheckHisto
     public function history(int $checkId, bool $canViewCapabilities = false): CrawlFindingsData
     {
         return $this->store->findings($checkId, false);
+    }
+
+    public function editIgnoredUrls(array $entries, string $url, bool $ignore): array
+    {
+        if (str_contains($url, '*') || ! CrawlWhitelist::valid($url)) {
+            throw ValidationException::withMessages(['ignore_finding.url' => __('validation.url', ['attribute' => 'URL'])]);
+        }
+        $match = new CrawlWhitelist($entries)->match($url);
+        if ($ignore) {
+            return $match === null ? [...$entries, $url] : $entries;
+        }
+        if ($match !== 'exact') {
+            return $entries;
+        }
+        $target = CrawlWhitelist::canonical($url);
+
+        return array_values(array_filter($entries, static fn (string $entry): bool => str_contains($entry, '*') || CrawlWhitelist::canonical($entry) !== $target));
+    }
+
+    public function reEvaluateIgnoredUrls(int $checkId, RunReference $run, array $before, array $after, array $secrets, string $siteUrl): ?array
+    {
+        return $this->store->reEvaluateIgnoredUrls($checkId, $run, $before, $after, $secrets, $siteUrl);
     }
 
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData

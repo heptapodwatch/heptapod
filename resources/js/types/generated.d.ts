@@ -177,6 +177,7 @@ broken: boolean,
 first_seen_in_retained_history_at: string | null,
 current_reason_key: string | null,
 after_first_complete_crawl: boolean,
+ignored_by: string | null,
 }[],
 readonly weekly_change: {
 current: number,
@@ -194,6 +195,8 @@ status: number | null,
 source: string | null,
 }[],
 readonly not_verifiable_pagination: Heptapod.Contracts.PaginationData | null,
+readonly ignored_count: number,
+readonly ignored_view: boolean,
 readonly check_type: Heptapod.Contracts.CheckKey,
 };
 export type CrawlMetrics = {
@@ -876,6 +879,7 @@ readonly field_truncation: string[],
 export type FindingsSourceGroup = 'rows' | 'mixed' | 'verification';
 export type FindingsUnavailableReason = 'not_retained' | 'no_observation' | 'comparison_limit' | 'legacy_metadata_missing' | 'incomparable';
 export type FindingsUnavailableStatus = 'evidence_expired' | 'unsupported' | 'no_dataset';
+export type FindingsView = 'raw' | 'current' | 'ignored';
 export type UnavailableFindingsSnapshot = {
 readonly status: Heptapod.Contracts.Findings.FindingsUnavailableStatus,
 readonly check_id: number,

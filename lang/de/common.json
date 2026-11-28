@@ -511,6 +511,7 @@
     "events.failed": "Fehlgeschlagen",
     "events.warning": "Warnung",
     "events.changed": "Geändert",
+    "events.ignored_urls_changed": "Ignorierte URLs geändert",
     "events.findings_reclassified": "Link-Richtlinie v:version hat bisher defekte Links als nicht überprüfbar eingestuft (:count). Sie wurden nicht als behoben bestätigt.",
     "reclassify_links.description": "Gespeicherte Link-Funde nach der aktuellen Einstufungsrichtlinie neu einstufen (Upgrade-Schritt)",
     "reclassify_links.unknown_policy": "Diese Version wendet nur die Link-Richtlinie :version an.",

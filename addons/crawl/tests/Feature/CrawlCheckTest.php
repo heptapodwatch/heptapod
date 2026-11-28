@@ -59,8 +59,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Inertia\Testing\AssertableInertia;
 use Inertia\Testing\AssertableInertia as Assert;
 use Psr\Http\Message\RequestInterface;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Crawler\CrawlResponse;
 use Spatie\LaravelData\Exceptions\CannotCastEnum;
 use Symfony\Component\Process\Process;
@@ -677,6 +679,90 @@ it('collects only once when two independent workers request the same site concur
         $cleanup = new Process([...$command, 'cleanup'], base_path(), $env);
         $cleanup->mustRun();
     }
+});
+
+/** @param list<string> $ignored */
+function crawlForIgnoredFindings(array $ignored = []): Check
+{
+    $root = 'https://fixtures.test/ignored-findings';
+    $check = crawlCheck(url: $root, config: ['respect_robots' => false, 'types' => ['link'], 'whitelisted_urls' => $ignored]);
+    $fake = (new FakeOutboundHttp)
+        ->respondWith(crawlHttpRequest($root), new FetchResult(200, '<a href="'.$root.'/missing-internal">Internal</a><a href="'.$root.'/missing-nested">Nested</a>', ['Content-Type' => ['text/html']]))
+        ->respondWith(crawlHttpRequest($root.'/missing-internal'), new FetchResult(404, failure: new FetchFailure(FetchFailureKind::HttpStatus, 404)))
+        ->respondWith(crawlHttpRequest($root.'/missing-nested'), new FetchResult(404, failure: new FetchFailure(FetchFailureKind::HttpStatus, 404)));
+    app()->instance(OutboundHttp::class, $fake);
+    recordCrawl(crawlContext($check));
+
+    return $check->refresh();
+}
+
+it('ignores and restores a finding through check settings without another crawl', function (): void {
+    $check = crawlForIgnoredFindings();
+    $nextRun = $check->next_run_at;
+    $incident = $check->incidents()->sole();
+    $run = $check->refresh()->latest_run_id;
+    $internal = $check->site->url.'/missing-internal';
+    $nested = $check->site->url.'/missing-nested';
+    $page = route('sites.checks.show', ['site' => $check->site_id, 'check' => $check->id]);
+    $this->actingAs(User::factory()->owner()->create());
+    foreach ([$internal, $nested] as $url) {
+        $this->from($page)->patch($page, ['ignore_finding' => ['url' => $url, 'ignore' => true]])->assertRedirect($page)->assertSessionHasNoErrors();
+    }
+    $this->get($page)->assertInertia(fn (Assert $props): AssertableInertia => $props
+        ->has('history.findings', 0)->where('history.ignored_count', 2));
+    expect($check->refresh()->latest_run_result)->toBe(CheckResult::Succeeded);
+    expect($check->executionConfig()['whitelisted_urls'])->toBe([$internal, $nested]);
+    expect($incident->refresh()->resolved_at)->not->toBeNull();
+    expect(Event::query()->where('incident_id', $incident->id)->where('type', 'incident.resolved')->sole()->suppressed)->toBeTrue();
+
+    $ignored = $page.'?findings_view=ignored';
+    $this->get($ignored)->assertInertia(fn (Assert $props): AssertableInertia => $props->has('history.findings', 2)->where('history.findings.0.ignored_by', 'exact'));
+    $this->from($ignored)->patch($page, ['ignore_finding' => ['url' => $internal, 'ignore' => false]])->assertRedirect($ignored)->assertSessionHasNoErrors();
+    $this->get($page)->assertInertia(fn (Assert $props): AssertableInertia => $props
+        ->has('history.findings', 1)->where('history.findings.0.url', $internal)->where('history.ignored_count', 1));
+    expect($check->refresh()->latest_run_result)->toBe(CheckResult::Failed);
+    expect($check->latest_run_id)->toBe($run);
+    expect($check->runs()->count())->toBe(1);
+    expect($check->next_run_at->equalTo($nextRun))->toBeTrue();
+    $newIncident = $check->incidents()->whereNull('resolved_at')->sole();
+    expect($newIncident->id)->not->toBe($incident->id);
+    expect(Event::query()->where('incident_id', $newIncident->id)->where('type', 'incident.opened')->sole()->suppressed)->toBeFalse();
+    $audit = Activity::query()->where('subject_type', $check->getMorphClass())->where('subject_id', $check->id)->where('event', 'updated')->whereNotNull('causer_id')->get();
+    expect($audit->count())->toBe(3);
+});
+
+it('keeps pattern rules in settings and refuses a Member or an invalid row URL', function (): void {
+    $pattern = '*/missing-nested';
+    $check = crawlForIgnoredFindings([$pattern]);
+    $params = ['site' => $check->site_id, 'check' => $check->id];
+    $page = route('sites.checks.show', $params);
+    $ignored = route('sites.checks.show', [...$params, 'findings_view' => 'ignored']);
+    $nested = $check->site->url.'/missing-nested';
+
+    $this->actingAs(User::factory()->member()->create())->from($page)
+        ->patch($page, ['ignore_finding' => ['url' => $nested, 'ignore' => true]])->assertForbidden();
+    $this->get($ignored)->assertInertia(fn (Assert $props): AssertableInertia => $props
+        ->where('check_settings.can_update', false)->where('history.findings.0.ignored_by', 'pattern'));
+
+    $this->actingAs(User::factory()->owner()->create())->from($ignored)
+        ->patch($page, ['ignore_finding' => ['url' => $nested, 'ignore' => false]])->assertSessionHasNoErrors();
+    $this->from($page)->patch($page, ['ignore_finding' => ['url' => 'not-a-url', 'ignore' => true]])->assertSessionHasErrors('ignore_finding.url');
+    $this->from($page)->patch($page, ['whitelisted_urls' => ['not-a-url']])->assertSessionHasErrors('values.whitelisted_urls.0');
+    expect($check->refresh()->executionConfig()['whitelisted_urls'])->toBe([$pattern]);
+});
+
+it('exports only the selected broken-link findings view and labels it', function (): void {
+    $check = crawlForIgnoredFindings(['*/missing-nested']);
+    $params = ['site' => $check->site_id, 'check' => $check->id, 'run' => $check->latest_run_id,
+        'observed_at' => $check->latest_run_ended_at?->format('Y-m-d\TH:i:s.uP'), 'format' => 'csv'];
+    $this->actingAs(User::factory()->owner()->create(['locale' => 'en']));
+
+    $current = $this->get(route('sites.checks.findings', [...$params, 'findings_view' => 'current']))->assertOk()->streamedContent();
+    expect($current)->toContain('/missing-internal', 'Current findings')->not->toContain('/missing-nested');
+    $ignored = $this->get(route('sites.checks.findings', [...$params, 'findings_view' => 'ignored']))->assertOk()->streamedContent();
+    expect($ignored)->toContain('/missing-nested', 'Ignored')->not->toContain('/missing-internal');
+    $history = $this->get(route('sites.checks.findings', $params))->assertOk()->streamedContent();
+    expect($history)->toContain('/missing-internal', '/missing-nested');
 });
 
 it('re-evaluates whitelist changes without recollecting or new-finding events', function (): void {

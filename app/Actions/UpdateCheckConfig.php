@@ -7,6 +7,7 @@ namespace Heptapod\Actions;
 use Heptapod\Checks\CheckSchedule;
 use Heptapod\Checks\DatabaseClock;
 use Heptapod\Checks\Execution\ClaimService;
+use Heptapod\Contracts\BrokenLinkSettings;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\Schema\Field;
@@ -26,14 +27,15 @@ use Illuminate\Validation\ValidationException;
 
 final readonly class UpdateCheckConfig
 {
-    public function __construct(private CheckRegistry $registry, private ClaimService $claims, private DatabaseClock $clock) {}
+    public function __construct(private CheckRegistry $registry, private ClaimService $claims, private DatabaseClock $clock, private ReevaluateBrokenLinks $reevaluateBrokenLinks) {}
 
     /** @param array<string, mixed> $settings
      * @param  array<string, mixed>|null  $expectedPreviousConfig
+     * @param  array{url: string, ignore: bool}|null  $findingEdit
      */
-    public function __invoke(Check $check, array $settings, #[\SensitiveParameter] ?array $expectedPreviousConfig = null): void
+    public function __invoke(Check $check, array $settings, #[\SensitiveParameter] ?array $expectedPreviousConfig = null, ?array $findingEdit = null): void
     {
-        DB::transaction(function () use ($check, $settings, $expectedPreviousConfig): void {
+        DB::transaction(function () use ($check, $settings, $expectedPreviousConfig, $findingEdit): void {
             if ($check->exists) {
                 $query = Check::query()->whereKey($check->id);
                 NotificationLocks::forUpdate($query->getQuery());
@@ -55,6 +57,13 @@ final readonly class UpdateCheckConfig
                     messageKey: 'checks.settings_changed',
                     errorCode: 'check_settings_changed',
                 );
+            }
+            $brokenLinks = $this->registry->implementation($check->type, BrokenLinkSettings::class);
+            /** @var list<string> $previousEntries */
+            $previousEntries = $previous['whitelisted_urls'] ?? [];
+            if ($findingEdit !== null) {
+                abort_unless($brokenLinks instanceof BrokenLinkSettings, 404);
+                $settings = ['whitelisted_urls' => $brokenLinks->editIgnoredUrls($previousEntries, $findingEdit['url'], $findingEdit['ignore'])];
             }
             $incoming = Arr::except($settings, ['frequency_value', 'frequency_unit', 'failed_notification_threshold']);
             $supplied = $incoming;
@@ -100,13 +109,29 @@ final readonly class UpdateCheckConfig
                 }
             }
             if ($check->exists && $check->executionConfig() !== $previous) {
-                $this->claims->revoke($check);
+                // Ignored URLs affect evaluation, not collection or cadence. Fence a run using the old list without making a new one due.
+                $listOnly = $brokenLinks instanceof BrokenLinkSettings
+                    && Arr::except($check->executionConfig(), ['whitelisted_urls']) === Arr::except($previous, ['whitelisted_urls'])
+                    && ! $check->isDirty('interval_seconds');
+                if (! $listOnly || $check->claim_token !== null) {
+                    $this->claims->revoke($check);
+                    if ($listOnly) {
+                        Check::query()->whereKey($check->id)->update(['next_run_at' => $check->next_run_at]);
+                    }
+                }
             } elseif ($check->exists && $check->isDirty('interval_seconds')) {
                 $check->next_run_at = CheckSchedule::nextSlot($check->id, $check->interval_seconds, $this->clock->now());
             } elseif (! $check->exists) {
                 $check->next_run_at = $this->clock->now();
             }
             $check->save();
+            if ($brokenLinks instanceof BrokenLinkSettings && array_key_exists('whitelisted_urls', $incoming)) {
+                /** @var list<string> $entries */
+                $entries = $validated->public['whitelisted_urls'] ?? [];
+                if ($entries !== $previousEntries) {
+                    ($this->reevaluateBrokenLinks)($check, $brokenLinks, $previousEntries, $entries);
+                }
+            }
         });
         $check->refresh();
     }

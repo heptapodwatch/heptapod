@@ -18,9 +18,13 @@ import {
 import { LighthouseScoreHistory } from '@/components/lighthouse-score-history';
 import { PerformanceEvidence } from '@/components/performance-evidence';
 import { useCheckHeadline } from '@/hooks/use-check-headline';
-import { usePage } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
+import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import { findings as findingsExport } from '@/routes/sites/checks';
+import {
+    findings as findingsExport,
+    update as checkUpdate,
+} from '@/routes/sites/checks';
 
 export function CheckDetail({
     page,
@@ -41,6 +45,31 @@ export function CheckDetail({
     const { t } = useTranslation();
     const { check } = page;
     const [sendOpen, setSendOpen] = useState(false);
+    const [settingsOpen, setSettingsOpen] = useState(false);
+    const [savingFinding, setSavingFinding] = useState(false);
+    const editFinding = (url: string, ignore: boolean) => {
+        setSavingFinding(true);
+        router.patch(
+            checkUpdate.url({ site: page.header.id, check: check.id }),
+            { ignore_finding: { url, ignore } },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.success(
+                        t(
+                            ignore
+                                ? 'crawl.ignore.saved'
+                                : 'crawl.ignore.restored',
+                        ),
+                    );
+                },
+                onError: () => {
+                    toast.error(t('crawl.ignore.error'));
+                },
+                onFinish: () => setSavingFinding(false),
+            },
+        );
+    };
     // Findings a client's editor can act on: broken links, insecure content, sitemap addresses that fail.
     const sendable =
         auth.canManageChannels &&
@@ -87,6 +116,17 @@ export function CheckDetail({
                                     {t('client_messages.send_action')}
                                 </PageHeaderAction>
                             ) : undefined
+                        }
+                        findingActions={
+                            check.key === 'broken_links'
+                                ? {
+                                      openSettings: () => setSettingsOpen(true),
+                                      edit: page.check_settings.can_update
+                                          ? editFinding
+                                          : undefined,
+                                      saving: savingFinding,
+                                  }
+                                : undefined
                         }
                         type={check.key}
                         detail={page.detail}
@@ -147,6 +187,10 @@ export function CheckDetail({
                 actionNote={actionNote}
                 runStatus={runStatus}
                 evidence={evidence}
+                settingsVisibility={{
+                    open: settingsOpen,
+                    setOpen: setSettingsOpen,
+                }}
             />
             {sendable && page.client && sendOpen && (
                 <SendToClientSheet

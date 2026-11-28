@@ -7,11 +7,13 @@ namespace Heptapod\Http\Controllers;
 use Carbon\CarbonImmutable;
 use Heptapod\Checks\CheckRunPresentations;
 use Heptapod\Contracts\CheckHeadline;
+use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\CheckRunPresentationData;
 use Heptapod\Contracts\Export\Column;
 use Heptapod\Contracts\Export\Table;
 use Heptapod\Contracts\Findings\FindingStatus;
+use Heptapod\Contracts\Findings\FindingsView;
 use Heptapod\Contracts\FindingsExportProvider;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\SecretRedactor;
@@ -44,12 +46,18 @@ final class FindingsExportController extends Controller
         $checkRow->setRelation('site', $siteRow);
         $window = ['sometimes', 'integer', 'min:1'];
         $size = ['sometimes', 'integer', Rule::in(ListPageSize::Sizes)];
-        /** @var array{run: int|string, observed_at: string, incident?: int|string|null, findings_page?: int|string, findings_per_page?: int|string, not_verifiable_page?: int|string, not_verifiable_per_page?: int|string} $values */
+        /** @var array{run: int|string, observed_at: string, incident?: int|string|null, findings_view?: 'current'|'ignored', findings_page?: int|string, findings_per_page?: int|string, not_verifiable_page?: int|string, not_verifiable_per_page?: int|string} $values */
         $values = Validator::make($request->query(), ['run' => ['required', 'integer', 'min:1'], 'observed_at' => ['required', 'date'],
-            'incident' => ['nullable', 'integer', 'min:1'], 'findings_page' => $window, 'findings_per_page' => $size,
+            'incident' => ['nullable', 'integer', 'min:1'], 'findings_view' => ['sometimes', 'in:current,ignored'], 'findings_page' => $window, 'findings_per_page' => $size,
             'not_verifiable_page' => $window, 'not_verifiable_per_page' => $size])->validate();
         $run = new RunReference((int) $values['run'], CarbonImmutable::parse($values['observed_at']));
         $scoped = isset($values['incident']) ? $incidents->scoped($user)->where('check_id', $check)->whereKey((int) $values['incident'])->firstOrFail() : null;
+        $view = $scoped === null && $checkRow->type === CheckKey::BrokenLinks ? FindingsView::from($values['findings_view'] ?? 'raw') : FindingsView::Raw;
+        $viewLabel = match ($view) {
+            FindingsView::Raw => null,
+            FindingsView::Current => (string) __('crawl.ignore.current'),
+            FindingsView::Ignored => (string) __('crawl.ignore.ignored'),
+        };
         // Match the check tab's New marker, or the explicitly scoped episode's opening time.
         $episode = $scoped;
         if (! $episode instanceof Incident) {
@@ -81,15 +89,15 @@ final class FindingsExportController extends Controller
         $presentation = $presentations->forRun($checkRow, $latest);
         $checkLabel = (string) __('checks.'.$checkRow->type->value.'.label');
         // The monitored URL can carry a credential query parameter; the redactor masks it like every other exported URL.
-        $facts = [['label' => __('Site'), 'value' => $redact($siteRow->displayName().' ('.$siteRow->url.')')], ['label' => __('Check'), 'value' => $checkLabel],
+        $facts = [...($viewLabel === null ? [] : [['label' => __('crawl.ignore.filter'), 'value' => $viewLabel]]), ['label' => __('Site'), 'value' => $redact($siteRow->displayName().' ('.$siteRow->url.')')], ['label' => __('Check'), 'value' => $checkLabel],
             ...($presentation instanceof CheckRunPresentationData ? [['label' => __('Status'), 'value' => $redact(CheckHeadline::format($presentation, app()->getLocale(), $checkRow->type))]] : []),
             ...($scoped instanceof Incident ? [['label' => __('Incident'), 'value' => '#'.$scoped->id]] : []),
             ...($latest instanceof CheckRun ? [['label' => __('Checked at'), 'value' => $time($latest->ended_at)]] : []),
             ...($latest?->id === $run->id ? [] : [['label' => __('Findings from'), 'value' => $time($run->endedAt)]])];
-        $rows = (static function () use ($provider, $checkRow, $site, $check, $run, $redact, $time, $since, $pages, $paged): \Generator {
+        $rows = (static function () use ($provider, $checkRow, $site, $check, $run, $redact, $time, $since, $pages, $paged, $view, $viewLabel): \Generator {
             // ExportResponse runs this generator inside one share-locked transaction before sending HTTP headers, so
             // an expired snapshot always becomes HTTP 410 without a TOCTOU window between pre-check and stream start.
-            $rows = $provider->exportFindings($checkRow->type, $checkRow->id, $run);
+            $rows = $provider->exportFindings($checkRow->type, $checkRow->id, $run, $view);
             if ($rows === null) {
                 throw new ExpectedRefusal(
                     status: 410,
@@ -121,14 +129,14 @@ final class FindingsExportController extends Controller
                 // Match the page's second-precision retained-history New marker.
                 $new = $row['after_first_complete_crawl'] && $firstSeen instanceof CarbonImmutable && $since !== null && $firstSeen->startOfSecond()->greaterThan($since->startOfSecond());
                 yield array_map($redact, [$row['url'], $row['result'], $row['found_on'] ?? '', $row['link_text'] ?? '',
-                    $firstSeen instanceof CarbonImmutable ? $time($firstSeen) : (string) __('Not retained'), (string) __($new ? 'Yes' : 'No')]);
+                    $firstSeen instanceof CarbonImmutable ? $time($firstSeen) : (string) __('Not retained'), (string) __($new ? 'Yes' : 'No'), ...($viewLabel === null ? [] : [$viewLabel])]);
             }
         })();
 
         return ExportResponse::make(new Table(
             $redact((string) __('export.findings.title', ['check' => $checkLabel, 'site' => $siteRow->displayName()])),
             $facts,
-            array_map(static fn (string $label): Column => new Column((string) __($label)), ['URL', 'Result', 'Found on', 'Link text', 'Since', 'New']),
+            array_map(static fn (string $label): Column => new Column((string) __($label)), ['URL', 'Result', 'Found on', 'Link text', 'Since', 'New', ...($viewLabel === null ? [] : ['crawl.ignore.filter'])]),
             $rows,
             Str::slug($checkLabel.' '.str_replace('.', ' ', (string) parse_url($siteRow->url, PHP_URL_HOST)).' '.$run->endedAt->setTimezone($timezone)->format('Y-m-d'), language: app()->getLocale()),
         ), $format);

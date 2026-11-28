@@ -13,6 +13,7 @@ use Heptapod\Contracts\Findings\FindingsFilter;
 use Heptapod\Contracts\Findings\FindingsPage;
 use Heptapod\Contracts\Findings\FindingsPosition;
 use Heptapod\Contracts\Findings\FindingStatus;
+use Heptapod\Contracts\Findings\FindingsView;
 use Heptapod\Contracts\Findings\UnavailableFindingsSnapshot;
 use Heptapod\Contracts\FindingsExportProvider;
 use Heptapod\Contracts\FindingsQueryProvider;
@@ -246,7 +247,7 @@ final readonly class SitemapPersistence implements FindingsExportProvider, Findi
         return $row->rotation_next ?? 0;
     }
 
-    public function exportFindings(CheckKey $type, int $checkId, RunReference $run): ?iterable
+    public function exportFindings(CheckKey $type, int $checkId, RunReference $run, FindingsView $view = FindingsView::Raw): ?iterable
     {
         if ($type !== CheckKey::Sitemap) {
             throw new \InvalidArgumentException('Sitemap export requires a sitemap check.');

@@ -1,7 +1,7 @@
 import type { ActionNoteDescriptor } from '@/components/action-note-slot';
 import { TooltipHint } from '@/components/truncated-text';
 import { PresentationChanges } from '@/components/presentation-changes';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFormat } from '@/hooks/use-format';
 import { Power } from 'lucide-react';
@@ -33,6 +33,7 @@ export function CheckTabLayout({
     actionNote,
     runStatus,
     evidence,
+    settingsVisibility,
 }: {
     page: Heptapod.Data.Ui.CheckTabPageData;
     headline: string;
@@ -40,9 +41,15 @@ export function CheckTabLayout({
     actionNote?: ActionNoteDescriptor;
     runStatus?: ReactNode;
     evidence: ReactNode;
+    settingsVisibility?: { open: boolean; setOpen: (open: boolean) => void };
 }) {
     const { t } = useTranslation();
     const format = useFormat();
+    const [settingsOpen, setSettingsOpen] = useState(false);
+    const sheet = settingsVisibility ?? {
+        open: settingsOpen,
+        setOpen: setSettingsOpen,
+    };
     const snoozed = isSnoozed(page.check, Date.now());
     const snoozable = page.check.enabled && page.header.state !== 'paused';
     const turnOffAvailable = snoozable && page.can_run;
@@ -205,27 +212,16 @@ export function CheckTabLayout({
                 secondaryActionCount={turnOffAvailable ? 2 : 1}
                 secondaryActions={
                     <>
-                        <CheckSettingsSheet
-                            check={page.check_settings}
-                            discoveredUrls={
-                                page.detail?.check_type === 'sitemap'
-                                    ? page.detail.totalUrlCount
-                                    : null
-                            }
-                            facts={<CheckSettingsFacts page={page} />}
-                            trigger={(open) => (
-                                <PageHeaderAction
-                                    variant="outline"
-                                    onClick={open}
-                                >
-                                    {t(
-                                        page.check_settings.can_update
-                                            ? 'Configure check…'
-                                            : 'Check settings',
-                                    )}
-                                </PageHeaderAction>
+                        <PageHeaderAction
+                            variant="outline"
+                            onClick={() => sheet.setOpen(true)}
+                        >
+                            {t(
+                                page.check_settings.can_update
+                                    ? 'Configure check…'
+                                    : 'Check settings',
                             )}
-                        />
+                        </PageHeaderAction>
                         {turnOffAvailable && (
                             <CheckTurnOffAction
                                 siteId={page.site.id}
@@ -276,6 +272,17 @@ export function CheckTabLayout({
                         )}
                     </>
                 }
+            />
+            <CheckSettingsSheet
+                check={page.check_settings}
+                visibility={sheet}
+                discoveredUrls={
+                    page.detail?.check_type === 'sitemap'
+                        ? page.detail.totalUrlCount
+                        : null
+                }
+                facts={<CheckSettingsFacts page={page} />}
+                trigger={() => null}
             />
             {runStatus}
             <div className="min-w-0 space-y-4">
