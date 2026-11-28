@@ -128,7 +128,8 @@ it('reads count based rollups gaps and bounded recent minutes from the same samp
     $this->artisan('heptapod:maintain-check-data', ['--recompute-range' => $hour->toIso8601String().','.$hour->addHour()->toIso8601String()])->assertSuccessful();
     $reader = app(RollupReader::class);
     $minutes = $reader->recent($check->id, $hour, $hour->addHour());
-    expect(array_column($minutes, 'uptime_percentage'))->toEqual([100, 100, 0, 0]);
+    expect(array_map(fn (array $minute): array => [$minute['succeeded_count'], $minute['warning_count'], $minute['failed_count'], $minute['errored_count']], $minutes))
+        ->toBe([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]);
     $rollup = $reader->read($check->id, 'hourly', $hour, $hour->addHour())[0];
     expect(array_sum(array_column($minutes, 'completed_count')))->toBe($rollup['completed_count']);
     foreach (array_keys($rollup['metric_sums']) as $name) {
