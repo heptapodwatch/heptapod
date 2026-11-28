@@ -40,7 +40,7 @@ it('bounds batches and rejects inactive sites and live leases', function (): voi
     $enabled = Check::factory()->count(3)->create(['next_run_at' => now()->subMinute()]);
     $disabled = Check::factory()->create(['enabled' => false]);
     $paused = Check::factory()->for(Site::factory()->state(['paused_at' => now()]))->create();
-    $deleting = Check::factory()->for(Site::factory()->state(['marked_for_deletion_at' => now()]))->create();
+    $deleting = Check::factory()->for(Site::factory()->state(['paused_at' => now(), 'marked_for_deletion_at' => now()]))->create();
     $live = Check::factory()->create(['claim_token' => (string) Str::uuid(), 'lease_expires_at' => now()->addMinutes(5)]);
 
     expect(app(ClaimService::class)->dispatchDue(2))->toBe(2)

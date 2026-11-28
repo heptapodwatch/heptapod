@@ -163,7 +163,7 @@ it('omits paused and currently maintained Lighthouse sites from attention but in
 it('counts a site marked for deletion as paused instead of needing attention', function (): void {
     $owner = User::factory()->create();
     $owner->assignRole('Owner');
-    $site = Site::factory()->create(['marked_for_deletion_at' => now()->subMinute()]);
+    $site = Site::factory()->create(['paused_at' => now()->subMinute(), 'marked_for_deletion_at' => now()->subMinute()]);
     Check::factory()->for($site)->create(['type' => CheckKey::Lighthouse, 'summary' => 'checks.engine.errored',
         'latest_run_result' => CheckResult::Errored]);
 

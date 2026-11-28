@@ -228,7 +228,7 @@ it('discards inactive queued results and preserves existing history', function (
     if ($flag === 'disabled') {
         $check->update(['enabled' => false]);
     } else {
-        $check->site->update([$flag => $at]);
+        $check->site->update(['paused_at' => $at, $flag => $at]);
     }
     $discarded = app(TransactionalResultRecorder::class)->record(new RecordableRun($check->id, $pending->claimToken,
         $at, $at->addSecond(), recorderOutcome(RunResult::Succeeded)));

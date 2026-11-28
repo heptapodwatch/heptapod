@@ -220,7 +220,7 @@ it('stops tracking excluded checks and starts a new episode after enable or resu
     match ($scenario) {
         'paused' => app(PauseSite::class)($check->site),
         'disabled' => app(DisableCheck::class)($check),
-        'deleting' => $check->site->update(['marked_for_deletion_at' => now()]),
+        'deleting' => $check->site->update(['paused_at' => now(), 'marked_for_deletion_at' => now()]),
         'unavailable' => config(['heptapod.browser.enabled' => false]),
     };
 
