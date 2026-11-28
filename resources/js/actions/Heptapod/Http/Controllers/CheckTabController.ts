@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\CheckTabController::__invoke
-* @see app/Http/Controllers/CheckTabController.php:17
+* @see app/Http/Controllers/CheckTabController.php:18
 * @route '/sites/{site}/checks/{check}'
 */
 const CheckTabController = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ CheckTabController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\CheckTabController::__invoke
-* @see app/Http/Controllers/CheckTabController.php:17
+* @see app/Http/Controllers/CheckTabController.php:18
 * @route '/sites/{site}/checks/{check}'
 */
 CheckTabController.url = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions) => {
@@ -42,7 +42,7 @@ CheckTabController.url = (args: { site: string | number, check: string | number 
 
 /**
 * @see \Heptapod\Http\Controllers\CheckTabController::__invoke
-* @see app/Http/Controllers/CheckTabController.php:17
+* @see app/Http/Controllers/CheckTabController.php:18
 * @route '/sites/{site}/checks/{check}'
 */
 CheckTabController.get = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -52,7 +52,7 @@ CheckTabController.get = (args: { site: string | number, check: string | number 
 
 /**
 * @see \Heptapod\Http\Controllers\CheckTabController::__invoke
-* @see app/Http/Controllers/CheckTabController.php:17
+* @see app/Http/Controllers/CheckTabController.php:18
 * @route '/sites/{site}/checks/{check}'
 */
 CheckTabController.head = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -62,7 +62,7 @@ CheckTabController.head = (args: { site: string | number, check: string | number
 
 /**
 * @see \Heptapod\Http\Controllers\CheckTabController::__invoke
-* @see app/Http/Controllers/CheckTabController.php:17
+* @see app/Http/Controllers/CheckTabController.php:18
 * @route '/sites/{site}/checks/{check}'
 */
 const CheckTabControllerForm = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -72,7 +72,7 @@ const CheckTabControllerForm = (args: { site: string | number, check: string | n
 
 /**
 * @see \Heptapod\Http\Controllers\CheckTabController::__invoke
-* @see app/Http/Controllers/CheckTabController.php:17
+* @see app/Http/Controllers/CheckTabController.php:18
 * @route '/sites/{site}/checks/{check}'
 */
 CheckTabControllerForm.get = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ CheckTabControllerForm.get = (args: { site: string | number, check: string | num
 
 /**
 * @see \Heptapod\Http\Controllers\CheckTabController::__invoke
-* @see app/Http/Controllers/CheckTabController.php:17
+* @see app/Http/Controllers/CheckTabController.php:18
 * @route '/sites/{site}/checks/{check}'
 */
 CheckTabControllerForm.head = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

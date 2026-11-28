@@ -23,6 +23,7 @@ use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\CheckRunPresentationData;
 use Heptapod\Contracts\CheckRunPresentationPartData;
+use Heptapod\Contracts\DailyMetricHistoryProvider;
 use Heptapod\Contracts\LatestRunEvidence;
 use Heptapod\Contracts\Mail\MailDesign;
 use Heptapod\Contracts\RunReference;
@@ -37,6 +38,7 @@ use Heptapod\Data\Ui\CheckSettingsData;
 use Heptapod\Data\Ui\CheckStripData;
 use Heptapod\Data\Ui\CheckTabPageData;
 use Heptapod\Data\Ui\ClientData;
+use Heptapod\Data\Ui\DailyMetricHistoryData;
 use Heptapod\Data\Ui\IncidentData;
 use Heptapod\Data\Ui\MaintenanceSiteHeaderData;
 use Heptapod\Data\Ui\MetricSeriesData;
@@ -52,6 +54,7 @@ use Heptapod\Data\Ui\SiteRowData;
 use Heptapod\Data\Ui\SiteSettingsPageData;
 use Heptapod\Data\Ui\UptimeBucketData;
 use Heptapod\Enums\AlertSensitivity;
+use Heptapod\Enums\DailyMetricRange;
 use Heptapod\Enums\FreshnessSuppression;
 use Heptapod\Enums\NotificationCategory;
 use Heptapod\Enums\ResponseTimeRange;
@@ -314,7 +317,7 @@ final readonly class SiteDetailReader
         return ['hours24' => $hours24, 'days7' => $ranges['days7'], 'days30' => $site->uptime, 'days90' => $ranges['days90']];
     }
 
-    public function checkPage(User $user, int $siteId, int $checkId, ResponseTimeRange $responseRange = ResponseTimeRange::Hours24): CheckTabPageData
+    public function checkPage(User $user, int $siteId, int $checkId, ResponseTimeRange $responseRange = ResponseTimeRange::Hours24, DailyMetricRange $metricRange = DailyMetricRange::Days30): CheckTabPageData
     {
         $storedSite = $this->storedSite($user, $siteId);
         $site = $this->sites->rows(collect([$storedSite]), includePresentations: true)[0];
@@ -373,6 +376,12 @@ final readonly class SiteDetailReader
             detail: Lazy::closure(fn (): ?CheckDetailData => $this->detail($check)),
             monthly_uptime: Lazy::closure(fn (): ?MonthlyUptimeData => $check->type === CheckKey::Uptime ? $this->history->monthlyUptime($check, $user->resolvedTimezone()) : null),
             response_time: Lazy::closure(fn (): ?ResponseTimeSeriesData => $check->type === CheckKey::Uptime ? $this->history->responseTime($checkId, $responseRange) : null),
+            daily_metric_history: Lazy::closure(function () use ($check, $metricRange): ?DailyMetricHistoryData {
+                $type = in_array($check->type, $this->registry->keys(), true) ? $this->registry->get($check->type) : null;
+
+                return $type instanceof DailyMetricHistoryProvider
+                    ? $this->history->dailyMetricHistory($check->id, $type->dailyHistoryMetrics(), $metricRange) : null;
+            }),
             phase_series: Lazy::closure(fn (): array => $check->type === CheckKey::Uptime ? $this->checkPhases($getMetrics()) : []),
             response_p95_hourly: Lazy::closure(static fn (): ?MetricSeriesData => $getHourly()['p95'] ?? null),
             client: Lazy::closure(fn (): ClientData => $this->client($user, $site)),

@@ -11,6 +11,10 @@ import { CronTasksDetail } from '@/components/cron-tasks-detail';
 import { ApplicationHealthDetail } from '@/components/application-health-detail';
 import { ChartAreaInteractive } from '@/components/chart-area-interactive';
 import { MonthlyUptime } from '@/components/monthly-uptime';
+import {
+    LighthouseMetricHistory,
+    LighthouseTimingMetrics,
+} from '@/components/lighthouse-timing-metrics';
 import { LighthouseScoreHistory } from '@/components/lighthouse-score-history';
 import { PerformanceEvidence } from '@/components/performance-evidence';
 import { useCheckHeadline } from '@/hooks/use-check-headline';
@@ -113,6 +117,17 @@ export function CheckDetail({
                         origin={new URL(page.header.url).origin}
                         requestedHost={new URL(page.header.url).hostname}
                     />
+                    {page.history?.check_type === 'lighthouse' && (
+                        <LighthouseTimingMetrics
+                            metrics={page.history.last_successful_metrics}
+                            device={page.history.last_successful_device}
+                        />
+                    )}
+                    {page.daily_metric_history && (
+                        <LighthouseMetricHistory
+                            series={page.daily_metric_history}
+                        />
+                    )}
                     {page.history?.check_type === 'lighthouse' &&
                         page.history.scores && (
                             <LighthouseScoreHistory

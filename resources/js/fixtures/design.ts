@@ -1434,6 +1434,7 @@ export function checkTabPageFixture(
         },
         detail,
         response_time: responseTimeSeries(site),
+        daily_metric_history: null,
         monthly_uptime: null,
         phase_series: [],
         response_p95_hourly: null,

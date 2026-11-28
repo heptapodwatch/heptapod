@@ -128,7 +128,7 @@ for (const file of [
             }
             findFilterTrigger(node);
             const chartRange =
-                file === 'resources/js/components/chart-area-interactive.tsx' &&
+                file === 'resources/js/components/chart-range-control.tsx' &&
                 node.getText(source).includes("aria-label={t('Time range')}");
             const exception = inFilterBar || hasFilterTrigger || chartRange;
             const line =

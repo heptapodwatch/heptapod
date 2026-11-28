@@ -1256,6 +1256,7 @@ readonly check_settings: Heptapod.Data.Ui.CheckSettingsData,
 readonly detail: Heptapod.Contracts.CheckDetailData | null,
 readonly monthly_uptime: Heptapod.Data.Ui.MonthlyUptimeData | null,
 readonly response_time: Heptapod.Data.Ui.ResponseTimeSeriesData | null,
+readonly daily_metric_history: Heptapod.Data.Ui.DailyMetricHistoryData | null,
 readonly phase_series: Heptapod.Data.Ui.MetricSeriesData[],
 readonly response_p95_hourly: Heptapod.Data.Ui.MetricSeriesData | null,
 readonly client: Heptapod.Data.Ui.ClientData,
@@ -1357,6 +1358,13 @@ readonly check_type: Heptapod.Contracts.CheckKey,
 readonly run: Heptapod.Data.Ui.CheckRunStateData,
 readonly icon_url: string | null,
 readonly icon_backing: Heptapod.Enums.SiteIconBacking,
+};
+export type DailyMetricHistoryData = {
+readonly range: Heptapod.Enums.DailyMetricRange,
+readonly points: {
+day: string,
+averages: Record<string, number> | null,
+}[],
 };
 export type DashboardTilesData = {
 readonly sites: number,
@@ -2341,6 +2349,7 @@ export type BucketStatus = 'failed' | 'interrupted' | 'errored' | 'warning' | 'o
 export type CheckPendingReason = 'dns_accept_recheck';
 export type ClientAvatarSource = 'uploaded' | 'chosen-site' | 'automatic' | 'initials' | 'generic-initials';
 export type ClientScope = 'all' | 'restricted';
+export type DailyMetricRange = '30d' | '90d' | '1y' | 'all';
 export type DatabaseDataClass = 'check_results' | 'attempts' | 'hourly_rollups' | 'daily_rollups' | 'history' | 'other';
 export type DeliveryGroupOutcome = 'accepted' | 'logged' | 'failed' | 'suppressed' | 'pending' | 'mixed' | 'unrecorded';
 export type DeliveryOutcome = 'accepted' | 'rejected' | 'failed' | 'logged' | 'suppressed' | 'pending' | 'sending';
