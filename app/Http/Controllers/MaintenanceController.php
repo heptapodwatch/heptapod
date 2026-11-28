@@ -10,6 +10,8 @@ use Heptapod\Actions\CreateMaintenanceWindow;
 use Heptapod\Actions\DeleteMaintenancePeriod;
 use Heptapod\Actions\ResolveClientAvatar;
 use Heptapod\Actions\UpdateMaintenancePeriod;
+use Heptapod\Contracts\FilterKind;
+use Heptapod\Contracts\ListFilters;
 use Heptapod\Data\Ui\MaintenanceIndexPageData;
 use Heptapod\Data\Ui\MaintenanceTargetOptionData;
 use Heptapod\Exceptions\ExpectedRefusal;
@@ -38,18 +40,22 @@ final class MaintenanceController extends Controller
 {
     public function index(Request $request, MaintenanceReader $reader, SitePolicy $policy): Response
     {
-        /** @var array{page?: int|numeric-string, site_id?: int|numeric-string, client_id?: int|numeric-string|null, state?: string} $filters */
-        $filters = Validator::make($request->all(), [
-            'page' => 'sometimes|integer|between:1,10000', 'site_id' => 'sometimes|integer|min:1',
-            'client_id' => 'sometimes|nullable|integer|min:1',
-            'state' => ['sometimes', Rule::in(['all', 'active', 'planned', 'done'])],
-        ])->validate();
+        $siteName = null;
+        $filters = ListFilters::read($request, [
+            'client_id' => ['kind' => FilterKind::Combobox, 'label' => 'Client', 'empty_label' => 'All clients', 'source' => 'clients', 'rules' => ['nullable', 'integer', 'min:1']],
+            'site_id' => ['kind' => FilterKind::Chip, 'label' => 'Site', 'rules' => ['integer', 'min:1'],
+                'display' => static function () use (&$siteName): array {
+                    /** @var string|null $siteName Set by the visibility-scoped list read before the props are built. */
+                    return ['display' => $siteName ?? throw new \LogicException('The maintenance scope has no site name.')];
+                }],
+            'state' => ['kind' => FilterKind::Segmented, 'label' => 'Window state', 'default' => 'all', 'options' => ['all' => 'All', 'active' => 'Active', 'planned' => 'Planned', 'done' => 'Done']],
+        ], ['page' => ['sometimes', 'integer', 'between:1,10000']]);
         $user = $this->user($request);
-        $siteId = isset($filters['site_id']) ? (int) $filters['site_id'] : null;
-        $clientId = isset($filters['client_id']) ? (int) $filters['client_id'] : null;
-        $state = $filters['state'] ?? 'all';
         $perPage = ListPageSize::resolve($request, 'maintenance');
-        $result = $reader->index($user, $perPage, (int) ($filters['page'] ?? 1), $siteId, $clientId, $state);
+        $page = $filters->parameter('page');
+        $state = $filters->value('state') ?? throw new \LogicException('The maintenance state has no default.');
+        $result = $reader->index($user, $perPage, is_numeric($page) ? (int) $page : 1, $filters->integer('site_id'), $filters->integer('client_id'), $state);
+        $siteName = $result['site_name'];
         $canManage = $user->hasAnyRole(['Owner', 'Admin']);
         $siteOptions = Site::query();
         $siteOptions->getQuery()->orderBy('id');
@@ -91,7 +97,7 @@ final class MaintenanceController extends Controller
         return Inertia::render('maintenance/index', new MaintenanceIndexPageData($result['windows'], $result['next_page'],
             $canManage, array_values($sites), array_values($clients), array_values($tags),
             $timezones,
-            array_values($filterClients), $clientId, $siteId, $result['site_name'], $state,
+            array_values($filterClients), $filters->data(),
             $result['previous_page'], $result['total'], $perPage)->toArray());
     }
 

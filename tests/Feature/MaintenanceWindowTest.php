@@ -85,7 +85,7 @@ it('keeps a directly targeted empty client and historical left-site windows filt
         'left_at' => now()->subMinute(), 'created_at' => now(), 'updated_at' => now()]);
 
     $this->get('/maintenance?client_id='.$client->id.'&site_id='.$site->id)->assertInertia(fn (Assert $page): Assert => $page
-        ->has('windows', 2)->where('client_id', $client->id)->where('site_id', $site->id));
+        ->has('windows', 2)->where('filters.client_id.value', (string) $client->id)->where('filters.site_id.value', (string) $site->id));
 });
 
 it('exposes dynamic client and tag membership, muted and informational modes through HTTP', function (): void {

@@ -251,14 +251,14 @@ it('defaults to 30 days and can list older incidents on request', function (): v
     $open = Incident::factory()->create(['first_failure_at' => now()->subDays(40), 'opened_at' => now()->subDays(40)]);
 
     $this->actingAs($owner)->get('/incidents')->assertInertia(fn (Assert $page): Assert => $page
-        ->has('incidents', 1)->where('incidents.0.id', $open->id)->where('filters.period', '30d'));
+        ->has('incidents', 1)->where('incidents.0.id', $open->id)->where('filters.period.value', '30d'));
     $this->get('/incidents?filter[period]=30d')->assertInertia(fn (Assert $page): Assert => $page
         ->has('incidents', 1)->where('incidents.0.id', $open->id));
     $csv = $this->get('/incidents/export.csv')->assertOk()->streamedContent();
     $csvRows = array_map(str_getcsv(...), explode("\n", trim($csv)));
     expect($csvRows)->toHaveCount(2)->and($csvRows[1][0])->toBe((string) $open->id);
     $this->get('/incidents?filter[status]=all&filter[period]=all')->assertOk()->assertInertia(fn (Assert $page): Assert => $page
-        ->has('incidents', 2)->where('incidents.0.id', $open->id)->where('filters.period', 'all'));
+        ->has('incidents', 2)->where('incidents.0.id', $open->id)->where('filters.period.value', 'all'));
 });
 
 it('summarizes the last 30 days including open time at 00:30 UTC', function (): void {
@@ -578,15 +578,15 @@ it('links each fixed incident filter to a URL that removes only that filter', fu
 
     $response = $this->actingAs($user)->get('/incidents?'.http_build_query(['filter' => $filters, 'page' => 2]))->assertOk();
     $response->assertInertia(fn (Assert $page): Assert => $page
-        ->where('filter_chips.started_after.timestamp', '2026-10-25T00:00:00+02:00')
-        ->where('filter_chips.started_before.timestamp', '2026-10-26T04:15:00+01:00'));
+        ->where('filters.started_after.display', '2026-10-25T00:00:00+02:00')
+        ->where('filters.started_before.display', '2026-10-26T04:15:00+01:00'));
     foreach (['cause', 'started_after', 'started_before'] as $key) {
         $remaining = $filters;
         unset($remaining[$key]);
-        $url = $response->inertiaProps('filter_chips.'.$key.'.clear_url');
+        $url = $response->inertiaProps('filters.'.$key.'.clear_url');
         expect($url)->toBe('/incidents?'.http_build_query(['filter' => $remaining]));
         $this->get($url)->assertInertia(fn (Assert $page): Assert => $page
-            ->where('filter_chips.'.$key, null)->where('filters.'.$key, null));
+            ->where('filters.'.$key.'.value', null));
     }
 });
 

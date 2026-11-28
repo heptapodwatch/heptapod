@@ -1,3 +1,9 @@
+import {
+    filterDefaults,
+    filterValues,
+    filtersActive,
+    ListFilterBar,
+} from '@/components/list-filter-bar';
 import { TruncatedText } from '@/components/truncated-text';
 import { AbsoluteTime } from '@/components/absolute-time';
 import { SectionHeading } from '@/components/section-heading';
@@ -10,26 +16,14 @@ import { CalendarDays } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ListFooter } from '@/components/list-footer';
 import { EmptyState } from '@/components/empty-state';
-import {
-    FilterBar,
-    FilterCombobox,
-    FilterSelectTrigger,
-} from '@/components/filter-bar';
 import { clientComboboxOptions } from '@/components/entity-combobox';
 import { PageHeader } from '@/components/page-header';
 import { PageContainer } from '@/components/page-container';
-import { SegmentedControl } from '@/components/segmented-control';
 import { ListHeader, ListRow } from '@/components/ui/table';
 import { useFormat } from '@/hooks/use-format';
 import { calendarDay } from '@/lib/date-time';
 import { calendarGroup } from '@/lib/upcoming-calendar';
 import { index as upcomingIndex } from '@/routes/upcoming';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectValue,
-} from '@/components/ui/select';
 import {
     EntityLink,
     openRowTarget,
@@ -43,22 +37,11 @@ export default function Upcoming({
     next_page_url,
     previous_page_url,
     per_page,
-    days,
-    type,
+    filters,
     clients,
-    client_id,
     calendar_now,
-}: {
-    items: Item[];
-    next_page_url: string | null;
-    previous_page_url: string | null;
-    per_page: number;
-    days: string;
-    type: string;
-    clients: Heptapod.Data.Ui.ClientData[];
-    client_id: number | null;
-    calendar_now: string;
-}) {
+}: Heptapod.Data.Ui.UpcomingIndexPageData) {
+    const values = filterValues(filters);
     const { t, i18n } = useTranslation();
     const { timezone } = usePage().props;
     const format = useFormat();
@@ -86,16 +69,17 @@ export default function Upcoming({
             Math.round((day - today) / 86_400_000),
             'day',
         );
-    const apply = (
-        changes: Partial<{
-            days: string;
-            type: string;
-            client_id: number | null;
-        }>,
-    ) =>
+    const apply = (changes: Record<string, string | null>) =>
         router.get(
             upcomingIndex.url(),
-            { days, type, client_id: client_id ?? undefined, ...changes },
+            {
+                ...Object.fromEntries(
+                    Object.entries(values).filter(
+                        ([, value]) => value !== null,
+                    ),
+                ),
+                ...changes,
+            },
             { preserveState: true, preserveScroll: true },
         );
     return (
@@ -105,74 +89,13 @@ export default function Upcoming({
                 title={t('Upcoming')}
                 description={t('pages.upcoming.description')}
             />
-            <FilterBar
-                activeCount={
-                    [client_id, type !== 'all', days !== '90'].filter(Boolean)
-                        .length
-                }
-                filtersActive={
-                    client_id !== null || type !== 'all' || days !== '90'
-                }
-                onClearFilters={() =>
-                    apply({ days: '90', type: 'all', client_id: null })
-                }
-                segmented={
-                    <SegmentedControl
-                        label={t('Time range')}
-                        value={days}
-                        onValueChange={(days) => apply({ days })}
-                        options={[
-                            { value: '14', label: t('14 days') },
-                            { value: '30', label: t('30 days') },
-                            { value: '90', label: t('90 days') },
-                            { value: 'all', label: t('All') },
-                        ]}
-                    />
-                }
-            >
-                <FilterCombobox
-                    ariaLabel={t('Client')}
-                    options={[
-                        { value: 'all', label: t('All clients') },
-                        ...clientComboboxOptions(clients),
-                    ]}
-                    value={client_id?.toString() ?? 'all'}
-                    onValueChange={(value) =>
-                        apply({
-                            client_id: value === 'all' ? null : Number(value),
-                        })
-                    }
-                    onClear={
-                        client_id !== null
-                            ? () => apply({ client_id: null })
-                            : null
-                    }
-                />
-                <Select value={type} onValueChange={(type) => apply({ type })}>
-                    <FilterSelectTrigger
-                        aria-label={t('Type')}
-                        onClear={
-                            type !== 'all' ? () => apply({ type: 'all' }) : null
-                        }
-                    >
-                        <SelectValue />
-                    </FilterSelectTrigger>
-                    <SelectContent>
-                        {[
-                            ['all', 'All types'],
-                            ['certificate', 'Certificates'],
-                            ['domain', 'Domains'],
-                            ['maintenance', 'Maintenance'],
-                            ['task', 'Tasks'],
-                        ].map(([value, label]) => (
-                            <SelectItem key={value} value={value!}>
-                                {t(label!)}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </FilterBar>
-            {days === 'all' && (
+            <ListFilterBar
+                filters={filters}
+                sources={{ clients: clientComboboxOptions(clients) }}
+                onChange={apply}
+                onClearFilters={() => apply(filterDefaults(filters))}
+            />
+            {values.days === 'all' && (
                 <p className="text-xs text-muted-foreground">
                     {t('Up to 12 months ahead.')}
                 </p>
@@ -185,10 +108,7 @@ export default function Upcoming({
                         'Certificate and domain expiry, maintenance windows and scheduled tasks appear here.',
                     )}
                     filtered={{
-                        active:
-                            client_id !== null ||
-                            type !== 'all' ||
-                            days !== '90',
+                        active: filtersActive(filters),
                         title: t('Nothing scheduled in this range.'),
                         description: t(
                             'Clear filters to see the next 90 days.',

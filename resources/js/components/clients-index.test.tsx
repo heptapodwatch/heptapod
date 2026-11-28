@@ -1,3 +1,4 @@
+import { listFilter } from '@/fixtures/list-filter';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { I18nextProvider } from 'react-i18next';
@@ -68,8 +69,10 @@ function page(
             next_page_url: null,
             page_name: 'page',
         },
-        search: null,
-        state: 'all',
+        filters: {
+            search: listFilter('search', 'Search clients'),
+            state: listFilter('segmented', 'Client state', { default: 'all' }),
+        },
         can_manage: false,
     };
 }
@@ -142,13 +145,33 @@ it('shows first-run copy and New client on an empty instance, never Clear filter
 });
 
 it.each([
-    ['a search', { search: 'acme' }],
-    ['the attention segment', { state: 'attention' }],
+    [
+        'a search',
+        { search: listFilter('search', 'Search clients', { value: 'acme' }) },
+    ],
+    [
+        'the attention segment',
+        {
+            state: listFilter('segmented', 'Client state', {
+                default: 'all',
+                value: 'attention',
+            }),
+        },
+    ],
 ])('offers Clear filters when %s hides every client', async (_, changes) => {
     await i18n.changeLanguage('en');
     render(
         <I18nextProvider i18n={i18n}>
-            <ClientsIndex {...emptyPage({ can_manage: true, ...changes })} />
+            <ClientsIndex
+                {...emptyPage({
+                    can_manage: true,
+                    filters: Object.fromEntries(
+                        Object.entries(changes).filter(
+                            ([, filter]) => filter !== undefined,
+                        ),
+                    ),
+                })}
+            />
         </I18nextProvider>,
     );
 

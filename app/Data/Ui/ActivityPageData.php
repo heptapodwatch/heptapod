@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Data\Ui;
 
+use Heptapod\Contracts\ListFilterData;
 use Heptapod\Contracts\PaginationData;
 use Inertia\OptionalProp;
 use Inertia\ScrollProp;
@@ -15,6 +16,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 final class ActivityPageData extends Data
 {
     /**
+     * @param  array<string, ListFilterData>  $filters
      * @param  ScrollProp<mixed>|ActivityBatchData  $events  Infinite scroll of ActivityBatchData, newest first; cursor `before`.
      * @param  OptionalProp|ActivityBatchData|null  $head  The newest batch, sent only on live reloads.
      * @param  list<EventData>  $expanded_events
@@ -27,7 +29,7 @@ final class ActivityPageData extends Data
         public readonly OptionalProp|ActivityBatchData|null $head,
         public readonly int $retention_days,
         public readonly array $clients,
-        public readonly ActivityFilterData $filters,
+        public readonly array $filters,
         public readonly ?int $expanded_id,
         public readonly array $expanded_events,
         public readonly ?PaginationData $expanded_pagination,

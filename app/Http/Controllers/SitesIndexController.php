@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Heptapod\Http\Controllers;
 
 use Heptapod\Contracts\CheckKey;
+use Heptapod\Contracts\FilterKind;
+use Heptapod\Contracts\ListFilters;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\DashboardTilesData;
 use Heptapod\Data\Ui\SiteListSummaryData;
-use Heptapod\Data\Ui\SitesFilterData;
 use Heptapod\Data\Ui\SitesIndexPageData;
 use Heptapod\Enums\SiteStatus;
 use Heptapod\Http\ListPageSize;
@@ -18,8 +19,6 @@ use Heptapod\Queries\SitesReader;
 use Heptapod\Queries\TagsReader;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\LaravelData\Lazy;
@@ -31,20 +30,19 @@ final class SitesIndexController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 401);
         abort_unless($user->hasAnyRole(['Owner', 'Admin', 'Member']), 403);
-        Validator::make($request->all(), [
-            'filter' => ['sometimes', 'array:search,client_id,state,tag,check,attention,advisories,package,advisory'],
-            'filter.search' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'filter.client_id' => ['sometimes', 'nullable', 'integer', 'min:1'],
-            'filter.state' => ['sometimes', 'nullable', Rule::enum(SiteStatus::class)],
-            'filter.tag' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'filter.check' => ['sometimes', 'nullable', Rule::enum(CheckKey::class)],
-            'filter.attention' => ['sometimes', 'boolean'],
-            'filter.advisories' => ['sometimes', 'boolean'],
-            'filter.package' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'filter.advisory' => ['sometimes', 'nullable', 'string', 'max:2048'],
-            'sort' => ['sometimes', 'string', 'max:100'],
-            'page' => ['sometimes', 'integer', 'min:1'],
-        ])->validate();
+        $filters = ListFilters::read($request, [
+            'search' => ['kind' => FilterKind::Search, 'label' => 'Search sites', 'rules' => ['nullable', 'string', 'max:255']],
+            'client_id' => ['kind' => FilterKind::Combobox, 'label' => 'Client', 'empty_label' => 'All clients', 'source' => 'clients', 'rules' => ['nullable', 'integer', 'min:1']],
+            'state' => ['kind' => FilterKind::Select, 'label' => 'Status', 'empty_label' => 'All statuses', 'rules' => ['nullable'], 'enum' => SiteStatus::class,
+                'options' => ['ok' => 'OK', 'warning' => 'Warning', 'down' => 'Down', 'paused' => 'Paused', 'pending' => 'Pending', 'disabled' => 'Off', 'unavailable' => 'Unavailable', 'maintenance' => 'Maintenance', 'failed' => 'Failed', 'check-error' => 'Check error']],
+            'check' => ['kind' => FilterKind::Select, 'label' => 'Check', 'empty_label' => 'All checks', 'rules' => ['nullable'], 'enum' => CheckKey::class, 'options' => ListFilters::checkOptions()],
+            'tag' => ['kind' => FilterKind::Combobox, 'label' => 'Tag', 'empty_label' => 'All tags', 'source' => 'tags', 'prefix' => 'tag:', 'rules' => ['nullable', 'string', 'max:255']],
+            'advisory' => ['kind' => FilterKind::Combobox, 'label' => 'Security advisories', 'empty_label' => 'All advisories', 'source' => 'advisories', 'group' => 'advisories', 'prefix' => 'advisory:', 'rules' => ['nullable', 'string', 'max:2048']],
+            'package' => ['kind' => FilterKind::Combobox, 'label' => 'Security advisories', 'group' => 'advisories', 'prefix' => 'package:', 'rules' => ['nullable', 'string', 'max:255']],
+            'advisories' => ['kind' => FilterKind::Combobox, 'label' => 'Security advisories', 'group' => 'advisories', 'prefix' => 'any:', 'rules' => ['boolean']],
+            'attention' => ['kind' => FilterKind::Chip, 'label' => 'Needs attention', 'rules' => ['boolean']],
+        ], ['sort' => ['sometimes', 'string', 'max:100'], 'page' => ['sometimes', 'integer', 'min:1']], nested: 'filter');
+        $sort = $filters->parameter('sort');
 
         $perPage = ListPageSize::resolve($request, 'sites');
         $partial = $request->header('X-Inertia-Partial-Component') === 'sites/index';
@@ -77,7 +75,8 @@ final class SitesIndexController extends Controller
 
                 return PaginationData::fromPaginator($page);
             }),
-            filters: Lazy::closure(static fn (): SitesFilterData => $reader->filters($request)),
+            filters: Lazy::closure(static fn (): array => $filters->data()),
+            sort: is_string($sort) ? $sort : 'status',
             clients: Lazy::closure(static fn (): array => $reader->clients($user)),
             tags: Lazy::closure(static fn (): array => $tags->read($user)),
             summary: Lazy::closure(static fn (): SiteListSummaryData => $partial ? $reader->summary($user) : $readIndex()['summary']),

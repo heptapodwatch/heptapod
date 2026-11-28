@@ -31,7 +31,6 @@ use Heptapod\Data\Ui\ResponsePointData;
 use Heptapod\Data\Ui\SiteIdentityData;
 use Heptapod\Data\Ui\SiteListSummaryData;
 use Heptapod\Data\Ui\SiteRowData;
-use Heptapod\Data\Ui\SitesFilterData;
 use Heptapod\Enums\BucketStatus;
 use Heptapod\Enums\FreshnessSuppression;
 use Heptapod\Enums\SiteIconBacking;
@@ -336,19 +335,6 @@ final readonly class SitesReader
             ->first() ?? throw new \LogicException('Site summary query must return one row.');
 
         return new SiteListSummaryData($summary->total, $summary->attention, $summary->paused, $summary->clients);
-    }
-
-    public function filters(Request $request): SitesFilterData
-    {
-        return new SitesFilterData($request->filled('filter.search') ? $request->string('filter.search')->toString() : null,
-            $request->filled('filter.client_id') ? $request->integer('filter.client_id') : null,
-            $request->filled('filter.state') ? SiteStatus::from($request->string('filter.state')->toString()) : null,
-            $request->filled('filter.tag') ? $request->string('filter.tag')->toString() : null,
-            $request->string('sort', 'status')->toString(),
-            $request->filled('filter.check') ? CheckKey::from($request->string('filter.check')->toString()) : null,
-            $request->boolean('filter.attention'), $request->boolean('filter.advisories'),
-            $request->filled('filter.package') ? $request->string('filter.package')->toString() : null,
-            $request->filled('filter.advisory') ? $request->string('filter.advisory')->toString() : null);
     }
 
     /**

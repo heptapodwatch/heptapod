@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Heptapod\Http\Controllers;
 
 use Carbon\CarbonImmutable;
+use Heptapod\Contracts\FilterKind;
+use Heptapod\Contracts\ListFilters;
 use Heptapod\Data\Ui\UpcomingIndexPageData;
 use Heptapod\Http\ListPageSize;
 use Heptapod\Models\User;
@@ -12,8 +14,6 @@ use Heptapod\Queries\SitesReader;
 use Heptapod\Queries\UpcomingReader;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -23,12 +23,14 @@ final class UpcomingController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
-        Validator::make($request->all(), ['days' => ['sometimes', Rule::in(['14', '30', '90', 'all'])],
-            'type' => ['sometimes', Rule::in(['all', 'certificate', 'domain', 'maintenance', 'task'])],
-            'client_id' => ['sometimes', 'nullable', 'integer', 'min:1']])->validate();
-        $days = $request->string('days', '90')->toString();
-        $type = $request->string('type', 'all')->toString();
-        $clientId = $request->filled('client_id') ? $request->integer('client_id') : null;
+        $filters = ListFilters::read($request, [
+            'client_id' => ['kind' => FilterKind::Combobox, 'label' => 'Client', 'empty_label' => 'All clients', 'source' => 'clients', 'rules' => ['nullable', 'integer', 'min:1']],
+            'type' => ['kind' => FilterKind::Select, 'label' => 'Type', 'default' => 'all', 'options' => ['all' => 'All types', 'certificate' => 'Certificates', 'domain' => 'Domains', 'maintenance' => 'Maintenance', 'task' => 'Tasks']],
+            'days' => ['kind' => FilterKind::Segmented, 'label' => 'Time range', 'default' => '90', 'options' => [14 => '14 days', 30 => '30 days', 90 => '90 days', 'all' => 'All']],
+        ]);
+        $days = $filters->value('days');
+        $type = $filters->value('type');
+        $clientId = $filters->integer('client_id');
         // A page reads only the dates up to its end (plus one to know of a next page), capped at UpcomingReader::MaxItems
         // so an arbitrary page number cannot force an unbounded read or overflow offset arithmetic.
         $perPage = ListPageSize::resolve($request, 'upcoming');
@@ -36,7 +38,7 @@ final class UpcomingController extends Controller
         $maxPage = (int) ceil(UpcomingReader::MaxItems / $perPage);
         $read = $page > $maxPage
             ? []
-            : $reader->read($user, $days === 'all' ? 365 : (int) $days, $type === 'all' ? null : [$type], $clientId, limit: min($page * $perPage + 1, UpcomingReader::MaxItems));
+            : $reader->read($user, $days === 'all' ? 365 : (int) $days, $type === 'all' || $type === null ? null : [$type], $clientId, limit: min($page * $perPage + 1, UpcomingReader::MaxItems));
         $items = new Paginator($read === [] ? [] : array_slice($read, ($page - 1) * $perPage), $perPage, $page, ['path' => Paginator::resolveCurrentPath(), 'query' => $request->query()]);
 
         return Inertia::render('upcoming/index', new UpcomingIndexPageData(
@@ -44,9 +46,7 @@ final class UpcomingController extends Controller
             next_page_url: $items->nextPageUrl(),
             previous_page_url: $items->previousPageUrl(),
             per_page: $perPage,
-            days: $days,
-            type: $type,
-            client_id: $clientId,
+            filters: $filters->data(),
             calendar_now: CarbonImmutable::now('UTC')->toIso8601String(),
             clients: $sites->clients($user),
         ));

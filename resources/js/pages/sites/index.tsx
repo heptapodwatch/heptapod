@@ -1,10 +1,11 @@
-import { ListFooter } from '@/components/list-footer';
 import {
-    FilterBar,
-    FilterChip,
-    FilterCombobox,
-    FilterSelectTrigger,
-} from '@/components/filter-bar';
+    filterDefaults,
+    filterValues,
+    filtersActive,
+    ListFilterBar,
+    withFilterValues,
+} from '@/components/list-filter-bar';
+import { ListFooter } from '@/components/list-footer';
 import { clientComboboxOptions } from '@/components/entity-combobox';
 import {
     useLiveSearch,
@@ -26,17 +27,8 @@ import { listResponsePoints } from '@/components/monitoring';
 import { EmptyState } from '@/components/empty-state';
 import { SitesAttentionBand } from '@/components/sites-attention-band';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectValue,
-} from '@/components/ui/select';
 import { useFormat } from '@/hooks/use-format';
-import { statusLabels } from '@/lib/status';
-import { checkTypes } from '@/lib/check-types';
 import { SeverityBadge } from '@/components/security-advisory-list';
 import {
     show as siteShow,
@@ -52,6 +44,7 @@ export default function SitesIndex({
     summary,
     can_create,
     filters,
+    sort: currentSort,
     pagination,
     tiles,
     needs_attention,
@@ -81,49 +74,11 @@ export default function SitesIndex({
     const { t } = useTranslation();
     const format = useFormat();
     const { search, changeSearch, cancelPendingSearch } = useLiveSearch(
-        filters.search ?? '',
-        (search, options) => visit({ search }, filters.sort, options),
+        filters.search?.value ?? '',
+        (search, options) => visit({ search }, currentSort, options),
     );
-    const advisoryValue = filters.advisory
-        ? `advisory:${filters.advisory}`
-        : filters.package
-          ? `package:${filters.package}`
-          : filters.advisories
-            ? 'any'
-            : 'all';
-    const clearAdvisories = { advisories: null, package: null, advisory: null };
-    const hasFilters = Boolean(
-        filters.search ||
-        filters.client_id ||
-        filters.state ||
-        filters.tag ||
-        filters.check ||
-        filters.attention ||
-        advisoryValue !== 'all',
-    );
-    const checkFilter = (
-        <Select
-            value={filters.check ?? 'all'}
-            onValueChange={(value) =>
-                visit({ check: value === 'all' ? null : value })
-            }
-        >
-            <FilterSelectTrigger
-                aria-label={t('Check')}
-                onClear={filters.check ? () => visit({ check: null }) : null}
-            >
-                <SelectValue />
-            </FilterSelectTrigger>
-            <SelectContent>
-                <SelectItem value="all">{t('All checks')}</SelectItem>
-                {Object.entries(checkTypes).map(([key, check]) => (
-                    <SelectItem key={key} value={key}>
-                        {t(check.label)}
-                    </SelectItem>
-                ))}
-            </SelectContent>
-        </Select>
-    );
+    const draftFilters = withFilterValues(filters, { search: search || null });
+    const hasFilters = filtersActive(draftFilters);
     const packageOptions = advisory_packages.map((item) => ({
         value: `package:${item.package}`,
         label: item.package,
@@ -134,91 +89,17 @@ export default function SitesIndex({
         badge: <SeverityBadge severity={item.severity} />,
         group: t('Packages'),
     }));
-    const advisoryFilter = (
-        <FilterCombobox
-            ariaLabel={t('Security advisories')}
-            options={[
-                { value: 'all', label: t('All advisories') },
-                { value: 'any', label: t('With advisories') },
-                ...packageOptions,
-                // An advisory ID, or a package no longer listed, comes from a check's Sites affected link.
-                ...(advisoryValue.includes(':') &&
-                !packageOptions.some((option) => option.value === advisoryValue)
-                    ? [
-                          {
-                              value: advisoryValue,
-                              label: (filters.advisory ?? filters.package)!,
-                          },
-                      ]
-                    : []),
-            ]}
-            value={advisoryValue}
-            onValueChange={(value) =>
-                visit({
-                    advisories: value === 'any' ? '1' : null,
-                    package: value.startsWith('package:')
-                        ? value.slice('package:'.length)
-                        : null,
-                    advisory: value.startsWith('advisory:')
-                        ? value.slice('advisory:'.length)
-                        : null,
-                })
-            }
-            onClear={
-                advisoryValue !== 'all' ? () => visit(clearAdvisories) : null
-            }
-            notice={
-                more_advisory_packages
-                    ? t('Showing the 100 most severe packages')
-                    : undefined
-            }
-        />
-    );
-    const tagValue = filters.tag ? `tag:${filters.tag}` : 'all';
     const tagOptions = tags.map((tag) => ({
         value: `tag:${tag.name}`,
         label: tag.name,
     }));
-    const tagFilter = (
-        <FilterCombobox
-            ariaLabel={t('Tag')}
-            options={[
-                { value: 'all', label: t('All tags') },
-                ...tagOptions,
-                ...(filters.tag &&
-                !tagOptions.some((option) => option.value === tagValue)
-                    ? [{ value: tagValue, label: filters.tag }]
-                    : []),
-            ]}
-            value={tagValue}
-            onValueChange={(value) =>
-                visit({
-                    tag: value.startsWith('tag:')
-                        ? value.slice('tag:'.length)
-                        : null,
-                })
-            }
-            onClear={filters.tag ? () => visit({ tag: null }) : null}
-        />
-    );
     const visit = (
         changes: Record<string, string | null>,
-        sort = filters.sort,
+        sort = currentSort,
         searchOptions: LiveSearchVisitOptions = {},
     ) => {
         cancelPendingSearch();
-        const current = {
-            search,
-            attention: filters.attention ? '1' : null,
-            client_id: filters.client_id?.toString(),
-            state: filters.state,
-            tag: filters.tag,
-            check: filters.check,
-            advisories: filters.advisories ? '1' : null,
-            package: filters.package,
-            advisory: filters.advisory,
-            ...changes,
-        };
+        const current = { ...filterValues(draftFilters), ...changes };
         // Inertia applies an async response whenever the path matches, so a first-load deferred group still in
         // flight would answer for the old filters and overwrite this visit's rows and URL. Cancel those loads and
         // request their props with this visit instead.
@@ -250,6 +131,7 @@ export default function SitesIndex({
                         'sites_history',
                         'pagination',
                         'filters',
+                        'sort',
                         ...pendingDeferred,
                     ]),
                 ],
@@ -293,101 +175,32 @@ export default function SitesIndex({
                     }}
                 />
                 <div ref={listRef}>
-                    <FilterBar
-                        filtersActive={hasFilters}
-                        onClearFilters={() =>
-                            visit({
-                                search: null,
-                                attention: null,
-                                client_id: null,
-                                state: null,
-                                tag: null,
-                                check: null,
-                                ...clearAdvisories,
-                            })
+                    <ListFilterBar
+                        filters={draftFilters}
+                        sources={{
+                            clients: clientComboboxOptions(clients),
+                            tags: tagOptions,
+                            advisories: [
+                                { value: 'any:1', label: t('With advisories') },
+                                ...packageOptions,
+                            ],
+                        }}
+                        optionNotices={
+                            more_advisory_packages
+                                ? {
+                                      advisories: t(
+                                          'Showing the 100 most severe packages',
+                                      ),
+                                  }
+                                : undefined
                         }
-                        activeCount={
-                            [
-                                filters.client_id,
-                                filters.state,
-                                filters.tag,
-                                filters.check,
-                                filters.attention,
-                                advisoryValue !== 'all',
-                            ].filter(Boolean).length
+                        onChange={(changes) =>
+                            Object.hasOwn(changes, 'search')
+                                ? changeSearch(changes.search ?? '')
+                                : visit(changes)
                         }
-                        search={
-                            <Input
-                                type="search"
-                                className="w-full"
-                                aria-label={t('Search sites')}
-                                placeholder={t('Search sites')}
-                                value={search}
-                                onChange={(event) =>
-                                    changeSearch(event.target.value)
-                                }
-                            />
-                        }
-                    >
-                        <FilterCombobox
-                            ariaLabel={t('Client')}
-                            options={[
-                                { value: 'all', label: t('All clients') },
-                                ...clientComboboxOptions(clients),
-                            ]}
-                            value={filters.client_id?.toString() ?? 'all'}
-                            onValueChange={(value) =>
-                                visit({
-                                    client_id: value === 'all' ? null : value,
-                                })
-                            }
-                            onClear={
-                                filters.client_id
-                                    ? () => visit({ client_id: null })
-                                    : null
-                            }
-                        />
-                        <Select
-                            value={filters.state ?? 'all'}
-                            onValueChange={(value) =>
-                                visit({ state: value === 'all' ? null : value })
-                            }
-                        >
-                            <FilterSelectTrigger
-                                aria-label={t('Status')}
-                                onClear={
-                                    filters.state
-                                        ? () => visit({ state: null })
-                                        : null
-                                }
-                            >
-                                <SelectValue />
-                            </FilterSelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">
-                                    {t('All statuses')}
-                                </SelectItem>
-                                {(
-                                    Object.keys(
-                                        statusLabels,
-                                    ) as Heptapod.Enums.SiteStatus[]
-                                ).map((state) => (
-                                    <SelectItem key={state} value={state}>
-                                        {t(statusLabels[state])}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        {checkFilter}
-                        {tagFilter}
-                        {advisoryFilter}
-                        {filters.attention && (
-                            <FilterChip
-                                label={t('Needs attention')}
-                                onClear={() => visit({ attention: null })}
-                            />
-                        )}
-                    </FilterBar>
+                        onClearFilters={() => visit(filterDefaults(filters))}
+                    />
                 </div>
                 <Deferred
                     data="sites"
@@ -407,7 +220,7 @@ export default function SitesIndex({
                             pagination={pagination}
                             hasFilters={hasFilters}
                             canCreate={can_create}
-                            sort={filters.sort}
+                            sort={currentSort}
                             onSort={(sort) => visit({}, sort)}
                         />
                     )}

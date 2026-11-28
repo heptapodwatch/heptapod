@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Data\Ui;
 
+use Heptapod\Contracts\ListFilterData;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
@@ -11,6 +12,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 final class UpcomingIndexPageData extends Data
 {
     /**
+     * @param  array<string, ListFilterData>  $filters
      * @param  list<UpcomingItemData>  $items
      * @param  list<ClientData>  $clients
      */
@@ -19,9 +21,7 @@ final class UpcomingIndexPageData extends Data
         public readonly ?string $next_page_url,
         public readonly ?string $previous_page_url,
         public readonly int $per_page,
-        public readonly string $days,
-        public readonly string $type,
-        public readonly ?int $client_id,
+        public readonly array $filters,
         public readonly string $calendar_now,
         public readonly array $clients,
     ) {}

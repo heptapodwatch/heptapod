@@ -1,3 +1,4 @@
+import { listFilter } from '@/fixtures/list-filter';
 import {
     cleanup,
     fireEvent,
@@ -138,27 +139,32 @@ function expectFiltered(title: string) {
     expect(within(empty).queryByRole('button')).toBeNull();
 }
 
-const incidentFilters: Heptapod.Data.Ui.IncidentFilterData = {
-    status: 'open',
-    cause: null,
-    check: null,
-    client_id: null,
-    started_after: null,
-    started_before: null,
-    period: '30d',
-};
-function incidents(filters: Partial<Heptapod.Data.Ui.IncidentFilterData>) {
+function incidents(values: {
+    status?: string;
+    cause?: string;
+    started_after?: string;
+    period?: string;
+}) {
+    const filters = {
+        status: listFilter('segmented', 'Status', {
+            default: 'open',
+            value: values.status ?? 'open',
+        }),
+        cause: listFilter('chip', 'Cause', { value: values.cause ?? null }),
+        started_after: listFilter('date', 'Started on or after', {
+            value: values.started_after ?? null,
+        }),
+        period: listFilter('select', 'Time range', {
+            default: '30d',
+            value: values.period ?? '30d',
+        }),
+    };
     render(
         <IncidentsIndex
             incidents={[]}
             clients={[]}
-            filters={{ ...incidentFilters, ...filters }}
+            filters={filters}
             pagination={pagination}
-            filter_chips={{
-                cause: null,
-                started_after: null,
-                started_before: null,
-            }}
             summary={{
                 count: 0,
                 total_duration_seconds: 0,
@@ -187,20 +193,8 @@ it.each([
     },
 );
 
-const siteFilters: Heptapod.Data.Ui.SitesFilterData = {
-    search: null,
-    client_id: null,
-    state: null,
-    tag: null,
-    sort: 'attention',
-    check: null,
-    attention: false,
-    advisories: false,
-    package: null,
-    advisory: null,
-};
 function sites(
-    filters: Partial<Heptapod.Data.Ui.SitesFilterData>,
+    filters: { search?: string; tag?: string; attention?: boolean },
     canCreate: boolean,
     tags: Heptapod.Data.Ui.TagData[] = [],
 ) {
@@ -211,7 +205,21 @@ function sites(
             tags={tags}
             summary={{ total: 0, attention: 0, paused: 0, clients: 0 }}
             can_create={canCreate}
-            filters={{ ...siteFilters, ...filters }}
+            sort="attention"
+            filters={{
+                search: listFilter('search', 'Search sites', {
+                    value: filters.search ?? null,
+                }),
+                tag: listFilter('combobox', 'Tag', {
+                    value: filters.tag ?? null,
+                    prefix: 'tag:',
+                    empty_label: 'All tags',
+                    option_source: 'tags',
+                }),
+                attention: listFilter('chip', 'Needs attention', {
+                    value: filters.attention ? '1' : null,
+                }),
+            }}
             pagination={pagination}
             tiles={tiles}
             needs_attention={[]}
@@ -305,12 +313,24 @@ function upcoming(changes: {
             next_page_url={null}
             previous_page_url={null}
             per_page={50}
-            days="90"
-            type="all"
             clients={[]}
-            client_id={null}
+            filters={{
+                days: listFilter('segmented', 'Time range', {
+                    default: '90',
+                    value: changes.days ?? '90',
+                }),
+                type: listFilter('select', 'Type', {
+                    default: 'all',
+                    value: changes.type ?? 'all',
+                }),
+                client_id: listFilter('combobox', 'Client', {
+                    value:
+                        changes.client_id == null
+                            ? null
+                            : String(changes.client_id),
+                }),
+            }}
             calendar_now="2026-10-21T12:00:00Z"
-            {...changes}
         />,
     );
 }
@@ -332,20 +352,25 @@ it.each([
     },
 );
 
-const activityFilters: Heptapod.Data.Ui.ActivityFilterData = {
-    q: '',
-    client: null,
-    check: null,
-    period: '24h',
-};
-function activity(filters: Partial<Heptapod.Data.Ui.ActivityFilterData>) {
+function activity(values: { q?: string; check?: string; period?: string }) {
     render(
         <ActivityIndex
             events={{ data: [] }}
             head={undefined}
             retention_days={90}
             clients={[]}
-            filters={{ ...activityFilters, ...filters }}
+            filters={{
+                q: listFilter('search', 'Filter by site or client', {
+                    value: values.q ?? null,
+                }),
+                check: listFilter('select', 'Check type', {
+                    value: values.check ?? null,
+                }),
+                period: listFilter('select', 'Time range', {
+                    default: '24h',
+                    value: values.period ?? '24h',
+                }),
+            }}
             expanded_id={null}
             expanded_events={[]}
             expanded_pagination={null}
@@ -370,18 +395,7 @@ it.each([
     },
 );
 
-const runFilters: Heptapod.Data.Ui.RunsFilterData = {
-    client: null,
-    check: null,
-    type: null,
-    state: null,
-    before: null,
-    show_same_result: false,
-    per_page: 50,
-    period: '24h',
-    started_manually: false,
-};
-function runs(filters: Partial<Heptapod.Data.Ui.RunsFilterData>) {
+function runs(values: Record<string, string | null>) {
     render(
         <RunsIndex
             current={[]}
@@ -390,8 +404,30 @@ function runs(filters: Partial<Heptapod.Data.Ui.RunsFilterData>) {
             runs={[]}
             next_cursor={null}
             clients={[]}
-            filters={{ ...runFilters, ...filters }}
-            check_filter={null}
+            filters={{
+                type: listFilter('select', 'Check type', {
+                    value: values.type ?? null,
+                }),
+                state: listFilter('select', 'State', {
+                    value: values.state ?? null,
+                }),
+                period: listFilter('segmented', 'History time range', {
+                    value: values.period ?? '24h',
+                    default: '24h',
+                    slot: 'history-range',
+                }),
+                show_same_result: listFilter(
+                    'boolean',
+                    'Show runs with the same result as before',
+                    {
+                        value: values.show_same_result ?? null,
+                        slot: 'history',
+                        widens: true,
+                    },
+                ),
+            }}
+            before={null}
+            per_page={50}
             attempt_retention_days={7}
         />,
     );
@@ -402,7 +438,7 @@ it('Runs: first run names what appears here, without Clear filters', () => {
     expectFirstRun('No attempts in the last 24 hours.');
     // Showing repeated results only widens the history; it is not a filter.
     cleanup();
-    runs({ show_same_result: true });
+    runs({ show_same_result: '1' });
     expectFirstRun('No attempts in the last 24 hours.');
 });
 
@@ -418,9 +454,13 @@ it.each([
     },
 );
 
-function maintenance(
-    changes: Partial<Heptapod.Data.Ui.MaintenanceIndexPageData>,
-) {
+function maintenance(changes: {
+    state?: string;
+    client_id?: number;
+    site_id?: number;
+    site_name?: string;
+    can_manage?: boolean;
+}) {
     render(
         <MaintenanceIndex
             windows={[]}
@@ -428,17 +468,31 @@ function maintenance(
             previous_page={null}
             total={0}
             per_page={50}
-            state="all"
-            site_name={null}
-            can_manage={true}
+            filters={{
+                state: listFilter('segmented', 'Window state', {
+                    default: 'all',
+                    value: changes.state ?? 'all',
+                }),
+                client_id: listFilter('combobox', 'Client', {
+                    value:
+                        changes.client_id === undefined
+                            ? null
+                            : String(changes.client_id),
+                }),
+                site_id: listFilter('chip', 'Site', {
+                    value:
+                        changes.site_id === undefined
+                            ? null
+                            : String(changes.site_id),
+                    display: changes.site_name ?? null,
+                }),
+            }}
+            can_manage={changes.can_manage ?? true}
             timezones={['UTC']}
             sites={[]}
             clients={[]}
             tags={[]}
             filter_clients={[]}
-            client_id={null}
-            site_id={null}
-            {...changes}
         />,
     );
 }

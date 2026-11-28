@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Data\Ui;
 
+use Heptapod\Contracts\ListFilterData;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
@@ -11,6 +12,7 @@ use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 final class MaintenanceIndexPageData extends Data
 {
     /**
+     * @param  array<string, ListFilterData>  $filters
      * @param  list<MaintenanceWindowData>  $windows
      * @param  list<MaintenanceTargetOptionData>  $sites
      * @param  list<MaintenanceTargetOptionData>  $clients
@@ -26,11 +28,8 @@ final class MaintenanceIndexPageData extends Data
         public readonly array $clients,
         public readonly array $tags,
         public readonly array $timezones,
-        public readonly array $filter_clients = [],
-        public readonly ?int $client_id = null,
-        public readonly ?int $site_id = null,
-        public readonly ?string $site_name = null,
-        public readonly string $state = 'all',
+        public readonly array $filter_clients,
+        public readonly array $filters,
         public readonly ?int $previous_page = null,
         public readonly int $total = 0,
         public readonly int $per_page = 50,

@@ -15,6 +15,8 @@ use Heptapod\Addons\Servers\Data\ServerThresholdsData;
 use Heptapod\Addons\Servers\Server;
 use Heptapod\Addons\Servers\ServerReader;
 use Heptapod\Addons\Servers\ServerState;
+use Heptapod\Contracts\FilterKind;
+use Heptapod\Contracts\ListFilters;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\ServersAccess;
 use Heptapod\Contracts\SiteDirectory;
@@ -34,15 +36,14 @@ final class ServersController
     {
         Gate::authorize('viewAny', Server::class);
         $sorts = array_keys(ServerReader::SortKeys);
-        /** @var array{filter?: array{search?: string|null, state?: string|null}, sort?: string} $query */
-        $query = Validator::make($request->query(), [
-            'filter' => ['sometimes', 'array:search,state'],
-            'filter.search' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'filter.state' => ['sometimes', 'nullable', Rule::in([ServerReader::NeedsAttention, ...array_column(ServerState::cases(), 'value')])],
-            'sort' => ['sometimes', 'string', Rule::in([...$sorts, ...array_map(static fn (string $key): string => '-'.$key, $sorts)])],
-        ])->validate();
-        $filters = ['search' => $query['filter']['search'] ?? null, 'state' => $query['filter']['state'] ?? null];
-        $sort = $query['sort'] ?? 'status';
+        $query = ListFilters::read($request, [
+            'search' => ['kind' => FilterKind::Search, 'label' => 'servers.list.search', 'rules' => ['nullable', 'string', 'max:255']],
+            'state' => ['kind' => FilterKind::Select, 'label' => 'Status', 'empty_label' => 'servers.list.all_states', 'rules' => ['nullable'],
+                'options' => [ServerReader::NeedsAttention => 'Needs attention', ServerState::NoReport->value => 'servers.state.no_report', ServerState::Awaiting->value => 'servers.state.awaiting', ServerState::Reporting->value => 'servers.state.reporting']],
+        ], ['sort' => ['sometimes', 'string', Rule::in([...$sorts, ...array_map(static fn (string $key): string => '-'.$key, $sorts)])]], nested: 'filter', queryOnly: true);
+        $filters = ['search' => $query->value('search'), 'state' => $query->value('state')];
+        $requestedSort = $query->parameter('sort');
+        $sort = is_string($requestedSort) ? $requestedSort : 'status';
         $page = null;
         $read = static function () use ($reader, $filters, $sort, &$page): array {
             return $page ??= $reader->page(CarbonImmutable::now(), $filters, $sort);
@@ -51,7 +52,7 @@ final class ServersController
         return Inertia::render('servers/index', new ServersPageData(
             Lazy::closure(static fn (): array => $read()['servers']), Lazy::closure(static fn (): PaginationData => $read()['pagination']),
             ServerThresholdsData::defaults(),
-            ['search' => $filters['search'], 'state' => $filters['state']], $sort,
+            $query->data(), $sort,
         ));
     }
 

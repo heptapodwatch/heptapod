@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\SitesIndexController::__invoke
-* @see app/Http/Controllers/SitesIndexController.php:29
+* @see app/Http/Controllers/SitesIndexController.php:28
 * @route '/sites'
 */
 const SitesIndexController = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ SitesIndexController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SitesIndexController::__invoke
-* @see app/Http/Controllers/SitesIndexController.php:29
+* @see app/Http/Controllers/SitesIndexController.php:28
 * @route '/sites'
 */
 SitesIndexController.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ SitesIndexController.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\SitesIndexController::__invoke
-* @see app/Http/Controllers/SitesIndexController.php:29
+* @see app/Http/Controllers/SitesIndexController.php:28
 * @route '/sites'
 */
 SitesIndexController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ SitesIndexController.get = (options?: RouteQueryOptions): RouteDefinition<'get'>
 
 /**
 * @see \Heptapod\Http\Controllers\SitesIndexController::__invoke
-* @see app/Http/Controllers/SitesIndexController.php:29
+* @see app/Http/Controllers/SitesIndexController.php:28
 * @route '/sites'
 */
 SitesIndexController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ SitesIndexController.head = (options?: RouteQueryOptions): RouteDefinition<'head
 
 /**
 * @see \Heptapod\Http\Controllers\SitesIndexController::__invoke
-* @see app/Http/Controllers/SitesIndexController.php:29
+* @see app/Http/Controllers/SitesIndexController.php:28
 * @route '/sites'
 */
 const SitesIndexControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const SitesIndexControllerForm = (options?: RouteQueryOptions): RouteFormDefinit
 
 /**
 * @see \Heptapod\Http\Controllers\SitesIndexController::__invoke
-* @see app/Http/Controllers/SitesIndexController.php:29
+* @see app/Http/Controllers/SitesIndexController.php:28
 * @route '/sites'
 */
 SitesIndexControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ SitesIndexControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinitio
 
 /**
 * @see \Heptapod\Http\Controllers\SitesIndexController::__invoke
-* @see app/Http/Controllers/SitesIndexController.php:29
+* @see app/Http/Controllers/SitesIndexController.php:28
 * @route '/sites'
 */
 SitesIndexControllerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

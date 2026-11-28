@@ -42,4 +42,4 @@ return (new Configuration)
     ->ignoreErrorsOnPackage('heptapod/addon-crawl', [ErrorType::PROD_DEPENDENCY_ONLY_IN_DEV])
     ->ignoreErrorsOnPackage('heptapod/addon-lighthouse', [ErrorType::PROD_DEPENDENCY_ONLY_IN_DEV])
     // Production discovers the servers provider from its Composer manifest; no core or seeder file imports it.
-    ->ignoreErrorsOnPackage('heptapod/addon-servers', [ErrorType::UNUSED_DEPENDENCY]);
+    ->ignoreErrorsOnPackage('heptapod/addon-servers', [ErrorType::PROD_DEPENDENCY_ONLY_IN_DEV]);

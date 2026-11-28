@@ -22,14 +22,14 @@ it('lists only open incidents when the URL names no status, and resolved or all 
     $this->actingAs($owner);
 
     $this->get('/incidents')->assertInertia(fn (Assert $page): Assert => $page
-        ->where('filters.status', 'open')->has('incidents', 1)->where('incidents.0.id', $open->id));
+        ->where('filters.status.value', 'open')->has('incidents', 1)->where('incidents.0.id', $open->id));
     // A bookmarked explicit Open URL shows the same list as the default.
     $this->get('/incidents?filter[status]=open')->assertInertia(fn (Assert $page): Assert => $page
-        ->where('filters.status', 'open')->has('incidents', 1)->where('incidents.0.id', $open->id));
+        ->where('filters.status.value', 'open')->has('incidents', 1)->where('incidents.0.id', $open->id));
     $this->get('/incidents?filter[status]=resolved')->assertInertia(fn (Assert $page): Assert => $page
-        ->where('filters.status', 'resolved')->has('incidents', 1)->where('incidents.0.id', $resolved->id));
+        ->where('filters.status.value', 'resolved')->has('incidents', 1)->where('incidents.0.id', $resolved->id));
     $this->get('/incidents?filter[status]=all')->assertInertia(fn (Assert $page): Assert => $page
-        ->where('filters.status', 'all')->has('incidents', 2));
+        ->where('filters.status.value', 'all')->has('incidents', 2));
 
     // The export follows the same default as the list.
     $exported = static fn (string $query): array => array_slice(array_map(str_getcsv(...), explode("\n", trim(test()->get('/incidents/export.csv'.$query)->streamedContent()))), 1);

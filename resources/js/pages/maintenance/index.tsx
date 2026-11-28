@@ -1,3 +1,8 @@
+import {
+    filterValues,
+    filtersActive,
+    ListFilterBar,
+} from '@/components/list-filter-bar';
 import { ListFooter } from '@/components/list-footer';
 import { TruncatedText } from '@/components/truncated-text';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -6,7 +11,6 @@ import { ClientMark } from '@/components/client-mark';
 import { CalendarDays } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { RowActions } from '@/components/row-actions';
-import { FilterBar, FilterChip, FilterCombobox } from '@/components/filter-bar';
 import {
     EntityCombobox,
     clientComboboxOptions,
@@ -21,7 +25,6 @@ import { FormSecondaryAction } from '@/components/form-section';
 import { SheetForm } from '@/components/sheet-form';
 import { PageHeader } from '@/components/page-header';
 import { PageContainer } from '@/components/page-container';
-import { SegmentedControl } from '@/components/segmented-control';
 import { Head, router } from '@inertiajs/react';
 import { show as siteShow } from '@/routes/sites';
 import { useEffect, useState } from 'react';
@@ -199,17 +202,19 @@ export default function MaintenanceIndex({
     previous_page,
     total,
     per_page,
-    state,
-    site_name,
+    filters,
     can_manage,
     timezones,
     sites,
     clients,
     tags,
     filter_clients,
-    client_id,
-    site_id,
 }: Heptapod.Data.Ui.MaintenanceIndexPageData) {
+    const values = filterValues(filters);
+    const site_id = values.site_id ?? null;
+    const client_id = values.client_id ?? null;
+    const state = values.state;
+
     const { t, i18n } = useTranslation();
     const format = useFormat();
     const viewerTimezone = useViewerTimezone();
@@ -589,12 +594,7 @@ export default function MaintenanceIndex({
         page === null
             ? null
             : maintenanceIndex.url({
-                  query: {
-                      page,
-                      client_id: client_id ?? undefined,
-                      site_id: site_id ?? undefined,
-                      state,
-                  },
+                  query: { ...values, page },
               });
     return (
         <PageContainer>
@@ -608,7 +608,7 @@ export default function MaintenanceIndex({
                             href={siteShow.url(site_id)}
                             prefetch
                         >
-                            {site_name}
+                            {filters.site_id?.display}
                         </TextLink>
                     ) : undefined
                 }
@@ -626,89 +626,22 @@ export default function MaintenanceIndex({
                     </>
                 }
             />
-            <FilterBar
-                activeCount={
-                    [client_id, site_id, state !== 'all'].filter(Boolean).length
-                }
-                filtersActive={
-                    client_id !== null || site_id !== null || state !== 'all'
+            <ListFilterBar
+                filters={filters}
+                sources={{ clients: clientComboboxOptions(filter_clients) }}
+                onChange={(changes) =>
+                    router.get(
+                        maintenanceIndex.url(),
+                        Object.fromEntries(
+                            Object.entries({ ...values, ...changes }).filter(
+                                ([, value]) => value !== null,
+                            ),
+                        ),
+                        { preserveState: true, preserveScroll: true },
+                    )
                 }
                 onClearFilters={() => router.get(maintenanceIndex.url())}
-                segmented={
-                    <SegmentedControl
-                        label={t('Window state')}
-                        value={state}
-                        onValueChange={(value) =>
-                            router.get(
-                                maintenanceIndex.url(),
-                                {
-                                    state: value,
-                                    client_id: client_id ?? undefined,
-                                    site_id: site_id ?? undefined,
-                                },
-                                { preserveState: true, preserveScroll: true },
-                            )
-                        }
-                        options={[
-                            { value: 'all', label: t('All') },
-                            { value: 'active', label: t('Active') },
-                            { value: 'planned', label: t('Planned') },
-                            { value: 'done', label: t('Done') },
-                        ]}
-                    />
-                }
-            >
-                <FilterCombobox
-                    id="maintenance-client-filter"
-                    ariaLabel={t('Client')}
-                    options={[
-                        { value: 'all', label: t('All clients') },
-                        ...clientComboboxOptions(filter_clients),
-                    ]}
-                    value={client_id?.toString() ?? 'all'}
-                    onValueChange={(value) =>
-                        router.get(
-                            maintenanceIndex.url(),
-                            {
-                                client_id:
-                                    value === 'all' ? undefined : Number(value),
-                                site_id: site_id ?? undefined,
-                                state,
-                            },
-                            {
-                                preserveState: true,
-                                preserveScroll: true,
-                            },
-                        )
-                    }
-                    onClear={
-                        client_id !== null
-                            ? () =>
-                                  router.get(
-                                      maintenanceIndex.url(),
-                                      { site_id: site_id ?? undefined, state },
-                                      {
-                                          preserveState: true,
-                                          preserveScroll: true,
-                                      },
-                                  )
-                            : null
-                    }
-                />
-                {site_name !== null && (
-                    <FilterChip
-                        label={t('Site')}
-                        value={site_name}
-                        onClear={() =>
-                            router.get(
-                                maintenanceIndex.url(),
-                                { client_id: client_id ?? undefined, state },
-                                { preserveState: true, preserveScroll: true },
-                            )
-                        }
-                    />
-                )}
-            </FilterBar>
+            />
             <PendingChanges
                 count={buffered.pendingCount}
                 apply={buffered.apply}
@@ -728,10 +661,7 @@ export default function MaintenanceIndex({
                         )
                     }
                     filtered={{
-                        active:
-                            client_id !== null ||
-                            site_id !== null ||
-                            state !== 'all',
+                        active: filtersActive(filters),
                         title: t('No matching maintenance windows.'),
                         description: t('Clear filters to see all windows.'),
                     }}

@@ -16,10 +16,8 @@ use Heptapod\Contracts\SecretRedactor;
 use Heptapod\Data\Ui\IncidentData;
 use Heptapod\Data\Ui\IncidentDeliveryData;
 use Heptapod\Data\Ui\IncidentEvidenceData;
-use Heptapod\Data\Ui\IncidentFilterData;
 use Heptapod\Data\Ui\IncidentNotificationGroupData;
 use Heptapod\Data\Ui\IncidentNotificationPageData;
-use Heptapod\Data\Ui\IncidentsIndexData;
 use Heptapod\Data\Ui\IncidentSummaryData;
 use Heptapod\Data\Ui\IncidentTimelineEntryData;
 use Heptapod\Enums\DeliveryGroupOutcome;
@@ -57,7 +55,7 @@ final readonly class IncidentsReader
     /** The Incidents list and its export show open incidents unless the URL asks for resolved or all. */
     public const string DefaultStatus = 'open';
 
-    public function __construct(private SitePolicy $policy, private SitesReader $sites, private NotificationEventTypes $notificationTypes, private CheckRunPresentations $presentations, private EventPresenter $eventPresenter, private ListPaging $paging) {}
+    public function __construct(private SitePolicy $policy, private NotificationEventTypes $notificationTypes, private CheckRunPresentations $presentations, private EventPresenter $eventPresenter, private ListPaging $paging) {}
 
     /** @return Builder<Incident> */
     public function scoped(User $user, bool $includeArchived = false): Builder
@@ -181,22 +179,14 @@ final readonly class IncidentsReader
         return $query;
     }
 
-    public function index(User $user, Request $request, int $perPage, bool $includeClients = true): IncidentsIndexData
+    /** @return array{list<IncidentData>, PaginationData} */
+    public function index(User $user, Request $request, int $perPage): array
     {
         $page = $this->filtered($user, $request)->paginate($perPage)->withQueryString();
-        $filters = new IncidentFilterData($request->filled('filter.status') ? $request->string('filter.status')->toString() : self::DefaultStatus,
-            $request->filled('filter.cause') ? IncidentCause::from($request->string('filter.cause')->toString()) : null,
-            $request->filled('filter.check') ? CheckKey::from($request->string('filter.check')->toString()) : null,
-            $request->filled('filter.client_id') ? $request->integer('filter.client_id') : null,
-            $request->filled('filter.started_after') ? $request->string('filter.started_after')->toString() : null,
-            $request->filled('filter.started_before') ? $request->string('filter.started_before')->toString() : null,
-            $request->filled('filter.period') ? $request->string('filter.period')->toString() : '30d');
-
         /** @var \Illuminate\Database\Eloquent\Collection<int, Incident> $incidents */
         $incidents = $page->getCollection();
 
-        return new IncidentsIndexData($this->presentedRows($incidents),
-            PaginationData::fromPaginator($page), $filters, $includeClients ? $this->sites->clients($user) : []);
+        return [$this->presentedRows($incidents), PaginationData::fromPaginator($page)];
     }
 
     /** @param Collection<int, Incident> $incidents Already bounded, authorized rows.

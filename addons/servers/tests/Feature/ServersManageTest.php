@@ -496,7 +496,7 @@ it('filters the list by name or host name and by state', function (): void {
         ->and($names('filter[state]=awaiting'))->toBe(['acre-web'])
         ->and($names('filter[state]=reporting&filter[search]=acre'))->toBe([]);
     $this->get('/servers?filter[state]=awaiting')->assertInertia(fn (Assert $page): Assert => $page
-        ->where('filters', ['search' => null, 'state' => 'awaiting'])->where('pagination.total', 1));
+        ->where('filters.search.value', null)->where('filters.state.value', 'awaiting')->where('pagination.total', 1));
 });
 
 it('installs the agent of the newest known release on a source build, and names none when none is known', function (?string $latest, ?string $version): void {

@@ -1,3 +1,10 @@
+import {
+    filterDefaults,
+    filterValues,
+    filtersActive,
+    ListFilterBar,
+    withFilterValues,
+} from '@/components/list-filter-bar';
 import { Head, Link, router, useForm, usePoll } from '@inertiajs/react';
 import { Plus, Server } from 'lucide-react';
 import { useState } from 'react';
@@ -8,7 +15,6 @@ import {
     openRowTarget,
     rowTargetClass,
 } from '@/components/entity-link';
-import { FilterBar, FilterSelectTrigger } from '@/components/filter-bar';
 import { FormSecondaryAction } from '@/components/form-section';
 import InputError from '@/components/input-error';
 import { ListFooter } from '@/components/list-footer';
@@ -28,12 +34,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectValue,
-} from '@/components/ui/select';
 import { Sheet } from '@/components/ui/sheet';
 import {
     listCardPadding,
@@ -55,8 +55,6 @@ import { index, show, store } from '@/routes/servers';
 
 type ServerRow = Heptapod.Addons.Servers.Data.ServerRowData;
 /** A ServerState, or `attention` for a server with an open issue (ServerReader::NeedsAttention). */
-type ServerFilter = Heptapod.Addons.Servers.ServerState | 'attention';
-
 /** The server's sort keys (ServerReader::SortKeys); the cards below md keep the default order, problems first. */
 type SortKey =
     | 'status'
@@ -68,13 +66,6 @@ type SortKey =
     | 'last_report';
 // Disk, RAM and load show the highest value first.
 const descendingFirst: SortKey[] = ['disk', 'memory', 'load', 'sites'];
-
-const stateFilters: Record<ServerFilter, string> = {
-    attention: 'Needs attention',
-    no_report: 'servers.state.no_report',
-    awaiting: 'servers.state.awaiting',
-    reporting: 'servers.state.reporting',
-};
 
 function AddServerSheet({ onClose }: { onClose: () => void }) {
     const { t } = useTranslation();
@@ -147,19 +138,18 @@ export default function ServersIndex({
     const size = useServerSize();
     const [adding, setAdding] = useState(false);
     const visit = (
-        changes: { search?: string; state?: string | null },
+        changes: Record<string, string | null>,
         nextSort = sort,
         searchOptions: LiveSearchVisitOptions = {},
     ) => {
         cancelPendingSearch();
-        const next = { search, state: filters.state, ...changes };
+        const next = { ...filterValues(draftFilters), ...changes };
         router.get(
             index.url(),
             {
-                filter: {
-                    ...(next.search ? { search: next.search } : {}),
-                    ...(next.state ? { state: next.state } : {}),
-                },
+                filter: Object.fromEntries(
+                    Object.entries(next).filter(([, value]) => value),
+                ),
                 ...(nextSort !== 'status' ? { sort: nextSort } : {}),
             },
             {
@@ -171,14 +161,15 @@ export default function ServersIndex({
         );
     };
     const { search, changeSearch, cancelPendingSearch } = useLiveSearch(
-        filters.search ?? '',
+        filters.search?.value ?? '',
         (search, options) => visit({ search }, sort, options),
     );
     // New reports arrive every minute: values refresh in place; servers another tab added or removed, and rows a new
     // value moves in the sort, wait behind "N new changes". A sort or filter of this tab changes the URL and shows at once.
     usePoll(15_000, { only: ['servers', 'pagination'] });
     const buffered = useBufferedChanges(servers, (server) => server.id);
-    const filtersActive = Boolean(search) || filters.state !== null;
+    const draftFilters = withFilterValues(filters, { search: search || null });
+    const hasFilters = filtersActive(draftFilters);
     const reboot = (server: ServerRow) =>
         server.values?.reboot_required === true && (
             <span className="text-xs text-status-warn">
@@ -230,61 +221,16 @@ export default function ServersIndex({
                     }
                     actions={addButton}
                 />
-                {(pagination.total > 0 || filtersActive) && (
-                    <FilterBar
-                        activeCount={filters.state !== null ? 1 : 0}
-                        filtersActive={filtersActive}
-                        onClearFilters={() =>
-                            visit({ search: '', state: null })
+                {(pagination.total > 0 || hasFilters) && (
+                    <ListFilterBar
+                        filters={draftFilters}
+                        onChange={(changes) =>
+                            Object.hasOwn(changes, 'search')
+                                ? changeSearch(changes.search ?? '')
+                                : visit(changes)
                         }
-                        search={
-                            <Input
-                                type="search"
-                                className="w-full"
-                                aria-label={t('servers.list.search')}
-                                placeholder={t('servers.list.search')}
-                                value={search}
-                                onChange={(event) =>
-                                    changeSearch(event.target.value)
-                                }
-                            />
-                        }
-                    >
-                        <Select
-                            value={filters.state ?? 'all'}
-                            onValueChange={(value) =>
-                                visit({
-                                    state:
-                                        value === 'all'
-                                            ? null
-                                            : (value as ServerFilter),
-                                })
-                            }
-                        >
-                            <FilterSelectTrigger
-                                aria-label={t('Status')}
-                                onClear={
-                                    filters.state !== null
-                                        ? () => visit({ state: null })
-                                        : null
-                                }
-                            >
-                                <SelectValue />
-                            </FilterSelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">
-                                    {t('servers.list.all_states')}
-                                </SelectItem>
-                                {Object.entries(stateFilters).map(
-                                    ([value, label]) => (
-                                        <SelectItem key={value} value={value}>
-                                            {t(label)}
-                                        </SelectItem>
-                                    ),
-                                )}
-                            </SelectContent>
-                        </Select>
-                    </FilterBar>
+                        onClearFilters={() => visit(filterDefaults(filters))}
+                    />
                 )}
                 <PendingChanges
                     count={buffered.pendingCount}
@@ -298,7 +244,7 @@ export default function ServersIndex({
                         description={t('servers.list.empty_description')}
                         action={addButton}
                         filtered={{
-                            active: filtersActive,
+                            active: hasFilters,
                             title: t('servers.list.filtered_title'),
                             description: t('servers.list.filtered_description'),
                         }}

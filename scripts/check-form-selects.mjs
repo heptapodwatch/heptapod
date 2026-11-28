@@ -178,7 +178,12 @@ for (const file of [
                     )) {
                     const sourceExpr = match[1];
                     const root = sourceExpr.split('.')[0];
+                    const declaredFilterChoices =
+                        file ===
+                            'resources/js/components/list-filter-bar.tsx' &&
+                        sourceExpr === 'fixedOptions';
                     if (
+                        !declaredFilterChoices &&
                         !toolbarAllowList.has(root) &&
                         !sourceExpr.startsWith('Object.') &&
                         !sourceExpr.startsWith('[')

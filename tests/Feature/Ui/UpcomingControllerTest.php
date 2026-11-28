@@ -37,8 +37,8 @@ it('filters upcoming dates by client without applying stale session selection or
     expect($response->inertiaProps()['items'])->toHaveCount($role === 'Owner' ? 3 : 2);
     $response = $this->withSession(['selected_client_id' => $first->id])->get('/upcoming?days=30&type=maintenance&client_id='.$second->id)->assertOk();
     expect(array_column($response->inertiaProps()['items'], 'key'))->toBe(['maintenance:'.$periods[$second->id]->id])
-        ->and($response->inertiaProps()['client_id'])->toBe($second->id)
-        ->and($response->inertiaProps()['days'])->toBe('30')->and($response->inertiaProps()['type'])->toBe('maintenance');
+        ->and($response->inertiaProps('filters.client_id.value'))->toBe((string) $second->id)
+        ->and($response->inertiaProps('filters.days.value'))->toBe('30')->and($response->inertiaProps('filters.type.value'))->toBe('maintenance');
     $response = $this->get('/upcoming?client_id='.$foreign->id)->assertOk();
     expect($response->inertiaProps()['items'])->toHaveCount($role === 'Owner' ? 1 : 0);
     if ($role === 'Member') {
@@ -173,7 +173,7 @@ it('bounds All to twelve months and pages its chronological dates with a stable 
     $queries = DB::getQueryLog();
     DB::disableQueryLog();
 
-    $response->assertOk()->assertInertia(fn ($page) => $page->component('upcoming/index')->has('items', 50)->where('days', 'all')->where('previous_page_url', null));
+    $response->assertOk()->assertInertia(fn ($page) => $page->component('upcoming/index')->has('items', 50)->where('filters.days.value', 'all')->where('previous_page_url', null));
     // The agenda pages in date order: the second page of 100 continues where the first ended, and the size is remembered.
     $first = $this->get('/upcoming?days=all&per_page=100')->assertCookie(ListPageSize::Cookie, json_encode(['upcoming' => 100]), false)->inertiaProps();
     $second = $this->get('/upcoming?days=all&per_page=100&page=2')->inertiaProps();

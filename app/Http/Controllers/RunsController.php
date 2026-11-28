@@ -6,6 +6,8 @@ namespace Heptapod\Http\Controllers;
 
 use Carbon\CarbonImmutable;
 use Heptapod\Contracts\CheckKey;
+use Heptapod\Contracts\FilterKind;
+use Heptapod\Contracts\ListFilters;
 use Heptapod\Contracts\RunPhase;
 use Heptapod\Data\Ui\RunsBoardData;
 use Heptapod\Data\Ui\RunsFilterData;
@@ -18,8 +20,6 @@ use Heptapod\Models\User;
 use Heptapod\Queries\RunsReader;
 use Heptapod\Queries\SitesReader;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\LaravelData\Lazy;
@@ -30,30 +30,54 @@ final class RunsController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User, 401);
-        $validated = Validator::make($request->all(), [
-            'client' => ['sometimes', 'integer', 'min:1'],
-            'check' => ['sometimes', 'integer', 'min:1'],
-            'type' => ['sometimes', Rule::enum(CheckKey::class)],
-            'state' => ['sometimes', Rule::enum(RunPhase::class)],
-            'before' => ['sometimes', 'integer', 'min:1'],
-            'show_same_result' => ['sometimes', 'boolean'],
-            'period' => ['sometimes', Rule::in(['24h', '7d'])],
-            'started' => ['sometimes', Rule::in(['manual'])],
-        ])->validate();
-        $period = $request->string('period', '24h')->toString();
+        $query = ListFilters::read($request, [
+            'check' => ['kind' => FilterKind::Chip, 'label' => 'Check', 'rules' => ['integer', 'min:1'],
+                'display' => static function (string $id, array $remaining) use ($reader, $user): array {
+                    $check = $reader->findVisibleCheck($user, (int) $id);
+                    $site = $check?->site;
+                    unset($remaining['before']);
+                    $clearUrl = route('runs.index', $remaining, absolute: false);
+                    if (! $check instanceof Check || ! $site instanceof Site) {
+                        return ['display' => __('runs.filters.checkUnavailable'), 'clear_url' => $clearUrl];
+                    }
+
+                    return [
+                        'display' => __("checks.{$check->type->value}.label").' · '.$site->displayName(),
+                        'clear_url' => $clearUrl,
+                        'detail_url' => route('sites.checks.show', ['site' => $check->site_id, 'check' => $check->id], absolute: false).'#check-history',
+                    ];
+                }],
+            'client' => ['kind' => FilterKind::Combobox, 'label' => 'Client', 'empty_label' => 'All clients', 'source' => 'clients', 'rules' => ['integer', 'min:1'], 'disabled_by' => 'check'],
+            'type' => ['kind' => FilterKind::Select, 'label' => 'Check type', 'empty_label' => 'All checks', 'enum' => CheckKey::class, 'disabled_by' => 'check',
+                'options' => [
+                    'uptime' => 'checks.uptime.label', 'performance' => 'checks.performance.label', 'certificate_health' => 'checks.certificate_health.label',
+                    'domain' => 'checks.domain.label', 'dns' => 'checks.dns.label', 'sitemap' => 'checks.sitemap.label',
+                    'broken_links' => 'checks.broken_links.label', 'mixed_content' => 'checks.mixed_content.label', 'lighthouse' => 'checks.lighthouse.label',
+                    'cron' => 'checks.cron.label', 'application_health' => 'checks.application_health.label',
+                ]],
+            'state' => ['kind' => FilterKind::Select, 'label' => 'State', 'empty_label' => 'runs.screen.allStates', 'enum' => RunPhase::class,
+                'options' => ['scheduled' => 'Scheduled', 'queued' => 'Queued', 'running' => 'Running', 'late' => 'Late', 'done' => 'Done', 'failed' => 'Failed', 'skipped' => 'Skipped', 'cancelled' => 'Cancelled']],
+            'show_same_result' => ['kind' => FilterKind::Boolean, 'label' => 'Show runs with the same result as before', 'rules' => ['boolean'], 'slot' => 'history', 'widens' => true],
+            'period' => ['kind' => FilterKind::Segmented, 'label' => 'runs.board.historyRange', 'default' => '24h', 'options' => ['24h' => 'Last 24 hours', '7d' => 'Last 7 days'], 'slot' => 'history-range'],
+            'started' => ['kind' => FilterKind::Select, 'label' => 'run.started', 'empty_label' => 'run.started.all', 'options' => ['manual' => 'run.started.manual']],
+        ], ['before' => ['sometimes', 'integer', 'min:1']]);
+        $period = $query->value('period') ?? throw new \LogicException('Missing runs period.');
         $since = CarbonImmutable::now('UTC')->subHours(match ($period) {
             '24h' => 24, '7d' => 168, default => throw new \LogicException('Invalid runs period.')
         });
+        $type = $query->value('type');
+        $state = $query->value('state');
+        $before = $query->parameter('before');
         $filters = new RunsFilterData(
-            $request->filled('client') ? $request->integer('client') : null,
-            $request->filled('check') ? $request->integer('check') : null,
-            $request->filled('type') ? CheckKey::from($request->string('type')->toString()) : null,
-            $request->filled('state') ? RunPhase::from($request->string('state')->toString()) : null,
-            $request->filled('before') ? $request->integer('before') : null,
-            $request->boolean('show_same_result'),
+            $query->integer('client'),
+            $query->integer('check'),
+            $type === null ? null : CheckKey::from($type),
+            $state === null ? null : RunPhase::from($state),
+            is_numeric($before) ? (int) $before : null,
+            $query->value('show_same_result') === '1',
             $period,
             ListPageSize::resolve($request, 'runs'),
-            $request->input('started') === 'manual',
+            $query->value('started') === 'manual',
         );
 
         $board = null;
@@ -65,21 +89,6 @@ final class RunsController extends Controller
             return $history ??= $reader->history($user, $filters->per_page, $filters->check, $filters->before, $filters->client, $filters->type?->value, $filters->state, $filters->show_same_result, since: $since, manualOnly: $filters->started_manually);
         };
 
-        $checkFilter = null;
-        if ($filters->check !== null) {
-            $check = $reader->findVisibleCheck($user, $filters->check);
-            $site = $check?->site;
-            unset($validated['check'], $validated['before']);
-            $checkFilter = [
-                'clear_url' => route('runs.index', $validated, absolute: false),
-                'check' => $check instanceof Check && $site instanceof Site ? [
-                    'type' => $check->type,
-                    'site_name' => $site->displayName(),
-                    'history_url' => route('sites.checks.show', ['site' => $check->site_id, 'check' => $check->id], absolute: false).'#check-history',
-                ] : null,
-            ];
-        }
-
         return Inertia::render('runs/index', new RunsIndexPageData(
             current: Lazy::closure(static fn (): array => $read()->current),
             queued_more: Lazy::closure(static fn (): int => $read()->queued_more),
@@ -87,8 +96,9 @@ final class RunsController extends Controller
             runs: Lazy::closure(static fn (): array => $readHistory()->runs),
             next_cursor: Lazy::closure(static fn (): ?string => $readHistory()->next_cursor),
             clients: Lazy::closure(static fn (): array => $sites->clients($user)),
-            filters: $filters,
-            check_filter: $checkFilter,
+            filters: Lazy::closure(static fn (): array => $query->data()),
+            before: $filters->before,
+            per_page: $filters->per_page,
             attempt_retention_days: config()->integer('monitoring.attempt_retention_days'),
         ));
     }

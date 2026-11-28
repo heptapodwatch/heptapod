@@ -46,18 +46,6 @@ afterEach(() => {
     delete (document as { hidden?: boolean }).hidden;
 });
 
-const filters: Heptapod.Data.Ui.RunsFilterData = {
-    client: null,
-    check: null,
-    type: null,
-    state: null,
-    before: null,
-    show_same_result: false,
-    per_page: 50,
-    period: '24h',
-    started_manually: false,
-};
-
 function active(
     attempt: number,
     phase: 'queued' | 'running',
@@ -138,11 +126,11 @@ function advance(ms: number) {
 
 it('holds a fast run in Queued and Running for their minimum dwell before it reaches Finished', () => {
     const { container, rerender } = render(
-        <RunBoard data={board([active(1, 'queued')], [])} filters={filters} />,
+        <RunBoard data={board([active(1, 'queued')], [])} scope="" />,
     );
     advance(100);
     // The run finished between two reloads: the server never reported it as running.
-    rerender(<RunBoard data={board([], [done(1)])} filters={filters} />);
+    rerender(<RunBoard data={board([], [done(1)])} scope="" />);
     expect(columnOf(container, 'Site 1')).toBe('queued');
 
     advance(299);
@@ -159,19 +147,14 @@ it('holds a fast run in Queued and Running for their minimum dwell before it rea
 
 it('queues a burst of fast runs instead of dropping any, each on its own clock', () => {
     const { container, rerender } = render(
-        <RunBoard data={board([active(1, 'running')], [])} filters={filters} />,
+        <RunBoard data={board([active(1, 'running')], [])} scope="" />,
     );
     advance(1000);
     rerender(
-        <RunBoard
-            data={board([active(2, 'running')], [done(1)])}
-            filters={filters}
-        />,
+        <RunBoard data={board([active(2, 'running')], [done(1)])} scope="" />,
     );
     advance(100);
-    rerender(
-        <RunBoard data={board([], [done(2), done(1)])} filters={filters} />,
-    );
+    rerender(<RunBoard data={board([], [done(2), done(1)])} scope="" />);
     expect(columnOf(container, 'Site 1')).toBe('running');
     expect(columnOf(container, 'Site 2')).toBe('running');
 
@@ -184,9 +167,9 @@ it('queues a burst of fast runs instead of dropping any, each on its own clock',
 
 it('shows a run that was never on the board in its real column at once', () => {
     const { container, rerender } = render(
-        <RunBoard data={board([], [])} filters={filters} />,
+        <RunBoard data={board([], [])} scope="" />,
     );
-    rerender(<RunBoard data={board([], [done(3)])} filters={filters} />);
+    rerender(<RunBoard data={board([], [done(3)])} scope="" />);
     expect(columnOf(container, 'Site 3')).toBe('finished');
 });
 
@@ -205,7 +188,7 @@ it("shows every finished result as a visible chip, uptime failures as Failed, an
                     { ...done(2), result: 'failed', check_type: 'cron' },
                 ],
             )}
-            filters={filters}
+            scope=""
         />,
     );
     const finished = container.querySelector<HTMLElement>(
@@ -222,16 +205,16 @@ it("shows every finished result as a visible chip, uptime failures as Failed, an
 it('moves cards without delay under reduced motion', () => {
     reducedMotion = true;
     const { container, rerender } = render(
-        <RunBoard data={board([active(1, 'queued')], [])} filters={filters} />,
+        <RunBoard data={board([active(1, 'queued')], [])} scope="" />,
     );
-    rerender(<RunBoard data={board([], [done(1)])} filters={filters} />);
+    rerender(<RunBoard data={board([], [done(1)])} scope="" />);
     expect(columnOf(container, 'Site 1')).toBe('finished');
 });
 
 it('shows the newest eight finished runs and links the rest to the attempt history', () => {
     const many = Array.from({ length: 20 }, (_, index) => done(index + 1));
     const { container, rerender } = render(
-        <RunBoard data={board([], many)} filters={filters} />,
+        <RunBoard data={board([], many)} scope="" />,
     );
     const column = container.querySelector<HTMLElement>(
         '[data-run-column="finished"]',
@@ -245,7 +228,7 @@ it('shows the newest eight finished runs and links the rest to the attempt histo
             .getAttribute('href'),
     ).toBe('#run-history');
 
-    rerender(<RunBoard data={board([], many.slice(0, 8))} filters={filters} />);
+    rerender(<RunBoard data={board([], many.slice(0, 8))} scope="" />);
     expect(
         within(column).queryByRole('link', { name: 'runs.board.showHistory' }),
     ).toBeNull();
@@ -267,25 +250,20 @@ function setHidden(hidden: boolean) {
 
 it('shows a run that finished while the tab was hidden in Finished at once after return', () => {
     const { container, rerender } = render(
-        <RunBoard data={board([active(1, 'queued')], [])} filters={filters} />,
+        <RunBoard data={board([active(1, 'queued')], [])} scope="" />,
     );
     setHidden(true);
     advance(60_000);
     setHidden(false);
     // The resync reload after return reports the run as finished long ago.
-    rerender(<RunBoard data={board([], [done(1)])} filters={filters} />);
+    rerender(<RunBoard data={board([], [done(1)])} scope="" />);
     expect(columnOf(container, 'Site 1')).toBe('finished');
 
     // Later fast runs get their dwell again.
     rerender(
-        <RunBoard
-            data={board([active(2, 'running')], [done(1)])}
-            filters={filters}
-        />,
+        <RunBoard data={board([active(2, 'running')], [done(1)])} scope="" />,
     );
-    rerender(
-        <RunBoard data={board([], [done(2), done(1)])} filters={filters} />,
-    );
+    rerender(<RunBoard data={board([], [done(2), done(1)])} scope="" />);
     expect(columnOf(container, 'Site 2')).toBe('running');
 });
 
@@ -296,7 +274,7 @@ it('keeps Finished newest-first when a held run arrives after newer and older re
                 [active(1, 'running')],
                 [finishedAt(3, '2026-10-21T11:59:00+00:00')],
             )}
-            filters={filters}
+            scope=""
         />,
     );
     // Run 1 finishes; run 4 (never on the board) finishes later and shows at once.
@@ -310,7 +288,7 @@ it('keeps Finished newest-first when a held run arrives after newer and older re
                     finishedAt(3, '2026-10-21T11:59:00+00:00'),
                 ],
             )}
-            filters={filters}
+            scope=""
         />,
     );
     const order = () =>
@@ -328,12 +306,10 @@ it('counts in the column headings and the mobile tabs match the cards shown duri
     const { container, rerender } = render(
         <RunBoard
             data={board([active(1, 'queued'), active(2, 'running')], [])}
-            filters={filters}
+            scope=""
         />,
     );
-    rerender(
-        <RunBoard data={board([], [done(2), done(1)])} filters={filters} />,
-    );
+    rerender(<RunBoard data={board([], [done(2), done(1)])} scope="" />);
     const tabs = within(
         container.querySelector<HTMLElement>(
             '[aria-label="runs.board.columns"]',
@@ -361,23 +337,18 @@ it('counts in the column headings and the mobile tabs match the cards shown duri
 
 it('clears the dwell timer on unmount and shows the new scope without held cards', () => {
     const { container, rerender, unmount } = render(
-        <RunBoard data={board([active(1, 'queued')], [])} filters={filters} />,
+        <RunBoard data={board([active(1, 'queued')], [])} scope="" />,
     );
     vi.advanceTimersToNextFrame();
     // Other pending timers (the delayed Reload offer) are not the board's dwell.
     const baseline = vi.getTimerCount();
-    rerender(<RunBoard data={board([], [done(1)])} filters={filters} />);
+    rerender(<RunBoard data={board([], [done(1)])} scope="" />);
     vi.advanceTimersToNextFrame();
     expect(columnOf(container, 'Site 1')).toBe('queued');
     expect(vi.getTimerCount()).toBe(baseline + 1);
 
     // A filter change shows the new scope as it is; no dwell timer is left from the old one.
-    rerender(
-        <RunBoard
-            data={board([], [done(1)])}
-            filters={{ ...filters, type: 'uptime' }}
-        />,
-    );
+    rerender(<RunBoard data={board([], [done(1)])} scope="uptime" />);
     vi.advanceTimersToNextFrame();
     expect(columnOf(container, 'Site 1')).toBe('finished');
     expect(vi.getTimerCount()).toBe(baseline);
@@ -385,15 +356,10 @@ it('clears the dwell timer on unmount and shows the new scope without held cards
     rerender(
         <RunBoard
             data={board([active(2, 'queued')], [done(1)])}
-            filters={{ ...filters, type: 'uptime' }}
+            scope="uptime"
         />,
     );
-    rerender(
-        <RunBoard
-            data={board([], [done(2), done(1)])}
-            filters={{ ...filters, type: 'uptime' }}
-        />,
-    );
+    rerender(<RunBoard data={board([], [done(2), done(1)])} scope="uptime" />);
     vi.advanceTimersToNextFrame();
     expect(vi.getTimerCount()).toBe(baseline + 1);
     unmount();

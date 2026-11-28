@@ -58,10 +58,10 @@ it('keeps unclaimed late checks out of the active board and shares the authorize
     expect(CheckRunAttempt::query()->count())->toBe(0);
     $this->get('/runs?state=late')->assertInertia(fn (Assert $page): Assert => $page->has('current', 0));
     $this->get('/runs?check='.$hidden->id.'&show_same_result=1')->assertInertia(fn (Assert $page): Assert => $page->has('current', 0)->has('runs', 0)
-        ->where('check_filter.check', null)->where('check_filter.clear_url', '/runs?show_same_result=1')
+        ->where('filters.check.detail_url', null)->where('filters.check.display', __('runs.filters.checkUnavailable'))->where('filters.check.clear_url', '/runs?show_same_result=1')
         ->where('lateRunsCount', 1));
     $this->get('/runs?check='.($hidden->id + 1000))->assertInertia(fn (Assert $page): Assert => $page->has('runs', 0)
-        ->where('check_filter.check', null)->where('check_filter.clear_url', '/runs'));
+        ->where('filters.check.detail_url', null)->where('filters.check.display', __('runs.filters.checkUnavailable'))->where('filters.check.clear_url', '/runs'));
     $late->update(['enabled' => false]);
     $this->get('/runs')->assertInertia(fn (Assert $page): Assert => $page->missing('late')->has('current', 0)->where('lateRunsCount', 0));
 });
@@ -82,14 +82,14 @@ it('filters attempts by client and type and exposes a check filter that can be r
     $removeCheck = $this->get('/runs?check='.$other->id.'&period=7d&show_same_result=1&state=queued')
         ->assertInertia(fn (Assert $page): Assert => $page
             ->has('runs', 1)->where('runs.0.check_id', $other->id)
-            ->where('check_filter.check.type', 'lighthouse')->where('check_filter.check.site_name', 'Example store')
-            ->where('check_filter.check.history_url', "/sites/{$other->site_id}/checks/{$other->id}#check-history")
+            ->where('filters.check.display', 'Lighthouse · Example store')
+            ->where('filters.check.detail_url', "/sites/{$other->site_id}/checks/{$other->id}#check-history")
             ->where('attempt_retention_days', 3))
-        ->inertiaProps('check_filter.clear_url');
+        ->inertiaProps('filters.check.clear_url');
     expect($removeCheck)->toBe('/runs?state=queued&show_same_result=1&period=7d');
     $this->get($removeCheck)->assertInertia(fn (Assert $page): Assert => $page
-        ->where('check_filter', null)->where('filters.period', '7d')->where('filters.show_same_result', true)
-        ->where('filters.state', 'queued')->has('runs', 2));
+        ->where('filters.check.value', null)->where('filters.period.value', '7d')->where('filters.show_same_result.value', '1')
+        ->where('filters.state.value', 'queued')->has('runs', 2));
     $this->get('/runs?type=dns')->assertInertia(fn (Assert $page): Assert => $page->has('runs', 0)->has('current', 0));
     $this->get('/runs?state=not-a-state')->assertSessionHasErrors('state');
 });
@@ -116,7 +116,7 @@ it('hides only repeated retained accepted results and keeps first observations a
     $recovery = $record(RunResult::Succeeded);
 
     $this->actingAs($user)->get('/runs')->assertInertia(fn (Assert $page): Assert => $page
-        ->where('filters.show_same_result', false)->has('runs', 2)->where('runs.0.id', $recovery)->where('runs.1.id', $first));
+        ->where('filters.show_same_result.value', null)->has('runs', 2)->where('runs.0.id', $recovery)->where('runs.1.id', $first));
     $this->get('/runs?show_same_result=1')->assertInertia(fn (Assert $page): Assert => $page
         ->has('runs', 3)->where('runs.1.id', $repeat));
     $firstAttempt = CheckRunAttempt::query()->findOrFail($first);
@@ -184,7 +184,7 @@ it('shows exactly the manually started runs on the board and in the history unde
 
     $this->get('/runs')->assertInertia(fn (Assert $page): Assert => $page->has('current', 2)->has('finished', 2)->has('runs', 4));
     $this->get('/runs?started=manual')->assertInertia(fn (Assert $page): Assert => $page
-        ->where('filters.started_manually', true)
+        ->where('filters.started.value', 'manual')
         ->has('current', 1)->where('current.0.check_id', $manualQueued->id)->where('current.0.run.actor_id', $user->id)
         ->has('finished', 1)->where('finished.0.check_id', $manualDone->id)
         ->has('runs', 2)->where('runs.0.check_id', $manualQueued->id)->where('runs.1.check_id', $manualDone->id));

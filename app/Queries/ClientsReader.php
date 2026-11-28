@@ -7,7 +7,6 @@ namespace Heptapod\Queries;
 use Heptapod\Contracts\PaginationData;
 use Heptapod\Data\Ui\ClientData;
 use Heptapod\Data\Ui\ClientRowData;
-use Heptapod\Data\Ui\ClientsIndexPageData;
 use Heptapod\Data\Ui\DashboardTilesData;
 use Heptapod\Data\Ui\IncidentData;
 use Heptapod\Data\Ui\SiteRowData;
@@ -25,7 +24,8 @@ final readonly class ClientsReader
 {
     public function __construct(private SitesReader $sites, private DashboardSummaryReader $summaries, private IncidentsReader $incidents, private SitePolicy $policy) {}
 
-    public function index(User $user, Request $request, int $perPage): ClientsIndexPageData
+    /** @return array{list<ClientRowData>, PaginationData} */
+    public function index(User $user, Request $request, int $perPage): array
     {
         $archived = $request->input('filter.state') === 'archived';
         $clients = Client::forBrowsing($this->policy->visibleClients($user, $archived));
@@ -72,8 +72,7 @@ final readonly class ClientsReader
             $rows[] = new ClientRowData(ClientData::fromClient($client), $summaries[$client->id]);
         }
 
-        return new ClientsIndexPageData($rows, PaginationData::fromPaginator($page),
-            $request->filled('filter.search') ? $request->string('filter.search')->toString() : null, $request->string('filter.state', 'all')->toString(), $user->hasAnyRole(['Owner', 'Admin']));
+        return [$rows, PaginationData::fromPaginator($page)];
     }
 
     public function client(User $user, int $id): ClientData

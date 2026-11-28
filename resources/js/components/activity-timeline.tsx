@@ -39,7 +39,7 @@ export function ActivityTimeline({
     expandedPagination,
 }: {
     groups: Group[];
-    filters: Heptapod.Data.Ui.ActivityFilterData;
+    filters: Record<string, string | null>;
     expandedId: number | null;
     expandedEvents: EventDto[];
     expandedPagination: Heptapod.Contracts.PaginationData | null;
