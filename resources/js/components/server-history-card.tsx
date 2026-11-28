@@ -12,6 +12,7 @@ import { SegmentedControl } from '@/components/segmented-control';
 import {
     diskThreshold,
     diskUsedPercent,
+    loadThreshold,
     memoryUsedPercent,
     usePercent,
 } from '@/components/server-values';
@@ -107,22 +108,24 @@ export function ServerHistoryCard({
         new Set(diskLines.map((line) => line.y)).size <= 1
             ? (diskLines[0]?.y ?? thresholds.disk_percent)
             : undefined;
-    // Load alerts at load_per_core × the current vCPU count, an absolute 5-minute load like the plotted one.
-    const loadThreshold =
-        values === null ? null : thresholds.load_per_core * values.cores;
-    const loadValue = (value: number) =>
+    // The plotted load is absolute, like its threshold; the axis and threshold show one decimal, a sample up to two.
+    const loadAlert =
+        values === null ? null : loadThreshold(values, thresholds);
+    const loadValue = (value: number, maximumFractionDigits = 1) =>
         format.number(value, {
             minimumFractionDigits: 1,
-            maximumFractionDigits: 1,
+            maximumFractionDigits,
         });
     const formatValue = metric === 'load' ? loadValue : percent;
+    const formatSample = (value: number) =>
+        metric === 'load' ? loadValue(value, 2) : percent(value);
     const thresholdLines =
         metric === 'cpu'
             ? []
             : metric === 'load'
-              ? loadThreshold === null
+              ? loadAlert === null
                   ? []
-                  : [{ y: loadThreshold, color: 'var(--status-down)' }]
+                  : [{ y: loadAlert, color: 'var(--status-down)' }]
               : metric === 'memory'
                 ? [
                       {
@@ -259,7 +262,9 @@ export function ServerHistoryCard({
                                             <span key={String(name)}>
                                                 {config[String(name)]?.label}:{' '}
                                                 <span className="font-mono tabular-nums">
-                                                    {formatValue(Number(value))}
+                                                    {formatSample(
+                                                        Number(value),
+                                                    )}
                                                 </span>
                                             </span>
                                         )}

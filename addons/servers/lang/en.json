@@ -22,6 +22,7 @@
     "servers.agent_version": "Agent {{version}}",
     "servers.copy_ip": "Copy IP address",
     "servers.ips_more": "+{{count}}",
+    "servers.ips_more_label": "Other IP addresses ({{count}}): {{ips}}",
     "servers.fact.up": "Up {{duration}}",
     "servers.fact.reboot_required": "Reboot required",
     "servers.fact.no_updates": "No updates pending",

@@ -1,5 +1,5 @@
 import { Check, Copy } from 'lucide-react';
-import { useId, useState, type ComponentProps } from 'react';
+import { useId, useState, type ComponentProps, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ActionNoteSlot } from '@/components/action-note-slot';
@@ -21,11 +21,14 @@ export function CopyButton({
     size,
     className,
     disabled,
+    children,
 }: {
     /** The text, or a function that fetches it on click. */
     value: string | (() => Promise<string>);
     /** Icon-only, with this accessible name (what is copied: "Copy IP address"). */
     iconLabel?: string;
+    /** With `iconLabel`: the value shown inside the button before the icon, so the whole value is the target. */
+    children?: ReactNode;
     /** Sits beside the value it copies (a command, a URL row): no reserved note line. */
     inline?: boolean;
     /** Replaces the refused note, for a value the page cannot show to select by hand (the export's manual dialog). */
@@ -47,7 +50,7 @@ export function CopyButton({
             size={size ?? (iconLabel === undefined ? 'default' : 'icon')}
             className={className}
             disabled={disabled}
-            aria-label={iconLabel}
+            aria-label={children === undefined ? iconLabel : undefined}
             aria-describedby={showsNote && refused ? noteId : undefined}
             onClick={async () => {
                 const text = typeof value === 'string' ? value : value();
@@ -61,6 +64,12 @@ export function CopyButton({
                 }
             }}
         >
+            {children !== undefined && (
+                <>
+                    <span className="sr-only">{iconLabel} </span>
+                    {children}
+                </>
+            )}
             <Icon aria-hidden />
             {iconLabel === undefined && t(copied ? 'Copied' : 'Copy')}
         </Button>
