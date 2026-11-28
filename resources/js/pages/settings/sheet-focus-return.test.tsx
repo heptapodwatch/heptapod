@@ -43,7 +43,7 @@ async function openAndClose(opener: HTMLElement, firstField: string) {
     await vi.waitFor(() => expect(document.activeElement).toBe(opener));
 }
 
-it('returns focus to Create token after the token sheet closes', async () => {
+it('returns focus to Add token after the token sheet closes', async () => {
     render(
         <ApiTokens
             tokensPage={{
@@ -67,7 +67,7 @@ it('returns focus to Create token after the token sheet closes', async () => {
         />,
     );
     await openAndClose(
-        screen.getAllByRole('button', { name: /Create token/ })[0]!,
+        screen.getAllByRole('button', { name: /Add token/ })[0]!,
         'Name',
     );
 });

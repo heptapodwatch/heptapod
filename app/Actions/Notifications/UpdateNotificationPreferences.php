@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Actions\Notifications;
 
 use Carbon\CarbonImmutable;
+use Closure;
 use Heptapod\Actions\RequestRoutingReconciliation;
 use Heptapod\Contracts\Notifications\DeliveryState;
 use Heptapod\Enums\NotificationCategory;
@@ -24,7 +25,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 /**
- * PUT …/preferences: the channel's grid and site exceptions in one transaction (design §1.3, §7.1). Cells may change
+ * Applies the channel's delivery grid and site exceptions under the channel lock (design §1.3, §7.1). Cells may change
  * only to the modes their category allows. System is not offered to clients or Members and stays on for an Owner's
  * account channel; Servers only to Owners, Admins and team channels without a client limit. Turning on a cell that opens uptime episodes or removing a site mute requests reconciliation
  * (§2.2); a Digest cell turned Immediate sends its waiting items on their immediate schedule instead of the next
@@ -36,8 +37,11 @@ final readonly class UpdateNotificationPreferences
 
     public function __construct(private RequestRoutingReconciliation $reconcile, private NotificationTiming $timing) {}
 
-    /** @param array<string, mixed> $input */
-    public function __invoke(NotificationDestination $destination, array $input, ?User $actor = null): void
+    /**
+     * @param  array<string, mixed>  $input
+     * @param  (Closure(NotificationDestination): bool)|null  $editConnection  Apply under the channel lock; true if it can newly reach open episodes.
+     */
+    public function __invoke(NotificationDestination $destination, array $input, ?User $actor = null, ?Closure $editConnection = null, bool $lockAllEpisodes = false): NotificationDestination
     {
         $cells = $input['preferences'] ?? [];
         if (! is_array($cells)) {
@@ -61,7 +65,7 @@ final readonly class UpdateNotificationPreferences
         if (array_intersect($muteSiteIds, $unmuteSiteIds) !== []) {
             throw ValidationException::withMessages(['site' => __('validation.in', ['attribute' => __('recipient_settings.mutes.title')])]);
         }
-        if ($requested === [] && $muteSiteIds === [] && $unmuteSiteIds === []) {
+        if (! $editConnection instanceof Closure && $requested === [] && $muteSiteIds === [] && $unmuteSiteIds === []) {
             throw ValidationException::withMessages(['preferences' => __('validation.required', ['attribute' => __('recipient_settings.grid.title')])]);
         }
         $allSiteIds = array_values(array_unique([...$muteSiteIds, ...$unmuteSiteIds]));
@@ -76,7 +80,7 @@ final readonly class UpdateNotificationPreferences
             $muteActor = $actor;
         }
 
-        NotificationLocks::transaction(function () use ($destination, $requested, $muteSiteIds, $unmuteSiteIds, $allSiteIds, $muteActor): void {
+        return NotificationLocks::transaction(function () use ($destination, $requested, $muteSiteIds, $unmuteSiteIds, $allSiteIds, $muteActor, $editConnection, $lockAllEpisodes): NotificationDestination {
             // NotificationLocks: actor (level 1), sites (level 6), open episodes (level 7), channel (level 8), deliveries (level 9).
             if ($muteActor instanceof User) {
                 NotificationLocks::users([$muteActor->id]);
@@ -96,7 +100,7 @@ final readonly class UpdateNotificationPreferences
                 RequestRoutingReconciliation::OpeningCategories,
                 static fn (NotificationCategory $category): bool => ($requested[$category->value] ?? NotificationMode::Off) !== NotificationMode::Off,
             );
-            if ($openingRequested) {
+            if ($openingRequested || $lockAllEpisodes) {
                 $this->reconcile->lockEpisodes($destination);
             } elseif ($unmuteSiteIds !== []) {
                 $this->reconcile->lockEpisodes($destination, $unmuteSiteIds);
@@ -104,8 +108,9 @@ final readonly class UpdateNotificationPreferences
             NotificationLocks::channels([$destination->id]);
             $locked = NotificationDestination::query()->with('user')->findOrFail($destination->id);
             if ($locked->removed_at !== null) {
-                throw ValidationException::withMessages(['preferences' => __('notifications.channel_removed')]);
+                throw ValidationException::withMessages([($editConnection instanceof Closure ? 'channel' : 'preferences') => __('notifications.channel_removed')]);
             }
+            $opened = $editConnection instanceof Closure && $editConnection($locked);
             $system = $requested[NotificationCategory::System->value] ?? null;
             if ($system instanceof NotificationMode && ! $this->systemEditable($locked)) {
                 throw ValidationException::withMessages(['preferences.system' => __('notifications.system_not_editable')]);
@@ -114,7 +119,6 @@ final readonly class UpdateNotificationPreferences
                 throw ValidationException::withMessages(['preferences.servers' => __('notifications.servers_not_editable')]);
             }
 
-            $opened = false;
             $nowImmediate = [];
             if ($requested !== []) {
                 /** @var array<string, string> $current */
@@ -169,6 +173,8 @@ final readonly class UpdateNotificationPreferences
             if ($nowImmediate !== []) {
                 $this->releaseDigestItems($locked, $nowImmediate);
             }
+
+            return $locked;
         });
     }
 

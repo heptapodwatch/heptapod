@@ -81,7 +81,7 @@ export function RecipientSettings({
             ? Number(requested)
             : null;
     });
-    const [editing, setEditing] = useState<Channel | 'new' | null>(null);
+    const [adding, setAdding] = useState(false);
     const open = page.channels.find((channel) => channel.id === openId);
     const reload = () => router.reload({ only: ['settings'] });
     const labels = siteIdentities(page.sites);
@@ -203,7 +203,7 @@ export function RecipientSettings({
                     type="button"
                     variant="outline"
                     data-shortcut-create
-                    onClick={() => setEditing('new')}
+                    onClick={() => setAdding(true)}
                 >
                     <Plus aria-hidden />
                     {t('Add channel')}
@@ -214,13 +214,12 @@ export function RecipientSettings({
                 page={page}
                 onSaved={reload}
             />
-            {editing !== null && (
+            {adding && (
                 <ChannelFormSheet
                     page={page}
-                    channel={editing === 'new' ? null : editing}
-                    onClose={() => setEditing(null)}
+                    onClose={() => setAdding(false)}
                     onSaved={(id) => {
-                        setEditing(null);
+                        setAdding(false);
                         // The channel's sheet opens again (a new channel's for the first time) to set its categories.
                         router.reload({
                             only: ['settings'],
@@ -235,10 +234,6 @@ export function RecipientSettings({
                     page={page}
                     channel={open}
                     onChanged={reload}
-                    onEdit={() => {
-                        setOpenId(null);
-                        setEditing(open);
-                    }}
                     onClose={() => setOpenId(null)}
                 />
             )}

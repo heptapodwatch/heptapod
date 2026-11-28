@@ -2,6 +2,8 @@
     "Private delivery hosts allowed": "Erlaubte private Zustellungsziele",
     "API tokens": "API-Tokens",
     "Create token": "Token erstellen",
+    "Add token": "Token hinzufügen",
+    "Choose an expiration date.": "Wählen Sie ein Ablaufdatum.",
     "Token request failed. Close and reload the list to check whether it was created before trying again.": "Token-Anfrage fehlgeschlagen. Schließen Sie den Dialog und laden Sie die Liste neu. Prüfen Sie vor einem weiteren Versuch, ob das Token erstellt wurde.",
     "Can": "Berechtigungen",
     "Client unavailable — no access": "Kunde nicht verfügbar — kein Zugriff",

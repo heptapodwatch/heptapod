@@ -147,7 +147,7 @@ update.form = updateForm
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::destroy
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:62
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:64
 * @route '/notification-channels/{channel}'
 */
 export const destroy = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -162,7 +162,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::destroy
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:62
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:64
 * @route '/notification-channels/{channel}'
 */
 destroy.url = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -195,7 +195,7 @@ destroy.url = (args: { channel: number | { id: number } } | [channel: number | {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::destroy
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:62
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:64
 * @route '/notification-channels/{channel}'
 */
 destroy.delete = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -205,7 +205,7 @@ destroy.delete = (args: { channel: number | { id: number } } | [channel: number 
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::destroy
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:62
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:64
 * @route '/notification-channels/{channel}'
 */
 const destroyForm = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -220,7 +220,7 @@ const destroyForm = (args: { channel: number | { id: number } } | [channel: numb
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelsController::destroy
-* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:62
+* @see app/Http/Controllers/Notifications/NotificationChannelsController.php:64
 * @route '/notification-channels/{channel}'
 */
 destroyForm.delete = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

@@ -623,7 +623,7 @@ it('creates a client in a sheet with the normal form and selects it in place', a
     expect(
         (screen.getByLabelText('Client name') as HTMLInputElement).value,
     ).toBe('New Studio');
-    fireEvent.click(screen.getByRole('button', { name: 'Create client' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add client' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(request).toHaveBeenCalledWith(
         expect.objectContaining({

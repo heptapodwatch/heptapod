@@ -51,9 +51,11 @@ final class NotificationChannelsController extends Controller
     public function update(Request $request, NotificationDestination $channel, SaveNotificationChannel $save): JsonResponse
     {
         Gate::authorize('update', $channel);
+        $actor = $request->user();
+        abort_unless($actor instanceof User, 401);
         /** @var array<string, mixed> $attributes */
         $attributes = $request->all();
-        $channel = $save->edit($channel, $attributes);
+        $channel = $save->edit($channel, $attributes, $actor);
 
         return response()->json(['id' => $channel->id, 'check_types' => $channel->check_types]);
     }

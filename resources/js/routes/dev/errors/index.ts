@@ -1,6 +1,6 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
-* @see routes/web.php:71
+* @see routes/web.php:70
 * @route '/dev/errors/{status}'
 */
 export const show = (args: { status: string | number } | [status: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -14,7 +14,7 @@ show.definition = {
 } satisfies RouteDefinition<["get","head"]>
 
 /**
-* @see routes/web.php:71
+* @see routes/web.php:70
 * @route '/dev/errors/{status}'
 */
 show.url = (args: { status: string | number } | [status: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -40,7 +40,7 @@ show.url = (args: { status: string | number } | [status: string | number ] | str
 }
 
 /**
-* @see routes/web.php:71
+* @see routes/web.php:70
 * @route '/dev/errors/{status}'
 */
 show.get = (args: { status: string | number } | [status: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -49,7 +49,7 @@ show.get = (args: { status: string | number } | [status: string | number ] | str
 })
 
 /**
-* @see routes/web.php:71
+* @see routes/web.php:70
 * @route '/dev/errors/{status}'
 */
 show.head = (args: { status: string | number } | [status: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -58,7 +58,7 @@ show.head = (args: { status: string | number } | [status: string | number ] | st
 })
 
 /**
-* @see routes/web.php:71
+* @see routes/web.php:70
 * @route '/dev/errors/{status}'
 */
 const showForm = (args: { status: string | number } | [status: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -67,7 +67,7 @@ const showForm = (args: { status: string | number } | [status: string | number ]
 })
 
 /**
-* @see routes/web.php:71
+* @see routes/web.php:70
 * @route '/dev/errors/{status}'
 */
 showForm.get = (args: { status: string | number } | [status: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -76,7 +76,7 @@ showForm.get = (args: { status: string | number } | [status: string | number ] |
 })
 
 /**
-* @see routes/web.php:71
+* @see routes/web.php:70
 * @route '/dev/errors/{status}'
 */
 showForm.head = (args: { status: string | number } | [status: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

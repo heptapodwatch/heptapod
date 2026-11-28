@@ -15,7 +15,6 @@ import {
     openRowTarget,
     rowTargetClass,
 } from '@/components/entity-link';
-import { FormSecondaryAction } from '@/components/form-section';
 import InputError from '@/components/input-error';
 import { ListFooter } from '@/components/list-footer';
 import { AbsoluteTime } from '@/components/absolute-time';
@@ -85,19 +84,12 @@ function AddServerSheet({ onClose }: { onClose: () => void }) {
                     event.preventDefault();
                     form.post(store.url());
                 }}
-                footer={
-                    <>
-                        <FormSecondaryAction
-                            disabled={form.processing}
-                            onClick={onClose}
-                        >
-                            {t('Cancel')}
-                        </FormSecondaryAction>
-                        <Button type="submit" disabled={form.processing}>
-                            {t('servers.add.submit')}
-                        </Button>
-                    </>
-                }
+                actions={{
+                    kind: 'create',
+                    valid: form.data.name.trim() !== '',
+                    busy: form.processing,
+                    onCancel: onClose,
+                }}
             >
                 <div className="space-y-1.5">
                     <Label htmlFor="server-name">{t('Name')}</Label>

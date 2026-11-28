@@ -146,30 +146,19 @@ function SiteSensitivitySheet({
                 aria-busy={form.processing}
                 onSubmit={(event) => {
                     event.preventDefault();
-                    if (!valid) return;
                     form.patch(updateSite.url(siteId), {
                         preserveScroll: true,
                         onSuccess: onClose,
                     });
                 }}
-                footer={
-                    <>
-                        <FormSecondaryAction
-                            disabled={form.processing}
-                            onClick={onClose}
-                        >
-                            {t('Cancel')}
-                        </FormSecondaryAction>
-                        <Button
-                            type="submit"
-                            disabled={
-                                !form.isDirty || form.processing || !valid
-                            }
-                        >
-                            {t(form.processing ? 'Saving…' : 'Save')}
-                        </Button>
-                    </>
-                }
+                actions={{
+                    kind: 'edit',
+                    dirty: form.isDirty,
+                    valid,
+                    busy: form.processing,
+                    pendingLabel: form.processing ? t('Saving…') : undefined,
+                    onCancel: onClose,
+                }}
             >
                 <AlertSensitivityOptions
                     value={form.data}

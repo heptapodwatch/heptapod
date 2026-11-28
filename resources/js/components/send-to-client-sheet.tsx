@@ -3,13 +3,11 @@ import { Send } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { FormSecondaryAction } from '@/components/form-section';
 import InputError from '@/components/input-error';
 import { SectionHeading } from '@/components/section-heading';
 import { SheetForm } from '@/components/sheet-form';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { CheckboxField } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -199,7 +197,6 @@ export function SendToClientSheet({
                 noValidate
                 onSubmit={(event) => {
                     event.preventDefault();
-                    if (form.processing) return;
                     if (
                         form.data.channel_ids.length === 0 &&
                         form.data.one_off.trim() === ''
@@ -252,27 +249,17 @@ export function SendToClientSheet({
                                 );
                         });
                 }}
-                footer={
-                    <>
-                        <FormSecondaryAction
-                            disabled={form.processing}
-                            onClick={() => onOpenChange(false)}
-                        >
-                            {t('Cancel')}
-                        </FormSecondaryAction>
-                        <Button
-                            type="submit"
-                            disabled={form.processing || channels === null}
-                        >
-                            <Send aria-hidden />
-                            {t(
-                                form.processing
-                                    ? 'client_messages.sending'
-                                    : 'client_messages.sheet.submit',
-                            )}
-                        </Button>
-                    </>
-                }
+                actions={{
+                    kind: 'action',
+                    label: t('client_messages.sheet.submit'),
+                    icon: <Send aria-hidden />,
+                    valid: channels !== null,
+                    busy: form.processing,
+                    pendingLabel: form.processing
+                        ? t('client_messages.sending')
+                        : undefined,
+                    onCancel: () => onOpenChange(false),
+                }}
             >
                 <div className="space-y-2">
                     <Label id={`${id}-to`}>

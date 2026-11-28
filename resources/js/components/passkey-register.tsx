@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { usePasskeyRegister } from '@laravel/passkeys/react';
 import { useState } from 'react';
-import { FormSecondaryAction } from '@/components/form-section';
 import InputError from '@/components/input-error';
 import { SheetForm } from '@/components/sheet-form';
 import { Button } from '@/components/ui/button';
@@ -80,27 +79,16 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
                     aria-busy={isLoading}
                     onSubmit={(event) => {
                         event.preventDefault();
-                        if (!name.trim() || isLoading) return;
                         void register(name);
                     }}
-                    footer={
-                        <>
-                            <FormSecondaryAction
-                                disabled={isLoading}
-                                onClick={close}
-                            >
-                                {t('Cancel')}
-                            </FormSecondaryAction>
-                            <Button
-                                type="submit"
-                                disabled={isLoading || !name.trim()}
-                            >
-                                {isLoading
-                                    ? t('Registering…')
-                                    : t('Register passkey')}
-                            </Button>
-                        </>
-                    }
+                    actions={{
+                        kind: 'action',
+                        label: t('Register passkey'),
+                        valid: name.trim() !== '',
+                        busy: isLoading,
+                        pendingLabel: isLoading ? t('Registering…') : undefined,
+                        onCancel: close,
+                    }}
                 >
                     <div className="space-y-2">
                         <Label htmlFor="passkey-name">

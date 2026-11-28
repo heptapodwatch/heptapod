@@ -131,7 +131,7 @@ it('creates a client from a group picker, selects it there, offers it in every p
     expect(
         (screen.getByLabelText('Client name') as HTMLInputElement).value,
     ).toBe('Studio Nord');
-    fireEvent.click(screen.getByRole('button', { name: 'Create client' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add client' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(within(teamPicker).getByText('Studio Nord')).not.toBeNull();
 
@@ -207,7 +207,7 @@ it('resolves a tag conflict with a client created in the conflict picker', async
     fireEvent.click(
         screen.getByRole('option', { name: 'clients.create_inline' }),
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Create client' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add client' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     const resolved = screen.getByRole('combobox', { name: 'Client for shop' });
     expect(resolved.getAttribute('aria-invalid')).toBeNull();

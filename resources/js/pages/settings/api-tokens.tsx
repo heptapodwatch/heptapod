@@ -9,7 +9,6 @@ import {
 } from '@/components/entity-combobox';
 import { EmptyState } from '@/components/empty-state';
 import { ListHeader, ListRow } from '@/components/ui/table';
-import { FormSecondaryAction } from '@/components/form-section';
 import { SheetForm } from '@/components/sheet-form';
 import { Sheet } from '@/components/ui/sheet';
 import { PageHeader } from '@/components/page-header';
@@ -125,7 +124,6 @@ function CreateToken({
         : null;
     const [failure, setFailure] = useState(false);
     const [expiryInvalid, setExpiryInvalid] = useState(false);
-    const [reachError, setReachError] = useState<string | null>(null);
     const mounted = useRef(true);
     const focus = useRef<string | undefined>(undefined);
     useEffect(() => {
@@ -140,37 +138,21 @@ function CreateToken({
             document.getElementById(focus.current)?.focus();
             focus.current = undefined;
         }
-    }, [form.processing, form.errors, reachError, expiryInvalid]);
+    }, [form.processing, form.errors]);
     const abilitiesError =
         form.errors.abilities ??
         Object.entries(form.errors).find(([key]) =>
             key.startsWith('abilities.'),
         )?.[1];
-    const submit = async (event: React.SubmitEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        // Client access is a deliberate choice, never a silent default.
-        if (
-            form.data.reach === '' ||
-            (form.data.reach === 'client' && !form.data.client_id)
-        ) {
-            setReachError(
-                form.data.reach === ''
-                    ? 'Choose which clients the token can reach.'
-                    : 'Choose a client.',
-            );
-            focus.current =
-                form.data.reach === '' ? 'token-reach' : 'token-client';
-            return;
-        }
-        // Unparsable or missing custom expiry fails loud; never send a stale or empty value.
-        if (
-            form.data.expiry === 'custom' &&
-            (expiryInvalid || !customExpiresAt)
-        ) {
-            setExpiryInvalid(true);
-            focus.current = 'token-expiry';
-            return;
-        }
+    const blockedReason =
+        form.data.reach === ''
+            ? t('Choose which clients the token can reach.')
+            : form.data.reach === 'client' && !form.data.client_id
+              ? t('Choose a client.')
+              : form.data.expiry === 'custom' && !customExpiresAt
+                ? t('Choose an expiration date.')
+                : undefined;
+    const submit = async () => {
         // The server counts the 30 days from its own clock; the browser clock never sets a lifetime.
         form.transform((draft) => ({
             name: draft.name,
@@ -221,7 +203,7 @@ function CreateToken({
             }}
         >
             <SheetForm
-                title={t('Create token')}
+                title={t('Add token')}
                 description={t('A token acts with your current rights.')}
                 detail={t(
                     'Its client constraint never expands after access loss.',
@@ -235,22 +217,18 @@ function CreateToken({
                         if (form.processing) event.preventDefault();
                     },
                 }}
-                footer={
-                    <>
-                        <FormSecondaryAction
-                            disabled={form.processing}
-                            onClick={onClose}
-                        >
-                            {t('Cancel')}
-                        </FormSecondaryAction>
-                        <Button
-                            type="submit"
-                            disabled={form.processing || failure}
-                        >
-                            {t('Create token')}
-                        </Button>
-                    </>
-                }
+                actions={{
+                    kind: 'create',
+                    valid:
+                        !failure &&
+                        form.data.name.trim() !== '' &&
+                        form.data.name.length <= 255 &&
+                        form.data.abilities.length > 0 &&
+                        (form.data.expiry !== 'custom' || !expiryInvalid),
+                    blockedReason,
+                    busy: form.processing,
+                    onCancel: onClose,
+                }}
             >
                 <InputError
                     message={
@@ -344,14 +322,9 @@ function CreateToken({
                         orientation="vertical"
                         id="token-reach"
                         aria-labelledby="token-reach-label"
-                        {...fieldErrorProps(
-                            'token-reach',
-                            form.data.reach === '' ? reachError : null,
-                        )}
                         value={form.data.reach}
                         disabled={form.processing}
                         onValueChange={(value) => {
-                            setReachError(null);
                             const reach = value as Draft['reach'];
                             form.setData({
                                 ...form.data,
@@ -375,10 +348,6 @@ function CreateToken({
                             )}
                         </RadioGroupItem>
                     </RadioGroup>
-                    <InputError
-                        field="token-reach"
-                        message={form.data.reach === '' ? reachError : null}
-                    />
                     {form.data.reach === 'client' && (
                         <>
                             <Label htmlFor="token-client">{t('Client')}</Label>
@@ -387,18 +356,15 @@ function CreateToken({
                                 options={clientComboboxOptions(page.clients)}
                                 value={form.data.client_id}
                                 disabled={form.processing}
-                                invalid={
-                                    !!(form.errors.client_id ?? reachError)
-                                }
+                                invalid={!!form.errors.client_id}
                                 describedBy="token-client-error"
-                                onValueChange={(selected) => {
-                                    setReachError(null);
-                                    form.setData('client_id', selected);
-                                }}
+                                onValueChange={(selected) =>
+                                    form.setData('client_id', selected)
+                                }
                             />
                             <InputError
                                 id="token-client-error"
-                                message={form.errors.client_id ?? reachError}
+                                message={form.errors.client_id}
                             />
                         </>
                     )}
@@ -664,7 +630,7 @@ export default function ApiTokens({ tokensPage }: { tokensPage: TokenPage }) {
                             }}
                         >
                             <Plus className="size-4" />
-                            {t('Create token')}
+                            {t('Add token')}
                         </Button>
                     </>
                 }

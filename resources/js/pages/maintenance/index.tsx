@@ -21,7 +21,6 @@ import {
     type PinnedTimezone,
 } from '@/components/timezone-combobox';
 import { ListHeader, ListRow } from '@/components/ui/table';
-import { FormSecondaryAction } from '@/components/form-section';
 import { SheetForm } from '@/components/sheet-form';
 import { PageHeader } from '@/components/page-header';
 import { PageContainer } from '@/components/page-container';
@@ -266,6 +265,7 @@ export default function MaintenanceIndex({
         });
     }, []);
     const [editing, setEditing] = useState<Window | null>(null);
+    const [initialDraft, setInitialDraft] = useState<Draft | null>(null);
     const [timezonePicked, setTimezonePicked] = useState(false);
     const [timesEdited, setTimesEdited] = useState(false);
     const [draft, setDraft] = useState<Draft>(() => {
@@ -372,36 +372,33 @@ export default function MaintenanceIndex({
         // Existing windows keep their stored zone even if the target changes; new windows follow the target until picked.
         setTimezonePicked(window !== null);
         setTimesEdited(window !== null);
-        setDraft(
-            window
-                ? {
-                      ...freshDraft(formTimezone),
-                      target_type: window.targetType as Draft['target_type'],
-                      target_id: String(window.targetId),
-                      starts_local: window.seriesId
-                          ? `${window.anchorDate ?? zonedWallTime(window.startsAt, formTimezone).slice(0, 10)}T${window.startTime}`
-                          : zonedWallTime(window.startsAt, window.timezone),
-                      ends_local: window.seriesId
-                          ? window.endTime!
-                          : zonedWallTime(window.endsAt, window.timezone),
-                      timezone: formTimezone,
-                      recurrence_type: (window.recurrenceType ??
-                          'once') as Draft['recurrence_type'],
-                      interval: window.interval,
-                      days_of_week: window.daysOfWeek ?? [
-                          window.dayOfWeek ?? 0,
-                      ],
-                      day_of_month: window.dayOfMonth ?? 1,
-                      nth_weekday:
-                          window.nthWeekday ?? (window.dayOfMonth ? 0 : 2),
-                      day_of_week: window.dayOfWeek ?? 0,
-                      name: window.name ?? '',
-                      reason: window.reason ?? '',
-                      mute_alerts: window.muteAlerts,
-                      catch_up_at_end: window.catchUpAtEnd,
-                  }
-                : freshDraft(viewerTimezone),
-        );
+        const initial: Draft = window
+            ? {
+                  ...freshDraft(formTimezone),
+                  target_type: window.targetType as Draft['target_type'],
+                  target_id: String(window.targetId),
+                  starts_local: window.seriesId
+                      ? `${window.anchorDate ?? zonedWallTime(window.startsAt, formTimezone).slice(0, 10)}T${window.startTime}`
+                      : zonedWallTime(window.startsAt, window.timezone),
+                  ends_local: window.seriesId
+                      ? window.endTime!
+                      : zonedWallTime(window.endsAt, window.timezone),
+                  timezone: formTimezone,
+                  recurrence_type: (window.recurrenceType ??
+                      'once') as Draft['recurrence_type'],
+                  interval: window.interval,
+                  days_of_week: window.daysOfWeek ?? [window.dayOfWeek ?? 0],
+                  day_of_month: window.dayOfMonth ?? 1,
+                  nth_weekday: window.nthWeekday ?? (window.dayOfMonth ? 0 : 2),
+                  day_of_week: window.dayOfWeek ?? 0,
+                  name: window.name ?? '',
+                  reason: window.reason ?? '',
+                  mute_alerts: window.muteAlerts,
+                  catch_up_at_end: window.catchUpAtEnd,
+              }
+            : freshDraft(viewerTimezone);
+        setDraft(initial);
+        setInitialDraft(initial);
         setErrors({});
         setStartsInvalid(false);
         setEndsInvalid(false);
@@ -449,10 +446,23 @@ export default function MaintenanceIndex({
             },
         },
     };
-    const submit = (event: React.SubmitEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        // Unparsable typed input fails loud; never send the stale value.
-        if (startsInvalid || endsInvalid) return;
+    const valid =
+        !!draft.target_id &&
+        !!draft.starts_local &&
+        !!draft.ends_local &&
+        !startsInvalid &&
+        !endsInvalid &&
+        draft.name.length <= 255 &&
+        draft.reason.length <= 255 &&
+        (draft.recurrence_type === 'once'
+            ? draft.ends_local > draft.starts_local
+            : typeof draft.interval === 'number' &&
+              Number.isInteger(draft.interval) &&
+              draft.interval >= 1 &&
+              draft.interval <= 52 &&
+              (draft.recurrence_type !== 'weekly' ||
+                  draft.days_of_week.length > 0));
+    const submit = () => {
         const base = {
             target_type: draft.target_type,
             target_id: Number(draft.target_id),
@@ -872,34 +882,25 @@ export default function MaintenanceIndex({
                 <SheetForm
                     title={t(
                         editing
-                            ? 'Edit maintenance window'
-                            : 'New maintenance window',
+                            ? 'Maintenance window settings'
+                            : 'Schedule maintenance',
                     )}
                     description={t('Checks keep running during this window.')}
-                    id="maintenance-form"
                     onSubmit={submit}
-                    footer={
-                        <>
-                            <FormSecondaryAction
-                                onClick={() => setSheetOpen(false)}
-                            >
-                                {t('Cancel')}
-                            </FormSecondaryAction>
-                            <Button
-                                type="submit"
-                                form="maintenance-form"
-                                disabled={processing || !draft.target_id}
-                            >
-                                {t(
-                                    processing
-                                        ? 'Saving…'
-                                        : editing
-                                          ? 'Save'
-                                          : 'Schedule maintenance',
-                                )}
-                            </Button>
-                        </>
-                    }
+                    actions={{
+                        ...(editing
+                            ? {
+                                  kind: 'edit',
+                                  dirty:
+                                      JSON.stringify(draft) !==
+                                      JSON.stringify(initialDraft),
+                              }
+                            : { kind: 'create' }),
+                        onCancel: () => setSheetOpen(false),
+                        busy: processing,
+                        valid,
+                        pendingLabel: processing ? t('Saving…') : undefined,
+                    }}
                 >
                     <div className="space-y-1">
                         <Label id="maintenance-target-type-label">

@@ -35,7 +35,6 @@ use Heptapod\Http\Controllers\Notifications\NotificationChannelEnabledController
 use Heptapod\Http\Controllers\Notifications\NotificationChannelsController;
 use Heptapod\Http\Controllers\Notifications\NotificationChannelTestController;
 use Heptapod\Http\Controllers\Notifications\NotificationExplanationController;
-use Heptapod\Http\Controllers\Notifications\NotificationPreferencesController;
 use Heptapod\Http\Controllers\Notifications\NotificationScheduleController;
 use Heptapod\Http\Controllers\Notifications\NotificationSiteMutesController;
 use Heptapod\Http\Controllers\RefreshSiteIconController;
@@ -157,7 +156,6 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::patch('notification-channels/{channel}/enabled', NotificationChannelEnabledController::class)->whereNumber('channel')->name('notification-channels.enabled');
     Route::post('notification-channels/{channel}/test', NotificationChannelTestController::class)->whereNumber('channel')
         ->middleware('throttle:notification-test')->name('notification-channels.test');
-    Route::put('notification-channels/{channel}/preferences', NotificationPreferencesController::class)->whereNumber('channel')->name('notification-channels.preferences');
     Route::put('notification-channels/{channel}/site-mutes/{site}', [NotificationSiteMutesController::class, 'update'])->whereNumber(['channel', 'site'])->name('notification-channels.site-mutes.store');
     Route::delete('notification-channels/{channel}/site-mutes/{site}', [NotificationSiteMutesController::class, 'destroy'])->whereNumber(['channel', 'site'])->name('notification-channels.site-mutes.destroy');
     Route::patch('notification-schedules/{kind}/{id?}', NotificationScheduleController::class)->where('kind', 'team|user|client')->whereNumber('id')->name('notification-schedules.update');

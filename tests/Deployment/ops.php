@@ -183,6 +183,13 @@ verify(str_contains(json_decode((string) $emailPreview->getBody(), true, flags: 
 $emailXsrf = urldecode(substr($cookies['XSRF-TOKEN'], strlen('XSRF-TOKEN=')));
 $emailSave = $request('POST', '/settings/email', ['headers' => ['X-XSRF-TOKEN' => $emailXsrf], 'form_params' => ['_method' => 'PATCH', 'mail_design' => 'branded']]);
 verify($emailSave->getStatusCode() === 302 && $emailSave->getHeader('Location') === ['https://monitor.example.com:8443/settings/email'], 'Email settings save must redirect to the canonical HTTPS settings origin: '.$emailSave->getStatusCode().' '.$emailSave->getHeaderLine('Location'));
+verify(route('notification-channels.update', ['channel' => 1]) === 'https://monitor.example.com:8443/notification-channels/1', 'Channel updates must use the canonical HTTPS origin');
+$removedPreferences = $request('PUT', '/notification-channels/1/preferences', [
+    'headers' => ['Accept' => 'application/json', 'X-XSRF-TOKEN' => urldecode(substr($cookies['XSRF-TOKEN'], strlen('XSRF-TOKEN=')))],
+    'json' => ['preferences' => ['warning' => 'off']],
+]);
+verify($removedPreferences->getStatusCode() === 404 && $removedPreferences->getHeader('Location') === []
+    && $removedPreferences->getHeader('Content-Type') === ['application/json'], 'The retired channel preferences route must answer a raw JSON 404 without redirect');
 $signedInMissing = $request('GET', '/missing-ops-page');
 verify($signedInMissing->getStatusCode() === 404 && $signedInMissing->getHeader('Location') === [], 'Signed-in missing page must retain raw 404 without redirect');
 $signedInMissingBody = (string) $signedInMissing->getBody();
