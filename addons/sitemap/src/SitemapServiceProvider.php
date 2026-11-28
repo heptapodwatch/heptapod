@@ -19,6 +19,6 @@ final class SitemapServiceProvider extends ServiceProvider
     {
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         $this->loadJsonTranslationsFrom(__DIR__.'/../lang');
-        $registry->register(SitemapCheck::class, new OhDearImportMapping(['path', 'speed', 'frequency_value', 'frequency_unit', 'failed_notification_threshold']));
+        $registry->register(SitemapCheck::class, new OhDearImportMapping(['path', 'speed']));
     }
 }

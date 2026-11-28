@@ -411,7 +411,7 @@ final readonly class ImportOhDearMonitor
                 $fields = array_keys($exception->errors());
             }
             /** @var array<string, mixed> $config */
-            $config = Arr::except($mapped, ['frequency_value', 'frequency_unit', 'failed_notification_threshold']);
+            $config = Arr::except($mapped, OhDearImportMapping::ScheduleSettings);
             try {
                 $definition->configSchema->validateConfig($config);
             } catch (ValidationException $exception) {

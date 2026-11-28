@@ -27,6 +27,6 @@ final class UptimeServiceProvider extends ServiceProvider
     public function boot(CheckRegistry $registry): void
     {
         $this->loadJsonTranslationsFrom(__DIR__.'/../lang');
-        $registry->register(UptimeCheck::class, new OhDearImportMapping(['http_verb', 'look_for_string', 'absent_string', 'expected_response_headers', 'response_body_assertions', 'payload', 'raw_payload', 'http_client_headers', 'timeout', 'valid_status_codes', 'max_redirect_count', 'expected_final_redirect_url', 'frequency_value', 'frequency_unit', 'failed_notification_threshold']));
+        $registry->register(UptimeCheck::class, new OhDearImportMapping(['http_verb', 'look_for_string', 'absent_string', 'expected_response_headers', 'response_body_assertions', 'payload', 'raw_payload', 'http_client_headers', 'timeout', 'valid_status_codes', 'max_redirect_count', 'expected_final_redirect_url']));
     }
 }

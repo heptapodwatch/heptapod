@@ -27,6 +27,6 @@ final class DomainServiceProvider extends ServiceProvider
     {
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         $this->loadJsonTranslationsFrom(__DIR__.'/../lang');
-        $registry->register(DomainCheck::class, new OhDearImportMapping(['expires_soon_threshold_in_days', 'frequency_value', 'frequency_unit', 'failed_notification_threshold']));
+        $registry->register(DomainCheck::class, new OhDearImportMapping(['expires_soon_threshold_in_days']));
     }
 }

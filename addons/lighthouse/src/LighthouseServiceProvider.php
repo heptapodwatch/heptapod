@@ -29,7 +29,6 @@ final class LighthouseServiceProvider extends ServiceProvider
         $this->loadJsonTranslationsFrom(__DIR__.'/../lang');
         $registry->register(LighthouseCheck::class, new OhDearImportMapping([
             'continent', 'device_emulation', 'cpu_slowdown_modifier', 'notification_settings', 'http_client_headers',
-            'frequency_value', 'frequency_unit', 'failed_notification_threshold',
         ]));
     }
 }
