@@ -29,10 +29,17 @@ return new class extends Migration
 
     public function up(): void
     {
-        foreach (self::Keys as $table => [$column, $referenced]) {
-            // A rerun after a failed VALIDATE finds the key already added.
-            DB::statement("ALTER TABLE {$table} DROP CONSTRAINT IF EXISTS {$table}_{$column}_foreign");
-            DB::statement("ALTER TABLE {$table} ADD CONSTRAINT {$table}_{$column}_foreign FOREIGN KEY ({$column}) REFERENCES {$referenced} (id) ON DELETE CASCADE NOT VALID");
+        // Adding a key locks both tables against writes: fail fast instead of queueing every write behind a long transaction.
+        DB::statement("SET lock_timeout = '5s'");
+        try {
+            foreach (self::Keys as $table => [$column, $referenced]) {
+                // A rerun after a failed cleanup or VALIDATE keeps the key it already added and resumes from there.
+                if (! DB::table('pg_constraint')->where('conname', "{$table}_{$column}_foreign")->whereRaw('conrelid = ?::regclass', [$table])->exists()) {
+                    DB::statement("ALTER TABLE {$table} ADD CONSTRAINT {$table}_{$column}_foreign FOREIGN KEY ({$column}) REFERENCES {$referenced} (id) ON DELETE CASCADE NOT VALID");
+                }
+            }
+        } finally {
+            DB::statement('RESET lock_timeout');
         }
         $orphanedChecks = DB::table('crawl_snapshots')->distinct()->orderBy('check_id')
             ->whereNotExists(static fn (Builder $checks): Builder => $checks->selectRaw('1')->from('checks')->whereColumn('checks.id', 'crawl_snapshots.check_id'))

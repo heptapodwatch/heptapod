@@ -2530,6 +2530,11 @@ it('removes the crawl rows earlier deletions left behind and then keeps every cr
     expect(DB::table('crawl_snapshots')->pluck('check_id')->all())->toBe([$kept->id])
         ->and([DB::table('crawl_findings')->count(), DB::table('mixed_content_findings')->count()])->toBe($keptFindings)
         ->and(DB::table('crawl_collections')->pluck('site_id')->all())->toBe([$kept->site_id]);
+    // A rerun (as after a failed VALIDATE) keeps the keys it finds instead of dropping and re-adding them.
+    $keys = DB::table('pg_constraint')->where('conname', 'like', 'crawl_%_id_foreign')->orderBy('conname')->pluck('oid', 'conname')->all();
+    DB::table('migrations')->where('migration', basename($migration, '.php'))->delete();
+    $this->artisan('migrate', ['--path' => $migration, '--force' => true])->assertSuccessful();
+    expect(DB::table('pg_constraint')->where('conname', 'like', 'crawl_%_id_foreign')->orderBy('conname')->pluck('oid', 'conname')->all())->toBe($keys);
     DB::table('sites')->where('id', $kept->site_id)->delete();
     expect(DB::table('crawl_snapshots')->count())->toBe(0)
         ->and(DB::table('crawl_findings')->count())->toBe(0)
