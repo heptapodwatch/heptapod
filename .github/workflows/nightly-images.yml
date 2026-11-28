@@ -16,6 +16,8 @@ concurrency:
 
 jobs:
   images:
+    # Dispatch callers may pick any ref; only main is scanned (scan needs this job, so it skips too).
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}

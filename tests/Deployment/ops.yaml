@@ -1,12 +1,13 @@
 # Disposable acceptance stack. Only the nginx port is published; no browser profile.
-# The image HEALTHCHECK command, spelled out: Podman rejects health timings without a test.
-# Podman probes at container start; the start period keeps that first probe from failing a booting role.
+# The image HEALTHCHECK command, spelled out: Podman rejects health timings without a test (ops.sh checks the copy).
+# Podman also probes at container start; a start period of one interval ignores only that probe, so the first
+# counted probe is at 2s on both engines, as with Docker's former start_period 0s.
 x-image-health: &image-health
     test: ['CMD', 'sh', '/app/docker/prod/healthcheck.sh']
     interval: 2s
     timeout: 5s
     retries: 1
-    start_period: 30s
+    start_period: 2s
 services:
     app:
         image: ${APP_IMAGE:?Set APP_IMAGE}

@@ -36,6 +36,10 @@ upgrade_root=$(mktemp -d)
 # Resolve proof imports outside the checkout so local node_modules cannot hide undeclared dependencies.
 cp tests/Deployment/live-socket.mjs "$upgrade_root/live-socket.mjs"
 dc() { docker compose --env-file "$envfile" "$@"; }
+# ops.yaml spells out the image HEALTHCHECK (Podman rejects timings without a test); fail when the copy drifts.
+image_health=$(sed -n 's/^HEALTHCHECK .* CMD \(\[.*\]\)$/\1/p' docker/prod/Dockerfile | jq -ce '["CMD"] + .')
+dc config --format json | jq -e --argjson test "$image_health" '[.services.horizon, .services.dispatcher, .services.scheduler] | all(.healthcheck.test == $test)' >/dev/null ||
+    { echo 'ops.yaml worker healthcheck differs from the docker/prod/Dockerfile HEALTHCHECK' >&2; exit 1; }
 assert_worker_cli_cache() {
     dc exec -T "$1" sh -eu -c '
         found=0
