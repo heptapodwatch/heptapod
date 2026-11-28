@@ -36,6 +36,10 @@ upgrade_root=$(mktemp -d)
 # Resolve proof imports outside the checkout so local node_modules cannot hide undeclared dependencies.
 cp tests/Deployment/live-socket.mjs "$upgrade_root/live-socket.mjs"
 dc() { docker compose --env-file "$envfile" "$@"; }
+# ops.yaml spells out the image HEALTHCHECK (Podman rejects timings without a test); fail when the copy drifts.
+image_health=$(sed -n 's/^HEALTHCHECK .* CMD \(\[.*\]\)$/\1/p' docker/prod/Dockerfile | jq -ce '["CMD"] + .')
+dc config --format json | jq -e --argjson test "$image_health" '[.services.horizon, .services.dispatcher, .services.scheduler] | all(.healthcheck.test == $test)' >/dev/null ||
+    { echo 'ops.yaml worker healthcheck differs from the docker/prod/Dockerfile HEALTHCHECK' >&2; exit 1; }
 assert_worker_cli_cache() {
     dc exec -T "$1" sh -eu -c '
         found=0
@@ -255,10 +259,11 @@ docker stop -t 375 "$worker"
 echo 'PASS: Compose init plus image tini forwards graceful stop without fatal marker'
 standalone="$COMPOSE_PROJECT_NAME-standalone"
 run_standalone() {
-    docker run -d --name "$standalone" --network "${COMPOSE_PROJECT_NAME}_backend" --read-only --tmpfs /tmp:uid=33,gid=33,mode=1777 --memory=2200m --memory-swap=2200m --cap-drop=ALL --security-opt no-new-privileges --env-file "$upgrade_root/worker.env" "$@"
+    # json-file is the Docker default; Podman's journald default can drop the burst of lines the FATAL proofs read back.
+    docker run -d --name "$standalone" --log-driver json-file --network "${COMPOSE_PROJECT_NAME}_backend" --read-only --tmpfs /tmp:mode=1777 --memory=2200m --memory-swap=2200m --cap-drop=ALL --security-opt no-new-privileges --env-file "$upgrade_root/worker.env" "$@"
 }
 # The consolidated role budgets its own supervisord, dispatcher and scheduler; 1990m fits Horizon alone, not this role.
-docker run --name "$standalone-undersized" --network "${COMPOSE_PROJECT_NAME}_backend" --read-only --tmpfs /tmp:uid=33,gid=33,mode=1777 --memory=1990m --memory-swap=1990m --cap-drop=ALL --security-opt no-new-privileges --env-file "$upgrade_root/worker.env" "$APP_IMAGE" > "$upgrade_root/undersized-worker.log" 2>&1 || true
+docker run --name "$standalone-undersized" --network "${COMPOSE_PROJECT_NAME}_backend" --read-only --tmpfs /tmp:mode=1777 --memory=1990m --memory-swap=1990m --cap-drop=ALL --security-opt no-new-privileges --env-file "$upgrade_root/worker.env" "$APP_IMAGE" > "$upgrade_root/undersized-worker.log" 2>&1 || true
 cat "$upgrade_root/undersized-worker.log"
 [ "$(docker inspect --format '{{.State.ExitCode}}' "$standalone-undersized")" = 1 ]
 grep -q 'HORIZON_MEMORY_LIMIT is 1990m; HEPTAPOD_CRAWL_CONCURRENCY=1 with HEPTAPOD_CRAWL_MEMORY_LIMIT_MB=768 needs at least 2200m' "$upgrade_root/undersized-worker.log"
@@ -285,7 +290,7 @@ while true; do sleep 1; done
 SH
 sed -e 's|command=php /app/artisan horizon|command=sleep 3600|' -e 's|command=php /app/artisan heptapod:dispatch|command=sh /tmp/delayed-drain.sh|' -e 's|command=php /app/artisan schedule:work|command=sh /tmp/delayed-drain.sh|' "$upgrade_root/supervisord.conf" > "$upgrade_root/delayed.conf"
 sed '/^\[group:workers\]/,$d' "$upgrade_root/delayed.conf" > "$upgrade_root/sequential.conf"
-run_standalone -v "$upgrade_root/sequential.conf:/app/docker/prod/supervisord.conf:ro" -v "$upgrade_root/delayed-drain.sh:/tmp/delayed-drain.sh:ro" "$APP_IMAGE"
+run_standalone -v "$upgrade_root/sequential.conf:/app/docker/prod/supervisord.conf:ro,z" -v "$upgrade_root/delayed-drain.sh:/tmp/delayed-drain.sh:ro,z" "$APP_IMAGE"
 worker=$standalone
 for attempt in $(seq 1 90); do
     if docker exec "$worker" supervisorctl -c /app/docker/prod/supervisord.conf status horizon dispatcher scheduler > "$upgrade_root/sequential.status" 2>&1 && awk '$2 != "RUNNING" {failed=1} END {exit(failed || NR != 3)}' "$upgrade_root/sequential.status"; then break; fi
@@ -299,7 +304,7 @@ elapsed=$(($(date +%s) - started))
 [ "$elapsed" -ge 20 ]
 docker rm "$worker"
 printf 'RED reproduced: separate supervisor groups drain sequentially in %s seconds\n' "$elapsed"
-run_standalone -v "$upgrade_root/delayed.conf:/app/docker/prod/supervisord.conf:ro" -v "$upgrade_root/delayed-drain.sh:/tmp/delayed-drain.sh:ro" "$APP_IMAGE"
+run_standalone -v "$upgrade_root/delayed.conf:/app/docker/prod/supervisord.conf:ro,z" -v "$upgrade_root/delayed-drain.sh:/tmp/delayed-drain.sh:ro,z" "$APP_IMAGE"
 worker=$standalone
 wait_worker_health
 started=$(date +%s)
@@ -313,14 +318,14 @@ printf 'PASS: two 10-second drains stop concurrently in %s seconds, not 20\n' "$
 sed "s/|| true' TERM INT/|| true; sleep 3' TERM INT/" "$upgrade_root/wrapper.sh" > "$upgrade_root/race-wrapper.sh"
 sed 's|^command=php /app/artisan .*|command=sleep 3600|' "$upgrade_root/supervisord.conf" > "$upgrade_root/race.conf"
 sed 's#\[ "$interrupted" = 1 \] || break#if ! kill -0 "$supervisor_pid" 2>/dev/null; then break; fi#' "$upgrade_root/race-wrapper.sh" > "$upgrade_root/legacy-race-wrapper.sh"
-run_standalone -v "$upgrade_root/race.conf:/app/docker/prod/supervisord.conf:ro" -v "$upgrade_root/legacy-race-wrapper.sh:/app/docker/prod/all-in-one-worker.sh:ro" "$APP_IMAGE"
+run_standalone -v "$upgrade_root/race.conf:/app/docker/prod/supervisord.conf:ro,z" -v "$upgrade_root/legacy-race-wrapper.sh:/app/docker/prod/all-in-one-worker.sh:ro,z" "$APP_IMAGE"
 worker=$standalone
 wait_worker_health
 docker stop -t 375 "$worker"
 [ "$(docker inspect --format '{{.State.ExitCode}}' "$worker")" = 143 ]
 docker rm "$worker"
 echo 'RED reproduced: liveness-based interrupted wait loses supervisor exit0 and returns143'
-run_standalone -v "$upgrade_root/race.conf:/app/docker/prod/supervisord.conf:ro" -v "$upgrade_root/race-wrapper.sh:/app/docker/prod/all-in-one-worker.sh:ro" "$APP_IMAGE"
+run_standalone -v "$upgrade_root/race.conf:/app/docker/prod/supervisord.conf:ro,z" -v "$upgrade_root/race-wrapper.sh:/app/docker/prod/all-in-one-worker.sh:ro,z" "$APP_IMAGE"
 worker=$standalone
 wait_worker_health
 docker stop -t 375 "$worker"
@@ -337,7 +342,7 @@ printf 'RESULT 2\nOK'
 kill -KILL "$(cat /tmp/heptapod/supervisord.pid)"
 SH
 dc stop redis
-run_standalone --entrypoint sh -e HEPTAPOD_ROLE=web -v "$upgrade_root/legacy-listener.sh:/app/docker/prod/fatal-exit.sh:ro" "$APP_IMAGE" /app/docker/prod/entrypoint.sh /usr/bin/supervisord -c /app/docker/prod/supervisord.conf
+run_standalone --entrypoint sh -e HEPTAPOD_ROLE=web -v "$upgrade_root/legacy-listener.sh:/app/docker/prod/fatal-exit.sh:ro,z" "$APP_IMAGE" /app/docker/prod/entrypoint.sh /usr/bin/supervisord -c /app/docker/prod/supervisord.conf
 for attempt in $(seq 1 90); do
     docker logs "$standalone" > "$upgrade_root/legacy.log" 2>&1
     if grep -q 'entered FATAL state' "$upgrade_root/legacy.log"; then break; fi

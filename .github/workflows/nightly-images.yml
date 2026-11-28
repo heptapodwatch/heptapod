@@ -1,0 +1,56 @@
+name: Nightly image scan
+
+# New CVEs in image packages must surface even when no change selects an image build.
+# Builds and scans every production image with today's apt snapshot; never pushes or retags.
+on:
+  schedule:
+    - cron: '41 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-images-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  images:
+    # Dispatch callers may pick any ref; only main is scanned (scan needs this job, so it skips too).
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Select every production image for amd64
+        id: matrix
+        shell: bash
+        run: echo "matrix=$(HEPTAPOD_IMAGE_ARCHES=amd64 bash .github/actions/image-promotion/architectures.sh | jq -c '.image_matrix')" >> "$GITHUB_OUTPUT"
+
+  scan:
+    name: scan (${{ matrix.image }}, ${{ matrix.architecture }})
+    needs: images
+    env:
+      HEPTAPOD_IMAGE_ARCHES: amd64
+      # BuildKit records are not vulnerability or digest reports.
+      DOCKER_BUILD_RECORD_UPLOAD: 'false'
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.images.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Build and scan native production image
+        uses: ./.github/actions/build-scan-image
+        with:
+          image: ${{ matrix.image }}
+          architecture: ${{ matrix.architecture }}
+          dockerfile: ${{ matrix.dockerfile }}
