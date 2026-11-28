@@ -6,7 +6,8 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Every writer sets target_id since 2026_10_04_224400 backfilled it from site_id, so readers no longer fall back to site_id.
+ * Every writer sets target_id since 2026_10_04_224400 backfilled it from site_id, so readers no longer fall back to site_id. Site rows
+ * still without one (older demo seeders) get their site_id first, the value the old fallback read.
  * Each statement commits on its own so no full-table scan runs under ACCESS EXCLUSIVE: a CHECK is added NOT VALID and
  * validated separately, and SET NOT NULL reuses the validated target_id_present check instead of scanning. Every step
  * drops before it adds, so a rerun after a failure is safe.
@@ -20,6 +21,8 @@ return new class extends Migration
     public function up(): void
     {
         foreach (self::Tables as $table) {
+            // Older demo seeders wrote site windows without target_id; readers then fell back to site_id, so give them that value.
+            DB::table($table)->whereNull('target_id')->where('target_type', 'site')->whereNotNull('site_id')->update(['target_id' => DB::raw('site_id')]);
             $missing = DB::table($table)->whereNull('target_id')->count();
             if ($missing > 0) {
                 throw new LogicException("{$table} has {$missing} rows without target_id; set target_id before migrating.");
