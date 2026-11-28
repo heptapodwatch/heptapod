@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { ListFooter } from '@/components/list-footer';
 import {
     CrawlFindings,
+    type BrokenLinkFindingActions,
     FindingsTable,
     NotVerifiableFindings,
 } from '@/components/crawl-findings';
@@ -147,6 +148,7 @@ export function CheckEvidence({
     origin,
     exportContext,
     headerTime,
+    findingActions,
 }: {
     type: Heptapod.Contracts.CheckKey;
     detail: Heptapod.Contracts.CheckDetailData | null;
@@ -161,6 +163,7 @@ export function CheckEvidence({
     exportContext?: FindingsExportContext;
     /** The time the page header already shows; findings do not repeat it. */
     headerTime?: string | null;
+    findingActions?: BrokenLinkFindingActions;
 }) {
     const { t } = useTranslation();
     const format = useFormat();
@@ -189,6 +192,7 @@ export function CheckEvidence({
                 origin={origin}
                 exportContext={exportContext}
                 headerTime={headerTime}
+                findingActions={findingActions}
             />
         );
     }

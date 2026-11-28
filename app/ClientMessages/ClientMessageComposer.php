@@ -11,6 +11,7 @@ use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\CheckRunPresentationData;
 use Heptapod\Contracts\Findings\FindingStatus;
+use Heptapod\Contracts\Findings\FindingsView;
 use Heptapod\Contracts\FindingsExportProvider;
 use Heptapod\Contracts\Mail\Cell;
 use Heptapod\Contracts\Mail\FactsBlock;
@@ -78,7 +79,7 @@ final class ClientMessageComposer
         $locale = $client->locale;
 
         return $this->withLocale($locale, function () use ($provider, $check, $run, $redaction, $client, $site, $sender, $note, $attach, $design, $each, $locale): array {
-            $rows = $provider->exportFindings($check->type, $check->id, $run);
+            $rows = $provider->exportFindings($check->type, $check->id, $run, FindingsView::Current);
             if ($rows === null) {
                 throw ValidationException::withMessages(['check_id' => __('client_messages.no_findings')]);
             }

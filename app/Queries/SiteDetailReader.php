@@ -13,6 +13,7 @@ use Heptapod\Checks\FreshnessSuppressionState;
 use Heptapod\Checks\History\RollupReader;
 use Heptapod\Checks\NoResultFreshness;
 use Heptapod\Checks\PerformanceAvailability;
+use Heptapod\Contracts\BrokenLinkSettings;
 use Heptapod\Contracts\CheckConfigAttention;
 use Heptapod\Contracts\CheckDetailData;
 use Heptapod\Contracts\CheckDetailProvider;
@@ -24,6 +25,7 @@ use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\CheckRunPresentationData;
 use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\DailyMetricHistoryProvider;
+use Heptapod\Contracts\Findings\FindingsView;
 use Heptapod\Contracts\LatestRunEvidence;
 use Heptapod\Contracts\Mail\MailDesign;
 use Heptapod\Contracts\RunReference;
@@ -317,7 +319,7 @@ final readonly class SiteDetailReader
         return ['hours24' => $hours24, 'days7' => $ranges['days7'], 'days30' => $site->uptime, 'days90' => $ranges['days90']];
     }
 
-    public function checkPage(User $user, int $siteId, int $checkId, ResponseTimeRange $responseRange = ResponseTimeRange::Hours24, DailyMetricRange $metricRange = DailyMetricRange::Days30): CheckTabPageData
+    public function checkPage(User $user, int $siteId, int $checkId, ResponseTimeRange $responseRange = ResponseTimeRange::Hours24, DailyMetricRange $metricRange = DailyMetricRange::Days30, FindingsView $findingsView = FindingsView::Current): CheckTabPageData
     {
         $storedSite = $this->storedSite($user, $siteId);
         $site = $this->sites->rows(collect([$storedSite]), includePresentations: true)[0];
@@ -385,7 +387,7 @@ final readonly class SiteDetailReader
             phase_series: Lazy::closure(fn (): array => $check->type === CheckKey::Uptime ? $this->checkPhases($getMetrics()) : []),
             response_p95_hourly: Lazy::closure(static fn (): ?MetricSeriesData => $getHourly()['p95'] ?? null),
             client: Lazy::closure(fn (): ClientData => $this->client($user, $site)),
-            history: Lazy::closure(fn (): ?CheckHistoryData => $this->checkHistory($user, $check, charts: true)),
+            history: Lazy::closure(fn (): ?CheckHistoryData => $this->checkHistory($user, $check, charts: true, findingsView: $findingsView)),
             maintenance: Lazy::closure(fn (): ?MaintenanceSiteHeaderData => $this->maintenance($user, $siteId)),
             performance_noise: Lazy::closure(fn (): ?PerformanceNoiseData => $check->type === CheckKey::Performance ? $this->performanceNoise($check, $getRuns()) : null),
             performance_unavailable: Lazy::closure(fn (): ?CheckRunPresentationPartData => $this->performanceAvailability->forCheck($check, $suppression)),
@@ -512,13 +514,14 @@ final readonly class SiteDetailReader
     }
 
     /** @param  bool  $charts  Includes the projection's lazy chart series (the check tab draws them, the overview does not). */
-    public function checkHistory(User $user, Check $check, bool $charts = false): ?CheckHistoryData
+    public function checkHistory(User $user, Check $check, bool $charts = false, FindingsView $findingsView = FindingsView::Current): ?CheckHistoryData
     {
         $type = in_array($check->type, $this->registry->keys(), true) ? $this->registry->get($check->type) : null;
-        $projection = $type instanceof CheckHistoryProvider ? $type->history($check->id, Gate::forUser($user)->allows('update', $check)) : null;
-        if (! $projection instanceof CheckHistoryData) {
+        if (! $type instanceof CheckHistoryProvider) {
             return null;
         }
+        $canUpdate = Gate::forUser($user)->allows('update', $check);
+        $projection = $type instanceof BrokenLinkSettings ? $type->history($check->id, $canUpdate, $findingsView) : $type->history($check->id, $canUpdate);
         $site = $check->site ?? throw new \LogicException('A check must belong to a site.');
         $context = RedactionContext::forSite($site, $check);
 

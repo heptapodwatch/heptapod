@@ -128,6 +128,22 @@ it('rejects an invalid one-off address with concise localized feedback before pr
     'DE' => ['de', 'Diese Adresse ist keine gültige E-Mail-Adresse.'],
 ]);
 
+it('previews only non-ignored links and refuses a report with no findings', function (): void {
+    $sender = clientMessageUser('Admin');
+    $client = Client::factory()->create(['locale' => 'en']);
+    $check = clientMessageFindings($client, 2);
+    $settings = route('sites.checks.update', ['site' => $check->site_id, 'check' => $check->id]);
+    $preview = route('clients.messages.preview', $client);
+    $payload = ['kind' => 'findings', 'design' => 'branded', 'check_id' => $check->id, 'channel_ids' => [], 'one_off' => 'office@example.test'];
+    $this->actingAs($sender)->patch($settings, ['whitelisted_urls' => ['https://shop.example.test/missing-1']])->assertSessionHasNoErrors();
+
+    $result = $this->postJson($preview, $payload)->assertOk()->json();
+    expect($result['html'])->toContain('missing-2')->not->toContain('missing-1');
+
+    $this->patch($settings, ['whitelisted_urls' => ['https://shop.example.test/missing-*']])->assertSessionHasNoErrors();
+    $this->postJson($preview, $payload)->assertUnprocessable()->assertJsonValidationErrors('check_id');
+});
+
 it('previews without writing, then sends once per key with frozen addresses, Reply-To, CSV and audit', function (): void {
     $sender = clientMessageUser('Admin', ['name' => 'Anna Berger', 'email' => 'anna@studio.test']);
     $client = Client::factory()->create(['name' => 'Müller GmbH', 'locale' => 'de', 'timezone' => 'Europe/Berlin']);

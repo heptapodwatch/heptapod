@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Heptapod\Addons\Crawl;
 
 use Carbon\CarbonImmutable;
+use Heptapod\Contracts\BrokenLinkSettings;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\CheckDefinition;
 use Heptapod\Contracts\CheckDetailProvider;
-use Heptapod\Contracts\CheckHistoryProvider;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckOutcome;
 use Heptapod\Contracts\CheckRunPresentationData;
@@ -17,6 +17,7 @@ use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
 use Heptapod\Contracts\ExecutionMode;
+use Heptapod\Contracts\Findings\FindingsView;
 use Heptapod\Contracts\LatestRunEvidence;
 use Heptapod\Contracts\Mail\Cell;
 use Heptapod\Contracts\Mail\DiffBlock;
@@ -33,8 +34,9 @@ use Heptapod\Contracts\Schema\FieldPresentation;
 use Heptapod\Contracts\Schema\FieldType;
 use Heptapod\Contracts\Schema\Schema;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Validation\ValidationException;
 
-final readonly class BrokenLinksCheck implements CheckDetailProvider, CheckHistoryProvider, CheckRunPresenter, CheckType, MailEvidenceProvider
+final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetailProvider, CheckRunPresenter, CheckType, MailEvidenceProvider
 {
     public function __construct(private CrawlEvaluation $evaluation, private CrawlPersistence $store) {}
 
@@ -129,9 +131,26 @@ final readonly class BrokenLinksCheck implements CheckDetailProvider, CheckHisto
         return CrawlSnapshot::fromRun(CheckKey::BrokenLinks, $latestRun);
     }
 
-    public function history(int $checkId, bool $canViewCapabilities = false): CrawlFindingsData
+    public function history(int $checkId, bool $canViewCapabilities = false, FindingsView $view = FindingsView::Current): CrawlFindingsData
     {
-        return $this->store->findings($checkId, false);
+        return $this->store->findings($checkId, false, $view);
+    }
+
+    public function editIgnoredUrls(array $entries, string $url, bool $ignore): array
+    {
+        if (str_contains($url, '*') || ! CrawlWhitelist::valid($url)) {
+            throw ValidationException::withMessages(['ignore_finding.url' => __('validation.url', ['attribute' => 'URL'])]);
+        }
+        $match = new CrawlWhitelist($entries)->match($url);
+        if ($ignore) {
+            return $match === null ? [...$entries, $url] : $entries;
+        }
+        if ($match !== 'exact') {
+            return $entries;
+        }
+        $target = CrawlWhitelist::canonical($url);
+
+        return array_values(array_filter($entries, static fn (string $entry): bool => str_contains($entry, '*') || CrawlWhitelist::canonical($entry) !== $target));
     }
 
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData
@@ -283,7 +302,7 @@ final readonly class BrokenLinksCheck implements CheckDetailProvider, CheckHisto
         $defaults = Config::array('heptapod.crawl.defaults');
         $fields = [];
         foreach (['exclude_patterns', 'do_not_crawl_urls', 'force_crawl_urls', 'whitelisted_urls'] as $key) {
-            $fields[$key] = new Field(FieldType::List, ['sometimes', 'max:1000'], items: new Field(FieldType::String, $key === 'whitelisted_urls' ? ['required', 'crawl_whitelist_url', 'max:1024'] : ['required', 'max:1024']), presentation: new FieldPresentation('crawl.settings.'.$key), default: $defaults[$key], trimmedStrings: $key !== 'whitelisted_urls');
+            $fields[$key] = new Field(FieldType::List, ['sometimes', 'max:1000'], items: new Field(FieldType::String, $key === 'whitelisted_urls' ? ['required', 'crawl_whitelist_url', 'max:1024'] : ['required', 'max:1024']), presentation: new FieldPresentation('crawl.settings.'.$key, $key === 'whitelisted_urls' ? 'crawl.settings.whitelisted_urls_help' : null), default: $defaults[$key], trimmedStrings: $key !== 'whitelisted_urls');
         }
         foreach (['check_include_external_links', 'new_links_only', 'respect_robots'] as $key) {
             $fields[$key] = new Field(FieldType::Boolean, ['sometimes'], presentation: new FieldPresentation('crawl.settings.'.$key), default: $defaults[$key]);

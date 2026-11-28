@@ -1,4 +1,7 @@
+import { router, usePage } from '@inertiajs/react';
 import { AbsoluteTime } from '@/components/absolute-time';
+import { SegmentedControl } from '@/components/segmented-control';
+import { RowActions } from '@/components/row-actions';
 import { CardToolbarActions } from '@/components/card-toolbar-actions';
 import { ListFooter } from '@/components/list-footer';
 import { TooltipHint } from '@/components/truncated-text';
@@ -41,6 +44,13 @@ type FindingRow = {
     linkText?: string | null;
     since?: ReactNode;
     marker?: ReactNode;
+    action?: ReactNode;
+};
+
+export type BrokenLinkFindingActions = {
+    openSettings: () => void;
+    edit?: (url: string, ignore: boolean) => void;
+    saving: boolean;
 };
 
 /**
@@ -157,6 +167,7 @@ export function FindingsTable({
 }) {
     const { t } = useTranslation();
     const format = useFormat();
+    const hasActions = rows.some((row) => row.action);
     if (rows.length === 0) {
         return empty ? <p className="text-muted-foreground">{empty}</p> : null;
     }
@@ -164,7 +175,14 @@ export function FindingsTable({
         <div className="space-y-2">
             <div className="@container/findings overflow-hidden rounded-lg border">
                 {stackWhenNarrow && (
-                    <ul className="divide-y @[640px]/findings:hidden">
+                    <ul
+                        className={cn(
+                            'divide-y',
+                            hasActions
+                                ? '@[768px]/findings:hidden'
+                                : '@[640px]/findings:hidden',
+                        )}
+                    >
                         {rows.map((row, index) => (
                             <li
                                 key={`${row.url}-${index}`}
@@ -228,6 +246,11 @@ export function FindingsTable({
                                         )}
                                     </div>
                                 )}
+                                {row.action && (
+                                    <div className="flex justify-end">
+                                        {row.action}
+                                    </div>
+                                )}
                             </li>
                         ))}
                     </ul>
@@ -235,7 +258,9 @@ export function FindingsTable({
                 <div
                     className={
                         stackWhenNarrow
-                            ? 'hidden @[640px]/findings:block'
+                            ? hasActions
+                                ? 'hidden @[768px]/findings:block'
+                                : 'hidden @[640px]/findings:block'
                             : undefined
                     }
                 >
@@ -244,7 +269,11 @@ export function FindingsTable({
                             <TableRow>
                                 <TableHead
                                     className={
-                                        showSource ? 'w-[35%]' : 'w-[42%]'
+                                        hasActions
+                                            ? 'w-[28%]'
+                                            : showSource
+                                              ? 'w-[35%]'
+                                              : 'w-[42%]'
                                     }
                                 >
                                     {t(
@@ -274,6 +303,13 @@ export function FindingsTable({
                                     showProblem && (
                                         <TableHead>{t(problemLabel)}</TableHead>
                                     )
+                                )}
+                                {hasActions && (
+                                    <TableHead className="w-40">
+                                        <span className="sr-only">
+                                            {t('Actions')}
+                                        </span>
+                                    </TableHead>
                                 )}
                             </TableRow>
                         </TableHeader>
@@ -328,6 +364,11 @@ export function FindingsTable({
                                                 {row.problem}
                                             </TableCell>
                                         )
+                                    )}
+                                    {hasActions && (
+                                        <TableCell className="text-right">
+                                            {row.action}
+                                        </TableCell>
                                     )}
                                 </TableRow>
                             ))}
@@ -412,6 +453,7 @@ export function CrawlFindings({
     origin,
     exportContext,
     headerTime,
+    findingActions,
 }: {
     history: Findings;
     latest: Heptapod.Addons.Crawl.CrawlSnapshot | null;
@@ -422,9 +464,24 @@ export function CrawlFindings({
     exportContext?: FindingsExportContext;
     /** The time the page header already shows (the check page's Last checked); an equal time is not repeated here. */
     headerTime?: string | null;
+    findingActions?: BrokenLinkFindingActions;
 }) {
     const { t } = useTranslation();
     const format = useFormat();
+    const { url } = usePage();
+    const ignoredView = history.ignored_view;
+    const setView = (view: string) => {
+        const target = new URL(url, 'http://localhost');
+        target.searchParams.delete('findings_page');
+        if (view === 'ignored')
+            target.searchParams.set('findings_view', 'ignored');
+        else target.searchParams.delete('findings_view');
+        router.get(
+            target.pathname + target.search,
+            {},
+            { only: ['history'], preserveState: true, preserveScroll: true },
+        );
+    };
     const isNew = (finding: Findings['findings'][number]) =>
         Boolean(
             newSince &&
@@ -480,11 +537,29 @@ export function CrawlFindings({
                             exportContext &&
                             history.snapshot_run && (
                                 <FindingsExport
-                                    context={exportContext}
+                                    context={
+                                        findingActions
+                                            ? {
+                                                  url: (format, query) =>
+                                                      exportContext.url(
+                                                          format,
+                                                          {
+                                                              ...query,
+                                                              findings_view:
+                                                                  ignoredView
+                                                                      ? 'ignored'
+                                                                      : 'current',
+                                                          },
+                                                      ),
+                                              }
+                                            : exportContext
+                                    }
                                     run={history.snapshot_run}
                                     findings={history.findings_pagination}
                                     notVerifiable={
-                                        history.not_verifiable_pagination
+                                        ignoredView
+                                            ? null
+                                            : history.not_verifiable_pagination
                                     }
                                 />
                             )
@@ -559,6 +634,28 @@ export function CrawlFindings({
                         {format.number(history.weekly_change.current)}
                     </p>
                 )}
+                {findingActions && history.observed_at && (
+                    <SegmentedControl
+                        label={t('crawl.ignore.filter')}
+                        value={ignoredView ? 'ignored' : 'current'}
+                        onValueChange={setView}
+                        disabled={findingActions.saving}
+                        options={[
+                            {
+                                value: 'current',
+                                label: t('crawl.ignore.current'),
+                            },
+                            {
+                                value: 'ignored',
+                                label: t('crawl.ignore.ignored_count', {
+                                    formattedCount: format.number(
+                                        history.ignored_count,
+                                    ),
+                                }),
+                            },
+                        ]}
+                    />
+                )}
                 {(findings.length > 0 || history.observed_at) && (
                     <FindingsTable
                         stackWhenNarrow
@@ -566,8 +663,45 @@ export function CrawlFindings({
                         showFindingDetails={
                             history.check_type === 'broken_links'
                         }
+                        muted={ignoredView}
                         pagination={history.findings_pagination ?? undefined}
                         rows={findings.map((finding) => ({
+                            action:
+                                finding.ignored_by === 'pattern' &&
+                                findingActions ? (
+                                    <div className="text-xs whitespace-normal text-muted-foreground">
+                                        <p>{t('crawl.ignore.by_pattern')}</p>
+                                        <RowActions
+                                            label={finding.url}
+                                            actions={[
+                                                {
+                                                    label: t('Check settings'),
+                                                    onSelect:
+                                                        findingActions.openSettings,
+                                                },
+                                            ]}
+                                        />
+                                    </div>
+                                ) : finding.broken && findingActions?.edit ? (
+                                    <RowActions
+                                        label={finding.url}
+                                        actions={[
+                                            {
+                                                label: t(
+                                                    ignoredView
+                                                        ? 'crawl.ignore.stop'
+                                                        : 'crawl.ignore.action',
+                                                ),
+                                                onSelect: () =>
+                                                    findingActions.edit?.(
+                                                        finding.url,
+                                                        !ignoredView,
+                                                    ),
+                                                disabled: findingActions.saving,
+                                            },
+                                        ]}
+                                    />
+                                ) : null,
                             url: finding.url,
                             status: [
                                 finding.status_code ??
@@ -635,22 +769,28 @@ export function CrawlFindings({
                             ),
                         }))}
                         empty={t(
-                            history.check_type === 'broken_links'
-                                ? 'crawl.no_broken_findings'
-                                : 'No findings in accepted crawl',
+                            ignoredView
+                                ? 'crawl.ignore.empty'
+                                : history.check_type === 'broken_links'
+                                  ? 'crawl.no_broken_findings'
+                                  : 'No findings in accepted crawl',
                         )}
                     />
                 )}
-                <NotVerifiableFindings
-                    origin={origin}
-                    checkType={
-                        history.check_type === 'mixed_content'
-                            ? 'mixed_content'
-                            : 'broken_links'
-                    }
-                    rows={notVerifiable}
-                    pagination={history.not_verifiable_pagination ?? undefined}
-                />
+                {!ignoredView && (
+                    <NotVerifiableFindings
+                        origin={origin}
+                        checkType={
+                            history.check_type === 'mixed_content'
+                                ? 'mixed_content'
+                                : 'broken_links'
+                        }
+                        rows={notVerifiable}
+                        pagination={
+                            history.not_verifiable_pagination ?? undefined
+                        }
+                    />
+                )}
             </CardContent>
         </Card>
     );

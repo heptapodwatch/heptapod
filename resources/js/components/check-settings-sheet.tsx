@@ -57,6 +57,7 @@ type SavedCheckSettingsProps = {
     triggerLabel?: string;
     /** Replaces the Configure button (the check header's More actions item). */
     trigger?: (open: () => void) => ReactNode;
+    visibility?: { open: boolean; setOpen: (open: boolean) => void };
     /** Read-only facts at the top of the sheet; without `can_update` the sheet shows only these. */
     facts?: ReactNode;
 };
@@ -171,9 +172,14 @@ function ReadOnlyCheckSettingsSheet({
     check,
     trigger,
     facts,
+    visibility,
 }: SavedCheckSettingsProps) {
     const { t } = useTranslation();
-    const [open, setOpen] = useState(false);
+    const [localOpen, setLocalOpen] = useState(false);
+    const { open, setOpen } = visibility ?? {
+        open: localOpen,
+        setOpen: setLocalOpen,
+    };
     if (!trigger) {
         throw new Error('A read-only check settings sheet needs its trigger.');
     }
@@ -206,9 +212,14 @@ function SavedCheckSettingsSheet({
     triggerLabel,
     trigger,
     facts,
+    visibility,
 }: SavedCheckSettingsProps) {
     const { t } = useTranslation();
-    const [open, setOpen] = useState(false);
+    const [localOpen, setLocalOpen] = useState(false);
+    const { open, setOpen } = visibility ?? {
+        open: localOpen,
+        setOpen: setLocalOpen,
+    };
     const form = useForm<Record<string, FieldValue>>({});
     const intervalSeconds = check.interval_seconds;
     const intervalUnit =

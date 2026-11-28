@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Contracts;
 
 use Heptapod\Contracts\Findings\FindingStatus;
+use Heptapod\Contracts\Findings\FindingsView;
 
 interface FindingsExportProvider
 {
@@ -18,5 +19,5 @@ interface FindingsExportProvider
      *
      * @return iterable<array{url: string, result: string, status: FindingStatus, found_on: string|null, link_text: string|null, first_seen_at: string|null, after_first_complete_crawl: bool}>|null
      */
-    public function exportFindings(CheckKey $type, int $checkId, RunReference $run): ?iterable;
+    public function exportFindings(CheckKey $type, int $checkId, RunReference $run, FindingsView $view = FindingsView::Raw): ?iterable;
 }

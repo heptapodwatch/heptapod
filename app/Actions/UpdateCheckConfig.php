@@ -7,6 +7,7 @@ namespace Heptapod\Actions;
 use Heptapod\Checks\CheckSchedule;
 use Heptapod\Checks\DatabaseClock;
 use Heptapod\Checks\Execution\ClaimService;
+use Heptapod\Contracts\BrokenLinkSettings;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\Schema\Field;
@@ -30,10 +31,11 @@ final readonly class UpdateCheckConfig
 
     /** @param array<string, mixed> $settings
      * @param  array<string, mixed>|null  $expectedPreviousConfig
+     * @param  array{url: string, ignore: bool}|null  $findingEdit
      */
-    public function __invoke(Check $check, array $settings, #[\SensitiveParameter] ?array $expectedPreviousConfig = null): void
+    public function __invoke(Check $check, array $settings, #[\SensitiveParameter] ?array $expectedPreviousConfig = null, ?array $findingEdit = null): void
     {
-        DB::transaction(function () use ($check, $settings, $expectedPreviousConfig): void {
+        DB::transaction(function () use ($check, $settings, $expectedPreviousConfig, $findingEdit): void {
             if ($check->exists) {
                 $query = Check::query()->whereKey($check->id);
                 NotificationLocks::forUpdate($query->getQuery());
@@ -55,6 +57,13 @@ final readonly class UpdateCheckConfig
                     messageKey: 'checks.settings_changed',
                     errorCode: 'check_settings_changed',
                 );
+            }
+            $brokenLinks = $this->registry->implementation($check->type, BrokenLinkSettings::class);
+            /** @var list<string> $previousEntries */
+            $previousEntries = $previous['whitelisted_urls'] ?? [];
+            if ($findingEdit !== null) {
+                abort_unless($brokenLinks instanceof BrokenLinkSettings, 404);
+                $settings = ['whitelisted_urls' => $brokenLinks->editIgnoredUrls($previousEntries, $findingEdit['url'], $findingEdit['ignore'])];
             }
             $incoming = Arr::except($settings, ['frequency_value', 'frequency_unit', 'failed_notification_threshold']);
             $supplied = $incoming;

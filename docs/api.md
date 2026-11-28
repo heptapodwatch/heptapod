@@ -401,7 +401,7 @@ Add `--only=sites,maintenance,cron,channels` (any subset) to read and write only
 | Frequency value and unit                                 | Values 1–60 in minutes, hours or days, as `interval_seconds`. Without a value, the check's default. Without a unit, minutes.                                                         |
 | Domain expiry threshold                                  | Reported as unsupported when it cannot apply.                                                                                                                                        |
 | DNS ignored types                                        | Uppercase names known to `spatie/dns`. Unknown names are invalid.                                                                                                                    |
-| `broken_links_check_settings.whitelisted_urls`           | **Allowed broken URLs**. Invalid entries are skipped with a notice.                                                                                                                  |
+| `broken_links_check_settings.whitelisted_urls`           | **Ignored URLs**. Invalid entries are skipped with a notice.                                                                                                                         |
 | `sitemap_check_settings` `path` and `speed`              | Relative paths gain a leading `/`. Absolute URLs, `..` and query strings (`?`) are invalid; send credentials through crawler headers instead. Default: `/sitemap.xml` and `default`. |
 
 Lighthouse, ports, DNS blocklist and AI checks are reported when no addon can map them.

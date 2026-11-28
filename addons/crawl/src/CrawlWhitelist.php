@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Addons\Crawl;
 
+use Heptapod\Contracts\SecretRedactor;
 use Illuminate\Support\Str;
 use League\Uri\Contracts\UriException;
 use League\Uri\Uri;
@@ -22,7 +23,7 @@ final class CrawlWhitelist
     public function __construct(array $entries)
     {
         foreach ($entries as $entry) {
-            if (! self::valid($entry) || ($canonical = $this->canonical($entry)) === null) {
+            if (! self::valid($entry) || ($canonical = self::canonical($entry)) === null) {
                 $this->ignoredInvalid = true;
 
                 continue;
@@ -33,6 +34,15 @@ final class CrawlWhitelist
                 $this->exact[$canonical] = true;
             }
         }
+    }
+
+    /** @param list<string> $entries
+     * @param  array<array-key, mixed>  $secrets
+     * @return list<string>
+     */
+    public static function redact(array $entries, array $secrets, string $siteUrl): array
+    {
+        return array_map(static fn (string $url): string => BrowserUrl::comparableRedacted(SecretRedactor::redact($url, $secrets, [$siteUrl])), $entries);
     }
 
     public static function valid(mixed $entry): bool
@@ -58,21 +68,23 @@ final class CrawlWhitelist
 
     public function matches(string $url): bool
     {
-        if ($this->exact === [] && $this->patterns === []) {
-            return false;
-        }
-        $target = $this->canonical($url);
-        if ($target === null) {
-            return false;
-        }
-        if (isset($this->exact[$target])) {
-            return true;
-        }
-
-        return array_any($this->patterns, fn (string $pattern) => Str::is($pattern, $target));
+        return $this->match($url) !== null;
     }
 
-    private function canonical(string $url): ?string
+    /** A pattern wins over an exact entry: removing the exact entry would not restore the finding. */
+    public function match(string $url): ?string
+    {
+        if (($this->exact === [] && $this->patterns === []) || ($target = self::canonical(BrowserUrl::comparableRedacted($url))) === null) {
+            return null;
+        }
+        if (array_any($this->patterns, static fn (string $pattern): bool => Str::is($pattern, $target))) {
+            return 'pattern';
+        }
+
+        return isset($this->exact[$target]) ? 'exact' : null;
+    }
+
+    public static function canonical(string $url): ?string
     {
         try {
             $normalized = BrowserUrl::normalize($url);

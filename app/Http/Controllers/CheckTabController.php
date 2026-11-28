@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Heptapod\Http\Controllers;
 
+use Heptapod\Contracts\Findings\FindingsView;
 use Heptapod\Enums\DailyMetricRange;
 use Heptapod\Enums\ResponseTimeRange;
 use Heptapod\Models\User;
@@ -36,6 +37,8 @@ final class CheckTabController extends Controller
             return to_route('sites.checks.show', ['site' => $site, 'check' => $check]);
         }
 
-        return Inertia::render('sites/show', $reader->checkPage($user, $site, $check, $range, $metricRange));
+        $view = $request->query('findings_view') === 'ignored' ? FindingsView::Ignored : FindingsView::Current;
+
+        return Inertia::render('sites/show', $reader->checkPage($user, $site, $check, $range, $metricRange, $view));
     }
 }
