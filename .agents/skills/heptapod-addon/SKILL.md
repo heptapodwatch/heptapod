@@ -21,6 +21,17 @@ An addon is a Composer path package under `addons/*` (namespace `Heptapod\Addons
 - **Security through the platform.** TLS trust, hostname matching, crypto, signatures and auth come from native platform features or maintained packages, never own code.
 - **Addons own their resources.** Translations (EN and DE), config, migrations, settings, routes and the OpenAPI text of their API operations (`Heptapod\Contracts\ApiDocumentPart`) ship in the addon and load from its provider; never copy addon keys into root `lang/` or `ApiContract`. Every imported library is a direct caret dependency of the addon.
 
+## New check addon
+
+The addon implements; core supplies the rest:
+
+- `CheckRunPresenter`: `presentRun()` returns the parts and any `history_label`; `namesCheck()` says which keys already name the check. Core redacts and adds the TLS explanation.
+- `MailEvidenceProvider`: `mailEventTones()` lists only the events of the addon and any override of `LifecycleTones`; recoveries go through the event mail and `mailEvidence()` (use `NoteBlock::detailsNotRetained()` when raw retention removed the facts). Only uptime implements `MailRecoveryEvidenceProvider`, for the outage mail.
+- `RunPersistence`: a table with one staged row per attempt uses `StagedSnapshots` for stage, finalize, discard and purge.
+- `OhDearImportMapping` lists only the settings of the addon; core adds the schedule settings.
+
+Core edits left: a `CheckKey` case, `NotificationCategory::ChangeKeys` for change events, root `composer.json`, the `phpunit.xml` source list, the check-type maps in `resources/js`, and for Oh Dear import: its `*_check_settings` source in `ImportOhDearMonitor` (the `SettingsTypes` allow-list and the `$settings` map in `siteSettings()`, same order) and its notification types in `OhDearDestinationMapper`.
+
 ## Evidence
 
 Prove behavior through the real engine and recorder against Postgres and Redis, with only the external boundary faked (`test-audit`). A fake transport proves verdict and display mapping, **not** native security behavior: trust, expiry and hostname checks need real fixtures. Large datasets are staged through the addon's persistence; only the recorder finalizes an accepted run.
