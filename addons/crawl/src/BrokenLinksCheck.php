@@ -173,7 +173,13 @@ final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetail
 
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData
     {
-        return CrawlEvidence::presentCollection($run, $this->presentFindings($run));
+        $presentation = CheckRunPresentationData::withMappedHistory($this->presentFindings($run), $run, static fn (CheckRunPresentationPartData $first): ?string => match ($first->key) {
+            'broken_links.presentation.internal' => 'checks.history.broken_internal',
+            'broken_links.presentation.external' => 'checks.history.broken_external',
+            default => null,
+        });
+
+        return CrawlEvidence::presentCollection($run, $presentation);
     }
 
     private function presentFindings(CheckRunPresentationInput $run): ?CheckRunPresentationData
@@ -267,6 +273,11 @@ final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetail
         }
 
         return new CheckRunPresentationData($presentation->parts, headline_limit: $headlineLimit, changes: $changePart instanceof CheckRunPresentationPartData ? [$changePart] : [], details: $details);
+    }
+
+    public function namesCheck(string $key): bool
+    {
+        return CrawlEvidence::namesCheck($key);
     }
 
     /** @return list<CheckRunPresentationPartData> The count of not-verifiable links, then their most frequent reasons. */

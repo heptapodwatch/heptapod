@@ -66,6 +66,11 @@ final readonly class CertificateHealthCheck implements CheckDetailProvider, Chec
         return new CertificateTimelineData($observations);
     }
 
+    public function namesCheck(string $key): bool
+    {
+        return $key !== 'certificate_health.not_https';
+    }
+
     public function presentRun(CheckRunPresentationInput $run): CheckRunPresentationData
     {
         $change = $run->eventPayload('certificate_health.certificate_changed') === null ? null : new CheckRunPresentationPartData('checks.history.certificate_changed');

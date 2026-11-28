@@ -43,6 +43,28 @@ final class CheckRunPresentationData extends Data
         return min($total, $limit + ($total - $limit === 1 ? 1 : 0));
     }
 
+    /**
+     * Gives a presentation without a history label the label the addon maps its first part to. A declined run (null)
+     * is the retained summary core would show, so it gets the mapped label of that summary.
+     *
+     * @param  \Closure(CheckRunPresentationPartData): ?string  $historyKey
+     */
+    public static function withMappedHistory(?self $presentation, CheckRunPresentationInput $run, \Closure $historyKey): ?self
+    {
+        if ($presentation?->history_label instanceof CheckRunPresentationPartData) {
+            return $presentation;
+        }
+        $first = $presentation instanceof self ? $presentation->parts[0] ?? null : new CheckRunPresentationPartData($run->summary, $run->summaryParams);
+        $key = $first instanceof CheckRunPresentationPartData ? $historyKey($first) : null;
+        if ($key === null) {
+            return $presentation;
+        }
+        $presentation ??= new self([$first]);
+
+        return new self($presentation->parts, $presentation->explanation, $first->withKey($key), $presentation->names_check,
+            $presentation->headline_limit, $presentation->changes, $presentation->details);
+    }
+
     /** @param list<array{key: string, severity: RunResult, occurrences: int, part: CheckRunPresentationPartData}> $reasons */
     public static function forReasons(array $reasons): self
     {

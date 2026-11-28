@@ -750,6 +750,10 @@ it('withholds comparison when the final fetch exhausts the execution budget but 
         expect(DB::table('sitemap_snapshots')->where('run_id', $run->id)->value('comparison_issues'))->not->toBeNull();
         expect(array_column($snapshot['issues'], 'type'))->not->toContain('sitemap.issue.time_limit');
         expect($snapshot['issues'][0]['kind'])->toBe('timeout');
+        if ($target === 'document') {
+            $history = app(CheckRunPresentations::class)->forRun(Check::findOrFail($run->check_id), $run)->history_label;
+            expect(__($history->key, $history->params, 'en'))->toBe('Timeout');
+        }
         expect($store->baseline($context->checkId)['run_id'])->toBe($run->id);
         expect(Event::where('type', 'sitemap.issues_changed')->count())->toBe(1);
     }

@@ -179,6 +179,17 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
 
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData
     {
+        return CheckRunPresentationData::withMappedHistory($this->presentSnapshot($run), $run, static fn (CheckRunPresentationPartData $first): ?string => match ($first->key) {
+            'sitemap.presentation.http_status', 'sitemap.presentation.http_status_nonstandard' => 'checks.history.http_status',
+            'sitemap.presentation.timeout' => 'checks.history.timeout',
+            'sitemap.presentation.tls' => 'checks.history.tls',
+            'sitemap.presentation.size_limit' => 'checks.history.size_limit',
+            default => null,
+        });
+    }
+
+    private function presentSnapshot(CheckRunPresentationInput $run): ?CheckRunPresentationData
+    {
         $evidence = $run->observationEvidence();
         if ($evidence === []) {
             return null;
@@ -186,7 +197,7 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
         if (in_array($run->summary, ['sitemap.no_verified_issues_one', 'sitemap.no_verified_issues_other'], true)) {
             $part = new CheckRunPresentationPartData($run->summary, $run->summaryParams);
 
-            return new CheckRunPresentationData([$part], history_label: $part, names_check: true);
+            return new CheckRunPresentationData([$part], history_label: $part);
         }
         $snapshot = SitemapSnapshot::from($evidence);
         if ($snapshot->issue_counts === null) {
@@ -261,12 +272,17 @@ final readonly class SitemapCheck implements CheckConfigAttention, CheckDetailPr
             return new CheckRunPresentationData($presentation->parts, history_label: $label);
         }
 
-        $first = $presentation->parts[0] ?? null;
-        if ($first !== null && str_starts_with($first->key, 'sitemap.xml.')) {
+        $first = $presentation->parts[0];
+        if (str_starts_with($first->key, 'sitemap.xml.')) {
             return new CheckRunPresentationData($presentation->parts, history_label: $first);
         }
 
         return $presentation;
+    }
+
+    public function namesCheck(string $key): bool
+    {
+        return $key !== 'sitemap.presentation.not_verifiable';
     }
 
     public function persistence(): RunPersistence

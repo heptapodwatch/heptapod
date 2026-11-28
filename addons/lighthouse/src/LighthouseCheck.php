@@ -75,6 +75,15 @@ final readonly class LighthouseCheck implements CheckDetailProvider, CheckHistor
 
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData
     {
+        return CheckRunPresentationData::withMappedHistory($this->presentReport($run), $run, static fn (CheckRunPresentationPartData $first): ?string => match ($first->key) {
+            'lighthouse.presentation.below', 'lighthouse.presentation.below_and_dropped' => 'checks.history.score_below',
+            'lighthouse.presentation.dropped' => 'checks.history.score_dropped',
+            default => null,
+        });
+    }
+
+    private function presentReport(CheckRunPresentationInput $run): ?CheckRunPresentationData
+    {
         if ($run->result === RunResult::Errored && (str_starts_with($run->summary, 'lighthouse.cause.') || $run->summary === 'causes.engine.lighthouse_incomplete')) {
             $details = [];
             $stage = $run->summaryParams['stage'] ?? null;
@@ -155,6 +164,11 @@ final readonly class LighthouseCheck implements CheckDetailProvider, CheckHistor
             $first->params, [...$first->labels, 'load_timeout' => $timeout]);
 
         return new CheckRunPresentationData([$first, new CheckRunPresentationPartData($timeout), ...array_slice($findings, 1)], history_label: $history);
+    }
+
+    public function namesCheck(string $key): bool
+    {
+        return false;
     }
 
     public function history(int $checkId, bool $canViewCapabilities = false): LighthouseHistoryData

@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Heptapod\Checks;
 
 use Carbon\CarbonImmutable;
-use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\CheckResult;
 use Heptapod\Contracts\CheckRunPresentationData;
 use Heptapod\Contracts\CheckRunPresentationInput;
 use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
+use Heptapod\Contracts\CheckType;
 use Heptapod\Contracts\Mail\MailEventFacts;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\RunResult;
@@ -149,7 +149,8 @@ final readonly class CheckRunPresentations
         }
 
         return new CheckRunPresentationData([new CheckRunPresentationPartData($key, $summary['params'])],
-            names_check: $event->cause !== IncidentCause::Errored && $event->to_result !== CheckResult::Errored && $this->namesCheck($check->type, $key));
+            names_check: $event->cause !== IncidentCause::Errored && $event->to_result !== CheckResult::Errored
+                && in_array($check->type, $this->registry->keys(), true) && $this->namesCheck($this->registry->get($check->type), $key));
     }
 
     private function present(Check $check, CheckRunPresentationInput $run): ?CheckRunPresentationData
@@ -184,34 +185,10 @@ final readonly class CheckRunPresentations
         } else {
             $history = $tls === null ? null : new CheckRunPresentationPartData('checks.history.tls.'.$tls->value);
         }
-        if (! $history instanceof CheckRunPresentationPartData && $first instanceof CheckRunPresentationPartData) {
-            $label = match ($first->key) {
-                'sitemap.presentation.http_status', 'sitemap.presentation.http_status_nonstandard' => 'checks.history.http_status',
-                'sitemap.presentation.timeout' => 'checks.history.timeout',
-                'sitemap.presentation.tls' => 'checks.history.tls',
-                'sitemap.presentation.size_limit' => 'checks.history.size_limit',
-                'lighthouse.presentation.below', 'lighthouse.presentation.below_and_dropped' => 'checks.history.score_below',
-                'lighthouse.presentation.dropped' => 'checks.history.score_dropped',
-                'broken_links.presentation.internal' => 'checks.history.broken_internal',
-                'broken_links.presentation.external' => 'checks.history.broken_external',
-                'uptime.status' => 'checks.history.http_status',
-                'performance.median_above_threshold' => 'checks.history.performance_threshold',
-                'performance.median_above_configured_range' => 'checks.history.performance_increased',
-                'performance.confirming_warning' => 'checks.history.confirming_warning',
-                'performance.confirming_recovery' => 'checks.history.confirming_recovery',
-                'performance.succeeded' => 'checks.history.performance_average',
-                'performance.recovered_below' => 'checks.history.performance_recovered',
-                'performance.recovery_band' => 'checks.history.performance_recovery_band',
-                default => null,
-            };
-            if ($label !== null) {
-                $history = new CheckRunPresentationPartData($label, $first->params, $first->labels, untrusted: $first->untrusted, trusted: $first->trusted, lists: $first->lists);
-            }
-        }
 
         return new CheckRunPresentationData($parts, $explanation, $history,
             $run->result !== RunResult::Errored && array_any(array_slice($parts, 0, $presentation->headline_count),
-                fn (CheckRunPresentationPartData $part): bool => $this->namesCheck($check->type, $part->key)),
+                fn (CheckRunPresentationPartData $part): bool => $this->namesCheck($type, $part->key)),
             $presentation->headline_limit, $changes, $details);
     }
 
@@ -229,36 +206,14 @@ final readonly class CheckRunPresentations
         }, $parts);
     }
 
-    private function namesCheck(CheckKey $check, string $key): bool
+    private function namesCheck(CheckType $type, string $key): bool
     {
-        if (str_starts_with($key, 'application_health.presentation.failed') || str_starts_with($key, 'cron.presentation.') && $key !== 'cron.presentation.task') {
-            return true;
-        }
-        // Generic crawl limits and lookup failures do not identify the check, even on subject-naming types.
-        if (str_starts_with($key, 'causes.outbound.') || str_starts_with($key, 'causes.engine.')) {
-            return false;
-        }
-        if (str_starts_with($key, 'crawl.') || str_starts_with($key, 'incidents.resolution.') || in_array($key, [
-            'checks.engine.errored', 'causes.error',
-            'broken_links.presentation.not_verifiable', 'sitemap.presentation.not_verifiable',
-            'mixed_content.presentation.not_verifiable',
-            'broken_links.presentation.unchecked', 'broken_links.presentation.page_limit',
-            'broken_links.presentation.resource_limit', 'broken_links.presentation.time_limit',
-            'broken_links.presentation.comparison_limit', 'broken_links.incomplete',
-            'broken_links.incomplete_resources', 'broken_links.incomplete_other', 'broken_links.incomplete_rate_limited_urls',
-            'broken_links.incomplete_time_limit', 'broken_links.comparison_limit',
-            'mixed_content.incomplete', 'mixed_content.incomplete_resources', 'mixed_content.incomplete_other',
-            'mixed_content.incomplete_time_limit', 'mixed_content.comparison_limit', 'mixed_content.incomplete_rate_limited_urls',
-            'certificate_health.not_https', 'checks.presentation.domain_valid_until', 'domain.registry_does_not_publish',
-        ], true)) {
+        // Engine, lookup and resolution text never identifies the check, even on subject-naming types.
+        if (str_starts_with($key, 'causes.outbound.') || str_starts_with($key, 'causes.engine.') || str_starts_with($key, 'incidents.resolution.')
+            || in_array($key, ['checks.engine.errored', 'causes.error'], true)) {
             return false;
         }
 
-        return match ($check) {
-            CheckKey::BrokenLinks, CheckKey::MixedContent, CheckKey::Sitemap,
-            CheckKey::CertificateHealth, CheckKey::Domain, CheckKey::Dns => true,
-            CheckKey::Uptime, CheckKey::Performance, CheckKey::Lighthouse,
-            CheckKey::Cron, CheckKey::ApplicationHealth => false,
-        };
+        return $type instanceof CheckRunPresenter && $type->namesCheck($key);
     }
 }

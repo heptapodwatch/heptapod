@@ -59,6 +59,11 @@ final readonly class CronCheckType implements CheckHistoryProvider, CheckRunPres
         return $this->store->tasksDetail($checkId, $canViewCapabilities);
     }
 
+    public function namesCheck(string $key): bool
+    {
+        return str_starts_with($key, 'cron.presentation.') && $key !== 'cron.presentation.task';
+    }
+
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData
     {
         $name = $run->event?->payload['component_name'] ?? $run->event?->payload['name'] ?? null;

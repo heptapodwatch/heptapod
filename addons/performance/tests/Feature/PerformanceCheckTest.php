@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Carbon\CarbonImmutable;
+use Heptapod\Checks\CheckRunPresentations;
 use Heptapod\Checks\Execution\CheckExecutor;
 use Heptapod\Checks\Execution\ClaimService;
 use Heptapod\Checks\Execution\RunOrigin;
@@ -96,6 +97,14 @@ it('derives response-time warnings from successful uptime windows without anothe
     'missing metric is not zero' => [[null, 1.0], [], [], RunResult::Succeeded, 'performance.succeeded', 1000.0, null],
     'observed zero is sample' => [[0.0, 1.0], [], [], RunResult::Succeeded, 'performance.succeeded', 500.0, null],
 ]);
+
+it('labels a successful run in the check history with its average', function (): void {
+    $run = runPerformanceAddon([2.0]);
+    $history = app(CheckRunPresentations::class)->forRun(Check::findOrFail($run->check_id), $run)->history_label;
+
+    expect($run->summary)->toBe('performance.succeeded')
+        ->and(__($history->key, $history->params, 'en'))->toBe('Average 2000 ms');
+});
 
 it('requires nine same-UTC-hour samples on three days and ignores outside-hour and eighth-day samples', function (int $count, int $days, ?float $baseline, ?float $change, RunResult $result, string $summary, array $params): void {
     $run = runPerformanceAddon([2.0, 2.0, 2.0], array_fill(0, $count, 1.0), ['threshold_in_ms' => 4000], $days);

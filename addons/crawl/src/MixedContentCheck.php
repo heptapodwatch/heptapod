@@ -167,6 +167,11 @@ final readonly class MixedContentCheck implements CheckDetailProvider, CheckHist
         return new CheckRunPresentationData($parts);
     }
 
+    public function namesCheck(string $key): bool
+    {
+        return CrawlEvidence::namesCheck($key);
+    }
+
     public function execute(CheckContext $context): CheckOutcome|NoResultReason
     {
         return $this->evaluation->execute($context, true);

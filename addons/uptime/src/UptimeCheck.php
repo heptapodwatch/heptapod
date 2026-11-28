@@ -218,7 +218,14 @@ final readonly class UptimeCheck implements CheckHistoryProvider, CheckRunPresen
 
     public function presentRun(CheckRunPresentationInput $run): CheckRunPresentationData
     {
-        return new CheckRunPresentationData([$this->presentSummary($run->summary, $run->summaryParams)]);
+        $part = $this->presentSummary($run->summary, $run->summaryParams);
+
+        return new CheckRunPresentationData([$part], history_label: $part->key === 'uptime.status' ? $part->withKey('checks.history.http_status') : null);
+    }
+
+    public function namesCheck(string $key): bool
+    {
+        return false;
     }
 
     public function mailEventPhrases(): array

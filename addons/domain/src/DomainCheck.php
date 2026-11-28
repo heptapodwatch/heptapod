@@ -56,6 +56,11 @@ final readonly class DomainCheck implements CheckDetailProvider, CheckRunPresent
             ? null : DomainSnapshot::from($latestRun->observationEvidence());
     }
 
+    public function namesCheck(string $key): bool
+    {
+        return ! in_array($key, ['checks.presentation.domain_valid_until', 'domain.registry_does_not_publish'], true);
+    }
+
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData
     {
         $changes = [];

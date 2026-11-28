@@ -92,6 +92,11 @@ final readonly class ApplicationHealthCheck implements CheckHistoryProvider, Che
         return count(CheckResults::fromJson(json_encode($validated, JSON_THROW_ON_ERROR))->checkResults());
     }
 
+    public function namesCheck(string $key): bool
+    {
+        return str_starts_with($key, 'application_health.presentation.failed');
+    }
+
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData
     {
         $observation = $run->observationEvidence();

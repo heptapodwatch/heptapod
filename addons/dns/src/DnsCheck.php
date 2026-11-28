@@ -87,6 +87,11 @@ final readonly class DnsCheck implements CheckDetailProvider, CheckHistoryProvid
         return $this->store->accept($checkId, $actorId, $actorName, $expectedRunId);
     }
 
+    public function namesCheck(string $key): bool
+    {
+        return true;
+    }
+
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData
     {
         if ($run->result === RunResult::Errored) {
