@@ -10,6 +10,7 @@ import { PageHeaderAction } from '@/components/page-header-actions';
 import { ServerHistoryCard } from '@/components/server-history-card';
 import {
     isServerSnoozed,
+    ServerAddress,
     ServerFacts,
     ServerGaugeRow,
     ServerStateBadge,
@@ -344,8 +345,15 @@ export default function ServerShow({
                         </div>
                     }
                     meta={
+                        server.ips.length > 0 ||
+                        server.hostname !== null ||
                         server.values ? (
-                            <ServerFacts values={server.values} />
+                            <>
+                                <ServerAddress server={server} />
+                                {server.values && (
+                                    <ServerFacts values={server.values} />
+                                )}
+                            </>
                         ) : undefined
                     }
                     // The site and check header pattern: one primary, the rest in More actions.

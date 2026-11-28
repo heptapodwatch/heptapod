@@ -96,6 +96,7 @@ export const navigation: NavigationEntry[] = [
         icon: Server,
         group: 'Primary',
         permission: 'canViewServers',
+        shortcut: 'v',
     },
     {
         title: 'Maintenance',

@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CopyButton } from '@/components/copy-button';
 import { InfoTooltip } from '@/components/info-tooltip';
 import { StatusBadge } from '@/components/monitoring';
 import { ScoreRing, type ScoreRingTone } from '@/components/score-ring';
+import { TooltipHint } from '@/components/truncated-text';
 import { TableCell } from '@/components/ui/table';
 import { useFormat } from '@/hooks/use-format';
 import { cn } from '@/lib/utils';
@@ -59,6 +61,57 @@ export function ServerStateBadge({
             }
             snoozed={snoozed}
         />
+    );
+}
+
+/**
+ * The server's first reported IP in a quiet pill that copies it, "+N" for the others (listed in the tooltip), and the
+ * host name when it says more than the server's name. Nothing before the first report.
+ */
+export function ServerAddress({
+    server,
+}: {
+    server: Pick<ServerRow, 'name' | 'hostname' | 'ips'>;
+}) {
+    const { t } = useTranslation();
+    const [ip, ...more] = server.ips;
+    const hostname =
+        server.hostname !== null && server.hostname !== server.name
+            ? server.hostname
+            : null;
+    if (ip === undefined && hostname === null) return null;
+    return (
+        <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1 font-mono text-xs tabular-nums">
+            {ip !== undefined && (
+                <span className="inline-flex items-center gap-0.5 rounded-md border bg-muted py-px pl-2 text-muted-foreground">
+                    {ip}
+                    <CopyButton
+                        value={ip}
+                        iconLabel={t('servers.copy_ip')}
+                        variant="ghost"
+                        size="icon-xs"
+                    />
+                </span>
+            )}
+            {more.length > 0 && (
+                <TooltipHint
+                    content={more.join(', ')}
+                    label={t('servers.facts.ips')}
+                >
+                    <span className="text-foreground-faint">
+                        {t('servers.ips_more', { count: more.length })}
+                    </span>
+                </TooltipHint>
+            )}
+            {hostname !== null && (
+                <span className="text-foreground-faint">
+                    <span className="sr-only">
+                        {t('servers.facts.hostname')}:{' '}
+                    </span>
+                    {hostname}
+                </span>
+            )}
+        </span>
     );
 }
 

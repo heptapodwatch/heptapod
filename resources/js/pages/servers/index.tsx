@@ -58,9 +58,16 @@ type ServerRow = Heptapod.Addons.Servers.Data.ServerRowData;
 type ServerFilter = Heptapod.Addons.Servers.ServerState | 'attention';
 
 /** The server's sort keys (ServerReader::SortKeys); the cards below md keep the default order, problems first. */
-type SortKey = 'status' | 'name' | 'disk' | 'memory' | 'load' | 'last_report';
+type SortKey =
+    | 'status'
+    | 'name'
+    | 'disk'
+    | 'memory'
+    | 'load'
+    | 'sites'
+    | 'last_report';
 // Disk, RAM and load show the highest value first.
-const descendingFirst: SortKey[] = ['disk', 'memory', 'load'];
+const descendingFirst: SortKey[] = ['disk', 'memory', 'load', 'sites'];
 
 const stateFilters: Record<ServerFilter, string> = {
     attention: 'Needs attention',
@@ -325,6 +332,11 @@ export default function ServersIndex({
                                                 'center',
                                             )}
                                             {head(
+                                                'sites',
+                                                t('servers.column.sites'),
+                                                'end',
+                                            )}
+                                            {head(
                                                 'last_report',
                                                 t('servers.column.last_report'),
                                                 'end',
@@ -366,6 +378,11 @@ export default function ServersIndex({
                                                 <ServerGaugeCells
                                                     server={server}
                                                 />
+                                                <TableCell className="text-right font-mono tabular-nums">
+                                                    {format.number(
+                                                        server.site_count,
+                                                    )}
+                                                </TableCell>
                                                 <TableCell className="text-right">
                                                     {server.last_report_at && (
                                                         <MonitoringTime
@@ -419,15 +436,25 @@ export default function ServersIndex({
                                                     }}
                                                 />
                                             )}
-                                            {server.last_report_at && (
-                                                <span className="block text-right font-mono text-xs text-muted-foreground tabular-nums">
-                                                    {
-                                                        format.monitorTime(
-                                                            server.last_report_at,
-                                                        ).label
-                                                    }
+                                            <span className="flex justify-between gap-2 text-xs text-muted-foreground">
+                                                <span>
+                                                    {t('servers.column.sites')}:{' '}
+                                                    <span className="font-mono tabular-nums">
+                                                        {format.number(
+                                                            server.site_count,
+                                                        )}
+                                                    </span>
                                                 </span>
-                                            )}
+                                                {server.last_report_at && (
+                                                    <span className="font-mono tabular-nums">
+                                                        {
+                                                            format.monitorTime(
+                                                                server.last_report_at,
+                                                            ).label
+                                                        }
+                                                    </span>
+                                                )}
+                                            </span>
                                         </Link>
                                     </li>
                                 ))}
