@@ -9,15 +9,13 @@ use Heptapod\Actions\EnableCheck;
 use Heptapod\Models\Check;
 use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 
 final class EnableSiteCheckController extends Controller
 {
-    public function __invoke(Request $request, int $site, int $check, SitePolicy $policy, EnableCheck $enable, AuthorizeSiteWrite $authorize): RedirectResponse
+    public function __invoke(#[CurrentUser] User $user, int $site, int $check, SitePolicy $policy, EnableCheck $enable, AuthorizeSiteWrite $authorize): RedirectResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         $policy->visibleSites($user)->whereKey($site)->firstOrFail();
         $target = Check::query()->where('site_id', $site)->findOrFail($check);
         $authorize($user, 'update', static fn () => $enable($target), $target);

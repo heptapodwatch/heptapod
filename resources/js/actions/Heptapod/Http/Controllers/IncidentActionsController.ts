@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::update
-* @see app/Http/Controllers/IncidentActionsController.php:19
+* @see app/Http/Controllers/IncidentActionsController.php:20
 * @route '/incidents/{incident}/note'
 */
 export const update = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -16,7 +16,7 @@ update.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::update
-* @see app/Http/Controllers/IncidentActionsController.php:19
+* @see app/Http/Controllers/IncidentActionsController.php:20
 * @route '/incidents/{incident}/note'
 */
 update.url = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -43,7 +43,7 @@ update.url = (args: { incident: string | number } | [incident: string | number ]
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::update
-* @see app/Http/Controllers/IncidentActionsController.php:19
+* @see app/Http/Controllers/IncidentActionsController.php:20
 * @route '/incidents/{incident}/note'
 */
 update.put = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -53,7 +53,7 @@ update.put = (args: { incident: string | number } | [incident: string | number ]
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::update
-* @see app/Http/Controllers/IncidentActionsController.php:19
+* @see app/Http/Controllers/IncidentActionsController.php:20
 * @route '/incidents/{incident}/note'
 */
 const updateForm = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -68,7 +68,7 @@ const updateForm = (args: { incident: string | number } | [incident: string | nu
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::update
-* @see app/Http/Controllers/IncidentActionsController.php:19
+* @see app/Http/Controllers/IncidentActionsController.php:20
 * @route '/incidents/{incident}/note'
 */
 updateForm.put = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -85,7 +85,7 @@ update.form = updateForm
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::store
-* @see app/Http/Controllers/IncidentActionsController.php:33
+* @see app/Http/Controllers/IncidentActionsController.php:32
 * @route '/incidents/{incident}/snooze'
 */
 export const store = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -100,7 +100,7 @@ store.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::store
-* @see app/Http/Controllers/IncidentActionsController.php:33
+* @see app/Http/Controllers/IncidentActionsController.php:32
 * @route '/incidents/{incident}/snooze'
 */
 store.url = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -127,7 +127,7 @@ store.url = (args: { incident: string | number } | [incident: string | number ] 
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::store
-* @see app/Http/Controllers/IncidentActionsController.php:33
+* @see app/Http/Controllers/IncidentActionsController.php:32
 * @route '/incidents/{incident}/snooze'
 */
 store.post = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -137,7 +137,7 @@ store.post = (args: { incident: string | number } | [incident: string | number ]
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::store
-* @see app/Http/Controllers/IncidentActionsController.php:33
+* @see app/Http/Controllers/IncidentActionsController.php:32
 * @route '/incidents/{incident}/snooze'
 */
 const storeForm = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -147,7 +147,7 @@ const storeForm = (args: { incident: string | number } | [incident: string | num
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::store
-* @see app/Http/Controllers/IncidentActionsController.php:33
+* @see app/Http/Controllers/IncidentActionsController.php:32
 * @route '/incidents/{incident}/snooze'
 */
 storeForm.post = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -159,7 +159,7 @@ store.form = storeForm
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::destroy
-* @see app/Http/Controllers/IncidentActionsController.php:43
+* @see app/Http/Controllers/IncidentActionsController.php:40
 * @route '/incidents/{incident}/snooze'
 */
 export const destroy = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -174,7 +174,7 @@ destroy.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::destroy
-* @see app/Http/Controllers/IncidentActionsController.php:43
+* @see app/Http/Controllers/IncidentActionsController.php:40
 * @route '/incidents/{incident}/snooze'
 */
 destroy.url = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -201,7 +201,7 @@ destroy.url = (args: { incident: string | number } | [incident: string | number 
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::destroy
-* @see app/Http/Controllers/IncidentActionsController.php:43
+* @see app/Http/Controllers/IncidentActionsController.php:40
 * @route '/incidents/{incident}/snooze'
 */
 destroy.delete = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -211,7 +211,7 @@ destroy.delete = (args: { incident: string | number } | [incident: string | numb
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::destroy
-* @see app/Http/Controllers/IncidentActionsController.php:43
+* @see app/Http/Controllers/IncidentActionsController.php:40
 * @route '/incidents/{incident}/snooze'
 */
 const destroyForm = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -226,7 +226,7 @@ const destroyForm = (args: { incident: string | number } | [incident: string | n
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentActionsController::destroy
-* @see app/Http/Controllers/IncidentActionsController.php:43
+* @see app/Http/Controllers/IncidentActionsController.php:40
 * @route '/incidents/{incident}/snooze'
 */
 destroyForm.delete = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

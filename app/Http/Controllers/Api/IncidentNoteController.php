@@ -7,10 +7,11 @@ namespace Heptapod\Http\Controllers\Api;
 use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\SaveIncidentNote;
-use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\Incident;
+use Heptapod\Models\User;
 use Heptapod\Queries\IncidentsReader;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -18,19 +19,15 @@ use Illuminate\Support\Facades\Validator;
 #[Group('Incidents')]
 final class IncidentNoteController extends Controller
 {
-    use ResolvesApiPrincipal;
-
-    public function show(Request $request, int $incident, IncidentsReader $reader): JsonResponse
+    public function show(#[CurrentUser] User $user, int $incident, IncidentsReader $reader): JsonResponse
     {
-        $user = $this->principal($request);
         $incident = $reader->scoped($user)->findOrFail($incident);
 
         return $this->note($incident);
     }
 
-    public function update(Request $request, int $incident, IncidentsReader $reader, SaveIncidentNote $save, AuthorizeSiteWrite $authorize): JsonResponse
+    public function update(#[CurrentUser] User $user, Request $request, int $incident, IncidentsReader $reader, SaveIncidentNote $save, AuthorizeSiteWrite $authorize): JsonResponse
     {
-        $user = $this->principal($request);
         $data = Validator::make($request->all(), ['note' => ['present', 'nullable', 'string', 'max:10000']])->validate();
         $note = $data['note'];
         if ($note !== null && ! is_string($note)) {

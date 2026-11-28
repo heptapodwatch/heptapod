@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Heptapod\Http\Controllers\Settings;
 
-use Heptapod\Concerns\AuthorizesSettingsOperator;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CronPingUrl;
 use Heptapod\Contracts\CronTaskStore;
@@ -20,18 +19,17 @@ use Heptapod\Http\ListPageSize;
 use Heptapod\Models\Check;
 use Heptapod\Models\Client;
 use Heptapod\Models\ImportRun;
+use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 final class ImportOhDearController extends Controller
 {
-    use AuthorizesSettingsOperator;
-
-    public function edit(Request $request): Response
+    public function edit(#[CurrentUser] User $user, Request $request): Response
     {
-        $this->operator($request);
         $internal = Client::query()->with(Client::AvatarRelations);
         $internal->getQuery()->where('is_internal', true);
 
@@ -43,9 +41,8 @@ final class ImportOhDearController extends Controller
         ))->with('instanceTimezone', app(InstanceSettings::class)->timezone);
     }
 
-    public function show(Request $request, string $run, CronTaskStore $tasks, CronPingUrl $pingUrl, ListPaging $paging): Response
+    public function show(#[CurrentUser] User $user, string $run, CronTaskStore $tasks, CronPingUrl $pingUrl, ListPaging $paging): Response
     {
-        $user = $this->operator($request);
         $importRun = ImportRun::query()->findOrFail($run);
         // Plan order first; then monitors that appeared after the plan (reported as not in the plan).
         $rows = [];

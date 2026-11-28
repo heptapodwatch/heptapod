@@ -6,10 +6,8 @@ namespace Heptapod\Http\Controllers;
 
 use Heptapod\Actions\DeleteRecurringMaintenancePeriod;
 use Heptapod\Actions\UpdateRecurringMaintenancePeriod;
-use Heptapod\Enums\Capability;
 use Heptapod\Http\MaintenanceReturnContext;
 use Heptapod\Models\RecurringMaintenancePeriod;
-use Heptapod\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +19,6 @@ final class MaintenanceSeriesController extends Controller
 {
     public function update(Request $request, RecurringMaintenancePeriod $series, UpdateRecurringMaintenancePeriod $update): RedirectResponse
     {
-        $this->writable($request);
         $returnContext = MaintenanceReturnContext::parameters($request);
         /** @var array<string, mixed> $data */
         $data = Validator::make($request->all(), [
@@ -57,16 +54,9 @@ final class MaintenanceSeriesController extends Controller
 
     public function destroy(Request $request, RecurringMaintenancePeriod $series, DeleteRecurringMaintenancePeriod $delete): RedirectResponse
     {
-        $this->writable($request);
         $returnContext = MaintenanceReturnContext::parameters($request);
         $delete($series);
 
         return to_route('maintenance.index', $returnContext);
-    }
-
-    private function writable(Request $request): void
-    {
-        $user = $request->user();
-        abort_unless($user instanceof User && Capability::Manage->allows($user), 403);
     }
 }

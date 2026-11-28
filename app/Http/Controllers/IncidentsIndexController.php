@@ -11,16 +11,15 @@ use Heptapod\Http\Requests\IncidentsFilterRequest;
 use Heptapod\Models\User;
 use Heptapod\Queries\IncidentsReader;
 use Heptapod\Queries\SitesReader;
+use Illuminate\Container\Attributes\CurrentUser;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\LaravelData\Lazy;
 
 final class IncidentsIndexController extends Controller
 {
-    public function __invoke(IncidentsFilterRequest $request, IncidentsReader $reader, SitesReader $sites): Response
+    public function __invoke(#[CurrentUser] User $user, IncidentsFilterRequest $request, IncidentsReader $reader, SitesReader $sites): Response
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         $filters = $request->listFilters();
         $page = null;
         $read = static function () use ($reader, $user, $filters, &$page): array {

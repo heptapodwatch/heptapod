@@ -14,15 +14,14 @@ use Heptapod\Models\Check;
 use Heptapod\Models\CheckRunAttempt;
 use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 
 final class RequestCheckRunController extends Controller
 {
-    public function __invoke(RequestCheckRunRequest $request, int $site, int $check, SitePolicy $policy, RequestCheckRun $run, AuthorizeSiteWrite $authorize): RedirectResponse
+    public function __invoke(#[CurrentUser] User $user, RequestCheckRunRequest $request, int $site, int $check, SitePolicy $policy, RequestCheckRun $run, AuthorizeSiteWrite $authorize): RedirectResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         $policy->visibleSites($user)->whereKey($site)->firstOrFail();
         $target = Check::query()->where('site_id', $site)->findOrFail($check);
         try {

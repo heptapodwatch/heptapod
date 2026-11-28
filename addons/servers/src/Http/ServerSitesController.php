@@ -12,6 +12,8 @@ use Heptapod\Addons\Servers\Server;
 use Heptapod\Addons\Servers\ServerReader;
 use Heptapod\Contracts\SiteAddressLookup;
 use Heptapod\Contracts\SiteDirectory;
+use Illuminate\Container\Attributes\CurrentUser;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,10 +33,9 @@ final class ServerSitesController
      * server yet) and the sites matching the search that are not on this server, with the server linking would move them
      * from. Bounded by ChoiceLimit each, whatever the number of sites.
      */
-    public function index(Request $request, Server $server, ServerReader $reader, SiteDirectory $directory): JsonResponse
+    public function index(#[CurrentUser] Authenticatable $user, Request $request, Server $server, ServerReader $reader, SiteDirectory $directory): JsonResponse
     {
         Gate::authorize('update', $server);
-        $user = $request->user() ?? throw new \LogicException('Linking needs a signed-in user.');
         Validator::make($request->query(), ['q' => ['sometimes', 'nullable', 'string', 'max:255']])->validate();
         $search = trim($request->string('q')->toString());
         /** @var array<int, int> $serverOf site id => server id, every stored link */
@@ -70,10 +71,9 @@ final class ServerSitesController
         return response()->json(new ServerLinkData($suggestions, $sites, $elsewhere)->toArray());
     }
 
-    public function store(Request $request, Server $server, SiteDirectory $directory, LinkSites $link): RedirectResponse
+    public function store(#[CurrentUser] Authenticatable $user, Request $request, Server $server, SiteDirectory $directory, LinkSites $link): RedirectResponse
     {
         Gate::authorize('update', $server);
-        $user = $request->user() ?? throw new \LogicException('Linking needs a signed-in user.');
         /** @var array{site_ids: list<int>} $data */
         $data = Validator::make($request->all(), ['site_ids' => ['required', 'array', 'list', 'max:500'], 'site_ids.*' => ['integer', 'distinct']])->validate();
         $siteIds = array_map(intval(...), $data['site_ids']);

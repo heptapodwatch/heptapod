@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\IncidentDetailController::__invoke
-* @see app/Http/Controllers/IncidentDetailController.php:42
+* @see app/Http/Controllers/IncidentDetailController.php:43
 * @route '/incidents/{incident}'
 */
 const IncidentDetailController = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ IncidentDetailController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentDetailController::__invoke
-* @see app/Http/Controllers/IncidentDetailController.php:42
+* @see app/Http/Controllers/IncidentDetailController.php:43
 * @route '/incidents/{incident}'
 */
 IncidentDetailController.url = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -43,7 +43,7 @@ IncidentDetailController.url = (args: { incident: string | number } | [incident:
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentDetailController::__invoke
-* @see app/Http/Controllers/IncidentDetailController.php:42
+* @see app/Http/Controllers/IncidentDetailController.php:43
 * @route '/incidents/{incident}'
 */
 IncidentDetailController.get = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -53,7 +53,7 @@ IncidentDetailController.get = (args: { incident: string | number } | [incident:
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentDetailController::__invoke
-* @see app/Http/Controllers/IncidentDetailController.php:42
+* @see app/Http/Controllers/IncidentDetailController.php:43
 * @route '/incidents/{incident}'
 */
 IncidentDetailController.head = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -63,7 +63,7 @@ IncidentDetailController.head = (args: { incident: string | number } | [incident
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentDetailController::__invoke
-* @see app/Http/Controllers/IncidentDetailController.php:42
+* @see app/Http/Controllers/IncidentDetailController.php:43
 * @route '/incidents/{incident}'
 */
 const IncidentDetailControllerForm = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -73,7 +73,7 @@ const IncidentDetailControllerForm = (args: { incident: string | number } | [inc
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentDetailController::__invoke
-* @see app/Http/Controllers/IncidentDetailController.php:42
+* @see app/Http/Controllers/IncidentDetailController.php:43
 * @route '/incidents/{incident}'
 */
 IncidentDetailControllerForm.get = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -83,7 +83,7 @@ IncidentDetailControllerForm.get = (args: { incident: string | number } | [incid
 
 /**
 * @see \Heptapod\Http\Controllers\IncidentDetailController::__invoke
-* @see app/Http/Controllers/IncidentDetailController.php:42
+* @see app/Http/Controllers/IncidentDetailController.php:43
 * @route '/incidents/{incident}'
 */
 IncidentDetailControllerForm.head = (args: { incident: string | number } | [incident: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

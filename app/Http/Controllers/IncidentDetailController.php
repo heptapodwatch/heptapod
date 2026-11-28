@@ -30,6 +30,7 @@ use Heptapod\Models\User;
 use Heptapod\Queries\IncidentsReader;
 use Heptapod\Queries\SiteDetailReader;
 use Heptapod\Settings\InstanceSettings;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
@@ -39,11 +40,8 @@ use Spatie\LaravelData\Lazy;
 
 final class IncidentDetailController extends Controller
 {
-    public function __invoke(Request $request, int $incident, IncidentsReader $reader, SiteDetailReader $details, CheckRunPresentations $presentations, ClaimService $claims): Response
+    public function __invoke(#[CurrentUser] User $user, Request $request, int $incident, IncidentsReader $reader, SiteDetailReader $details, CheckRunPresentations $presentations, ClaimService $claims): Response
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
-
         $row = $reader->scoped($user)->with('noteAuthor')->whereKey($incident)->firstOrFail();
         $getIncident = static fn (): Incident => $row;
         $check = $row->check ?? throw new \LogicException('Incident check missing.');

@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Settings\UpdateStatusController::edit
-* @see app/Http/Controllers/Settings/UpdateStatusController.php:24
+* @see app/Http/Controllers/Settings/UpdateStatusController.php:25
 * @route '/settings/updates'
 */
 export const edit = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ edit.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\UpdateStatusController::edit
-* @see app/Http/Controllers/Settings/UpdateStatusController.php:24
+* @see app/Http/Controllers/Settings/UpdateStatusController.php:25
 * @route '/settings/updates'
 */
 edit.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ edit.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\UpdateStatusController::edit
-* @see app/Http/Controllers/Settings/UpdateStatusController.php:24
+* @see app/Http/Controllers/Settings/UpdateStatusController.php:25
 * @route '/settings/updates'
 */
 edit.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ edit.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\UpdateStatusController::edit
-* @see app/Http/Controllers/Settings/UpdateStatusController.php:24
+* @see app/Http/Controllers/Settings/UpdateStatusController.php:25
 * @route '/settings/updates'
 */
 edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\UpdateStatusController::edit
-* @see app/Http/Controllers/Settings/UpdateStatusController.php:24
+* @see app/Http/Controllers/Settings/UpdateStatusController.php:25
 * @route '/settings/updates'
 */
 const editForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const editForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\UpdateStatusController::edit
-* @see app/Http/Controllers/Settings/UpdateStatusController.php:24
+* @see app/Http/Controllers/Settings/UpdateStatusController.php:25
 * @route '/settings/updates'
 */
 editForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ editForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\UpdateStatusController::edit
-* @see app/Http/Controllers/Settings/UpdateStatusController.php:24
+* @see app/Http/Controllers/Settings/UpdateStatusController.php:25
 * @route '/settings/updates'
 */
 editForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ edit.form = editForm
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\UpdateStatusController::status
-* @see app/Http/Controllers/Settings/UpdateStatusController.php:37
+* @see app/Http/Controllers/Settings/UpdateStatusController.php:35
 * @route '/settings/updates/data'
 */
 export const status = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -97,7 +97,7 @@ status.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\UpdateStatusController::status
-* @see app/Http/Controllers/Settings/UpdateStatusController.php:37
+* @see app/Http/Controllers/Settings/UpdateStatusController.php:35
 * @route '/settings/updates/data'
 */
 status.url = (options?: RouteQueryOptions) => {
@@ -106,7 +106,7 @@ status.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\UpdateStatusController::status
-* @see app/Http/Controllers/Settings/UpdateStatusController.php:37
+* @see app/Http/Controllers/Settings/UpdateStatusController.php:35
 * @route '/settings/updates/data'
 */
 status.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -116,7 +116,7 @@ status.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\UpdateStatusController::status
-* @see app/Http/Controllers/Settings/UpdateStatusController.php:37
+* @see app/Http/Controllers/Settings/UpdateStatusController.php:35
 * @route '/settings/updates/data'
 */
 status.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -126,7 +126,7 @@ status.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\UpdateStatusController::status
-* @see app/Http/Controllers/Settings/UpdateStatusController.php:37
+* @see app/Http/Controllers/Settings/UpdateStatusController.php:35
 * @route '/settings/updates/data'
 */
 const statusForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -136,7 +136,7 @@ const statusForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => 
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\UpdateStatusController::status
-* @see app/Http/Controllers/Settings/UpdateStatusController.php:37
+* @see app/Http/Controllers/Settings/UpdateStatusController.php:35
 * @route '/settings/updates/data'
 */
 statusForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -146,7 +146,7 @@ statusForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\UpdateStatusController::status
-* @see app/Http/Controllers/Settings/UpdateStatusController.php:37
+* @see app/Http/Controllers/Settings/UpdateStatusController.php:35
 * @route '/settings/updates/data'
 */
 statusForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -163,7 +163,7 @@ status.form = statusForm
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\UpdateStatusController::update
-* @see app/Http/Controllers/Settings/UpdateStatusController.php:45
+* @see app/Http/Controllers/Settings/UpdateStatusController.php:40
 * @route '/settings/updates'
 */
 export const update = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -178,7 +178,7 @@ update.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\UpdateStatusController::update
-* @see app/Http/Controllers/Settings/UpdateStatusController.php:45
+* @see app/Http/Controllers/Settings/UpdateStatusController.php:40
 * @route '/settings/updates'
 */
 update.url = (options?: RouteQueryOptions) => {
@@ -187,7 +187,7 @@ update.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\UpdateStatusController::update
-* @see app/Http/Controllers/Settings/UpdateStatusController.php:45
+* @see app/Http/Controllers/Settings/UpdateStatusController.php:40
 * @route '/settings/updates'
 */
 update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -197,7 +197,7 @@ update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\UpdateStatusController::update
-* @see app/Http/Controllers/Settings/UpdateStatusController.php:45
+* @see app/Http/Controllers/Settings/UpdateStatusController.php:40
 * @route '/settings/updates'
 */
 const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -212,7 +212,7 @@ const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\UpdateStatusController::update
-* @see app/Http/Controllers/Settings/UpdateStatusController.php:45
+* @see app/Http/Controllers/Settings/UpdateStatusController.php:40
 * @route '/settings/updates'
 */
 updateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

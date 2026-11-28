@@ -14,6 +14,7 @@ use Heptapod\Enums\Capability;
 use Heptapod\Exceptions\ExpectedRefusal;
 use Heptapod\Models\User;
 use Heptapod\Queries\EventsReader;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -23,10 +24,8 @@ final class ActivityController extends Controller
 {
     private const int BatchSize = 50;
 
-    public function __invoke(Request $request, EventsReader $reader): Response
+    public function __invoke(#[CurrentUser] User $user, Request $request, EventsReader $reader): Response
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         abort_unless(Capability::ViewInstance->allows($user), 403);
         $reader = $reader->withServerIssues();
         $filters = ListFilters::read($request, [

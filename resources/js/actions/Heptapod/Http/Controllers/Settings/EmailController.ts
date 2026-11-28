@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailController::edit
-* @see app/Http/Controllers/Settings/EmailController.php:23
+* @see app/Http/Controllers/Settings/EmailController.php:21
 * @route '/settings/email'
 */
 export const edit = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ edit.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailController::edit
-* @see app/Http/Controllers/Settings/EmailController.php:23
+* @see app/Http/Controllers/Settings/EmailController.php:21
 * @route '/settings/email'
 */
 edit.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ edit.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailController::edit
-* @see app/Http/Controllers/Settings/EmailController.php:23
+* @see app/Http/Controllers/Settings/EmailController.php:21
 * @route '/settings/email'
 */
 edit.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ edit.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailController::edit
-* @see app/Http/Controllers/Settings/EmailController.php:23
+* @see app/Http/Controllers/Settings/EmailController.php:21
 * @route '/settings/email'
 */
 edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailController::edit
-* @see app/Http/Controllers/Settings/EmailController.php:23
+* @see app/Http/Controllers/Settings/EmailController.php:21
 * @route '/settings/email'
 */
 const editForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const editForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailController::edit
-* @see app/Http/Controllers/Settings/EmailController.php:23
+* @see app/Http/Controllers/Settings/EmailController.php:21
 * @route '/settings/email'
 */
 editForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ editForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailController::edit
-* @see app/Http/Controllers/Settings/EmailController.php:23
+* @see app/Http/Controllers/Settings/EmailController.php:21
 * @route '/settings/email'
 */
 editForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ edit.form = editForm
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailController::update
-* @see app/Http/Controllers/Settings/EmailController.php:35
+* @see app/Http/Controllers/Settings/EmailController.php:32
 * @route '/settings/email'
 */
 export const update = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -97,7 +97,7 @@ update.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailController::update
-* @see app/Http/Controllers/Settings/EmailController.php:35
+* @see app/Http/Controllers/Settings/EmailController.php:32
 * @route '/settings/email'
 */
 update.url = (options?: RouteQueryOptions) => {
@@ -106,7 +106,7 @@ update.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailController::update
-* @see app/Http/Controllers/Settings/EmailController.php:35
+* @see app/Http/Controllers/Settings/EmailController.php:32
 * @route '/settings/email'
 */
 update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -116,7 +116,7 @@ update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailController::update
-* @see app/Http/Controllers/Settings/EmailController.php:35
+* @see app/Http/Controllers/Settings/EmailController.php:32
 * @route '/settings/email'
 */
 const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -131,7 +131,7 @@ const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailController::update
-* @see app/Http/Controllers/Settings/EmailController.php:35
+* @see app/Http/Controllers/Settings/EmailController.php:32
 * @route '/settings/email'
 */
 updateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

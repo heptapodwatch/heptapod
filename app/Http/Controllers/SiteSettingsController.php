@@ -13,6 +13,7 @@ use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Queries\SiteDetailReader;
 use Heptapod\Settings\InstanceSettings;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -24,18 +25,13 @@ use Inertia\Response;
 
 final class SiteSettingsController extends Controller
 {
-    public function edit(Request $request, int $site, SiteDetailReader $reader): Response
+    public function edit(#[CurrentUser] User $user, int $site, SiteDetailReader $reader): Response
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
-
         return Inertia::render('sites/settings', $reader->settings($user, $site))->with('instanceTimezone', app(InstanceSettings::class)->timezone);
     }
 
-    public function update(UpdateSiteAlertSensitivityRequest $request, Site $site, SaveSiteSettingsForm $save, SiteDetailReader $reader): RedirectResponse
+    public function update(#[CurrentUser] User $user, UpdateSiteAlertSensitivityRequest $request, Site $site, SaveSiteSettingsForm $save, SiteDetailReader $reader): RedirectResponse
     {
-        $user = $request->user('web');
-        abort_unless($user instanceof User, 401);
         Validator::make($request->all(), ['client_id' => ['sometimes', 'required', 'integer', 'min:1'], 'server_id' => ['sometimes', 'nullable', 'integer', 'min:1']])->validate();
         // The "Server" field exists only for those who may see servers, and the form sends it only when it changed; the
         // link belongs to the servers addon.
@@ -54,12 +50,10 @@ final class SiteSettingsController extends Controller
         return back();
     }
 
-    public function destroy(Request $request, Site $site, RequestSiteDeletion $delete, AuthorizeSiteWrite $authorize): RedirectResponse
+    public function destroy(#[CurrentUser] User $user, Request $request, Site $site, RequestSiteDeletion $delete, AuthorizeSiteWrite $authorize): RedirectResponse
     {
         Gate::authorize('delete', $site);
         Validator::make($request->all(), ['name' => ['required', 'string', Rule::in([$site->displayName()])]])->validate();
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         // Decided again under the shared access lock, with the actor as the account is now.
         $authorize($user, 'delete', static fn () => $delete($site), $site);
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Site deleted')]);

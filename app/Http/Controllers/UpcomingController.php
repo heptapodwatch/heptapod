@@ -12,6 +12,7 @@ use Heptapod\Http\ListPageSize;
 use Heptapod\Models\User;
 use Heptapod\Queries\SitesReader;
 use Heptapod\Queries\UpcomingReader;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
 use Inertia\Inertia;
@@ -19,10 +20,8 @@ use Inertia\Response;
 
 final class UpcomingController extends Controller
 {
-    public function __invoke(Request $request, UpcomingReader $reader, SitesReader $sites): Response
+    public function __invoke(#[CurrentUser] User $user, Request $request, UpcomingReader $reader, SitesReader $sites): Response
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         $filters = ListFilters::read($request, [
             'client_id' => ['kind' => FilterKind::Combobox, 'label' => 'Client', 'empty_label' => 'All clients', 'source' => 'clients', 'rules' => ['nullable', 'integer', 'min:1']],
             'type' => ['kind' => FilterKind::Select, 'label' => 'Type', 'default' => 'all', 'options' => ['all' => 'All types', 'certificate' => 'Certificates', 'domain' => 'Domains', 'maintenance' => 'Maintenance', 'task' => 'Tasks']],

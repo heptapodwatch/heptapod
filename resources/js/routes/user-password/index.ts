@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Settings\SecurityController::update
-* @see app/Http/Controllers/Settings/SecurityController.php:62
+* @see app/Http/Controllers/Settings/SecurityController.php:60
 * @route '/settings/password'
 */
 export const update = (options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -16,7 +16,7 @@ update.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\SecurityController::update
-* @see app/Http/Controllers/Settings/SecurityController.php:62
+* @see app/Http/Controllers/Settings/SecurityController.php:60
 * @route '/settings/password'
 */
 update.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ update.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\SecurityController::update
-* @see app/Http/Controllers/Settings/SecurityController.php:62
+* @see app/Http/Controllers/Settings/SecurityController.php:60
 * @route '/settings/password'
 */
 update.put = (options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -35,7 +35,7 @@ update.put = (options?: RouteQueryOptions): RouteDefinition<'put'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\SecurityController::update
-* @see app/Http/Controllers/Settings/SecurityController.php:62
+* @see app/Http/Controllers/Settings/SecurityController.php:60
 * @route '/settings/password'
 */
 const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -50,7 +50,7 @@ const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\SecurityController::update
-* @see app/Http/Controllers/Settings/SecurityController.php:62
+* @see app/Http/Controllers/Settings/SecurityController.php:60
 * @route '/settings/password'
 */
 updateForm.put = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

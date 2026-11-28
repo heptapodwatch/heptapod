@@ -7,7 +7,6 @@ namespace Heptapod\Http\Controllers\Api;
 use Carbon\CarbonImmutable;
 use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Checks\CheckRunPresentations;
-use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\FindingsQueryProvider;
 use Heptapod\Contracts\RunReference;
@@ -18,11 +17,13 @@ use Heptapod\Enums\SiteStatus;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\Incident;
+use Heptapod\Models\User;
 use Heptapod\Queries\IncidentsReader;
 use Heptapod\Support\Api\ApiHeadline;
 use Heptapod\Support\Api\ApiProblem;
 use Heptapod\Support\Api\CursorCodec;
 use Heptapod\Support\Api\TrustedSummary;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,17 +33,14 @@ use Illuminate\Support\Facades\Validator;
 #[Group('Incidents')]
 final class IncidentController extends Controller
 {
-    use ResolvesApiPrincipal;
-
     private const int DefaultWindowDays = 30;
 
     // Public so Scramble can evaluate the timeline_limit rule for docs/openapi.json.
     public const int TimelineLimit = 200;
 
-    public function index(Request $request, IncidentsReader $incidents, CursorCodec $cursors): JsonResponse
+    public function index(#[CurrentUser] User $user, Request $request, IncidentsReader $incidents, CursorCodec $cursors): JsonResponse
     {
-        $user = $this->principal($request);
-        $token = $this->token($user);
+        $token = $user->currentAccessToken();
         /** @var array{state?: 'open'|'resolved', site_id?: int|string, client_id?: int|string, check_id?: int|string, since?: string, limit?: int|string, cursor?: string, locale?: string} $input */
         $input = Validator::make($request->query(), ['locale' => ApiHeadline::localeRules(), 'state' => ['sometimes', 'in:open,resolved'], 'site_id' => ['sometimes', 'integer', 'min:1'],
             'client_id' => ['sometimes', 'integer', 'min:1'], 'check_id' => ['sometimes', 'integer', 'min:1'],
@@ -102,10 +100,9 @@ final class IncidentController extends Controller
             'order' => 'opened_at_desc', 'has_more' => $hasMore, 'next_cursor' => $next], 200, ['Cache-Control' => 'private, no-store']);
     }
 
-    public function show(Request $request, int $incident, IncidentsReader $incidents, CheckRegistry $registry, CursorCodec $cursors, CheckRunPresentations $presentations): JsonResponse
+    public function show(#[CurrentUser] User $user, Request $request, int $incident, IncidentsReader $incidents, CheckRegistry $registry, CursorCodec $cursors, CheckRunPresentations $presentations): JsonResponse
     {
-        $user = $this->principal($request);
-        $token = $this->token($user);
+        $token = $user->currentAccessToken();
         /** @var array{include_note?: string, timeline_limit?: int|string, timeline_cursor?: string, locale?: string} $input */
         $input = Validator::make($request->query(), ['locale' => ApiHeadline::localeRules(), 'include_note' => ['sometimes', 'in:true,false,1,0'],
             'timeline_limit' => ['sometimes', 'integer', 'min:1', 'max:'.self::TimelineLimit], 'timeline_cursor' => ['sometimes', 'string']])->validate();

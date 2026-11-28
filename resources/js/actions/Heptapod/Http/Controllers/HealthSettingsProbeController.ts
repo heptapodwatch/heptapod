@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\HealthSettingsProbeController::__invoke
-* @see app/Http/Controllers/HealthSettingsProbeController.php:18
+* @see app/Http/Controllers/HealthSettingsProbeController.php:19
 * @route '/sites/{site}/checks/{check}/health/probe'
 */
 const HealthSettingsProbeController = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ HealthSettingsProbeController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\HealthSettingsProbeController::__invoke
-* @see app/Http/Controllers/HealthSettingsProbeController.php:18
+* @see app/Http/Controllers/HealthSettingsProbeController.php:19
 * @route '/sites/{site}/checks/{check}/health/probe'
 */
 HealthSettingsProbeController.url = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions) => {
@@ -42,7 +42,7 @@ HealthSettingsProbeController.url = (args: { site: string | number, check: strin
 
 /**
 * @see \Heptapod\Http\Controllers\HealthSettingsProbeController::__invoke
-* @see app/Http/Controllers/HealthSettingsProbeController.php:18
+* @see app/Http/Controllers/HealthSettingsProbeController.php:19
 * @route '/sites/{site}/checks/{check}/health/probe'
 */
 HealthSettingsProbeController.post = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -52,7 +52,7 @@ HealthSettingsProbeController.post = (args: { site: string | number, check: stri
 
 /**
 * @see \Heptapod\Http\Controllers\HealthSettingsProbeController::__invoke
-* @see app/Http/Controllers/HealthSettingsProbeController.php:18
+* @see app/Http/Controllers/HealthSettingsProbeController.php:19
 * @route '/sites/{site}/checks/{check}/health/probe'
 */
 const HealthSettingsProbeControllerForm = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -62,7 +62,7 @@ const HealthSettingsProbeControllerForm = (args: { site: string | number, check:
 
 /**
 * @see \Heptapod\Http\Controllers\HealthSettingsProbeController::__invoke
-* @see app/Http/Controllers/HealthSettingsProbeController.php:18
+* @see app/Http/Controllers/HealthSettingsProbeController.php:19
 * @route '/sites/{site}/checks/{check}/health/probe'
 */
 HealthSettingsProbeControllerForm.post = (args: { site: string | number, check: string | number } | [site: string | number, check: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

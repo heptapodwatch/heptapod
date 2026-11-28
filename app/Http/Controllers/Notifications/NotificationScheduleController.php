@@ -9,16 +9,15 @@ use Heptapod\Enums\RecipientKind;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\User;
 use Heptapod\Policies\NotificationDestinationPolicy;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /** PATCH /notification-schedules/{kind}/{id?}: quiet hours and digest slot. The user kind is always the signed-in user. */
 final class NotificationScheduleController extends Controller
 {
-    public function __invoke(Request $request, string $kind, UpdateNotificationSchedule $update, NotificationDestinationPolicy $policy, ?int $id = null): JsonResponse
+    public function __invoke(#[CurrentUser] User $user, Request $request, string $kind, UpdateNotificationSchedule $update, NotificationDestinationPolicy $policy, ?int $id = null): JsonResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         $recipient = RecipientKind::tryFrom($kind) ?? abort(404);
         abort_if($recipient === RecipientKind::Team && $id !== null, 404);
         match ($recipient) {

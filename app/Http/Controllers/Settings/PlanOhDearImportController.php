@@ -6,10 +6,11 @@ namespace Heptapod\Http\Controllers\Settings;
 
 use Heptapod\Actions\ImportOhDearAccount;
 use Heptapod\Actions\PersistOhDearImportPlan;
-use Heptapod\Concerns\AuthorizesSettingsOperator;
 use Heptapod\Data\Import\ImportPlanData;
 use Heptapod\Enums\ImportSection;
 use Heptapod\Http\Controllers\Controller;
+use Heptapod\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -17,11 +18,8 @@ use Illuminate\Validation\Rule;
 
 final class PlanOhDearImportController extends Controller
 {
-    use AuthorizesSettingsOperator;
-
-    public function __invoke(Request $request, ImportOhDearAccount $import, PersistOhDearImportPlan $persist): JsonResponse
+    public function __invoke(#[CurrentUser] User $user, Request $request, ImportOhDearAccount $import, PersistOhDearImportPlan $persist): JsonResponse
     {
-        $user = $this->operator($request);
         /** @var array{ohdear_token: string, sections?: list<string>} $data */
         $data = Validator::make($request->only('ohdear_token', 'sections'), [
             'ohdear_token' => ['required', 'string', 'max:255'],

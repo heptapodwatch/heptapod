@@ -18,6 +18,7 @@ use Heptapod\Models\User;
 use Heptapod\Queries\DashboardSummaryReader;
 use Heptapod\Queries\SitesReader;
 use Heptapod\Queries\TagsReader;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -28,10 +29,8 @@ use Spatie\QueryBuilder\AllowedFilter;
 
 final class SitesIndexController extends Controller
 {
-    public function __invoke(Request $request, SitesReader $reader, DashboardSummaryReader $summaries, TagsReader $tags): Response
+    public function __invoke(#[CurrentUser] User $user, Request $request, SitesReader $reader, DashboardSummaryReader $summaries, TagsReader $tags): Response
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         abort_unless(Capability::ViewInstance->allows($user), 403);
         $filters = ListFilters::read($request, [
             'search' => ['predicate' => static fn (string $key): AllowedFilter => AllowedFilter::partial($key, 'name'),

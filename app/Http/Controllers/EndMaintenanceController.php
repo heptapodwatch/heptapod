@@ -6,20 +6,17 @@ namespace Heptapod\Http\Controllers;
 
 use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\EndMaintenanceWindow;
-use Heptapod\Enums\Capability;
 use Heptapod\Http\MaintenanceReturnContext;
 use Heptapod\Models\MaintenancePeriod;
 use Heptapod\Models\User;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 final class EndMaintenanceController extends Controller
 {
-    public function __invoke(Request $request, MaintenancePeriod $window, EndMaintenanceWindow $end, AuthorizeSiteWrite $authorize): RedirectResponse
+    public function __invoke(#[CurrentUser] User $user, Request $request, MaintenancePeriod $window, EndMaintenanceWindow $end, AuthorizeSiteWrite $authorize): RedirectResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
-        abort_unless(Capability::Manage->allows($user), 403);
         $returnContext = MaintenanceReturnContext::parameters($request);
         $authorize->asManager($user, static fn (User $current): MaintenancePeriod => $end($current, $window));
 

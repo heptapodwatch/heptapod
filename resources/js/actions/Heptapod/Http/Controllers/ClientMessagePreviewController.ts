@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagePreviewController::__invoke
-* @see app/Http/Controllers/ClientMessagePreviewController.php:17
+* @see app/Http/Controllers/ClientMessagePreviewController.php:18
 * @route '/clients/{client}/client-messages/preview'
 */
 const ClientMessagePreviewController = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ ClientMessagePreviewController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagePreviewController::__invoke
-* @see app/Http/Controllers/ClientMessagePreviewController.php:17
+* @see app/Http/Controllers/ClientMessagePreviewController.php:18
 * @route '/clients/{client}/client-messages/preview'
 */
 ClientMessagePreviewController.url = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ ClientMessagePreviewController.url = (args: { client: number | { id: number } } 
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagePreviewController::__invoke
-* @see app/Http/Controllers/ClientMessagePreviewController.php:17
+* @see app/Http/Controllers/ClientMessagePreviewController.php:18
 * @route '/clients/{client}/client-messages/preview'
 */
 ClientMessagePreviewController.post = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ ClientMessagePreviewController.post = (args: { client: number | { id: number } }
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagePreviewController::__invoke
-* @see app/Http/Controllers/ClientMessagePreviewController.php:17
+* @see app/Http/Controllers/ClientMessagePreviewController.php:18
 * @route '/clients/{client}/client-messages/preview'
 */
 const ClientMessagePreviewControllerForm = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ const ClientMessagePreviewControllerForm = (args: { client: number | { id: numbe
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagePreviewController::__invoke
-* @see app/Http/Controllers/ClientMessagePreviewController.php:17
+* @see app/Http/Controllers/ClientMessagePreviewController.php:18
 * @route '/clients/{client}/client-messages/preview'
 */
 ClientMessagePreviewControllerForm.post = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

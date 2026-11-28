@@ -10,6 +10,7 @@ use Heptapod\Models\Event;
 use Heptapod\Models\User;
 use Heptapod\Policies\ClientPolicy;
 use Heptapod\Queries\ClientMessagesReader;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,10 +23,8 @@ use Illuminate\Support\Facades\Validator;
 final class ClientMessagesController extends Controller
 {
     /** GET …/client-messages?before=: one page (newest first, by delivery id) of everything this client was sent; Members read it with addresses hidden. */
-    public function index(Request $request, Client $client, ClientMessagesReader $reader, ClientPolicy $policy): JsonResponse
+    public function index(#[CurrentUser] User $user, Request $request, Client $client, ClientMessagesReader $reader, ClientPolicy $policy): JsonResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         $policy->view($user, $client)->authorize();
         /** @var array{before?: int|string|null} $query */
         $query = Validator::make($request->query(), ['before' => ['nullable', 'integer', 'min:1']])->validate();
@@ -36,9 +35,9 @@ final class ClientMessagesController extends Controller
     }
 
     /** GET …/client-messages/{message}: the message exactly as approved, rendered from its frozen payload. */
-    public function show(Request $request, Client $client, int $message, SendClientMessage $send, ClientPolicy $policy): JsonResponse
+    public function show(#[CurrentUser] User $user, Client $client, int $message, SendClientMessage $send, ClientPolicy $policy): JsonResponse
     {
-        $event = $this->message($request, $client, $message, $policy);
+        $event = $this->message($user, $client, $message, $policy);
         $rendered = $send->render($event);
         $attachment = DB::table('client_message_attachments')->where('event_id', $event->id)->first(['rows']);
 
@@ -48,10 +47,8 @@ final class ClientMessagesController extends Controller
     }
 
     /** One message of this client, for anyone who may see the client; another client's message is not found. */
-    private function message(Request $request, Client $client, int $message, ClientPolicy $policy): Event
+    private function message(User $user, Client $client, int $message, ClientPolicy $policy): Event
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         $policy->view($user, $client)->authorize();
         $query = Event::query()->whereKey($message)->where('client_id', $client->id);
         $query->getQuery()->whereIn('type', ['client_message.findings', 'client_message.incident']);
@@ -59,9 +56,9 @@ final class ClientMessagesController extends Controller
         return $query->firstOrFail();
     }
 
-    public function store(Request $request, Client $client, SendClientMessage $send, ClientPolicy $policy): JsonResponse
+    public function store(#[CurrentUser] User $user, Request $request, Client $client, SendClientMessage $send, ClientPolicy $policy): JsonResponse
     {
-        $sender = $this->sender($request, $client, $policy);
+        $sender = $this->sender($user, $client, $policy);
         $key = $request->header('Idempotency-Key');
         abort_if($key === null, 428, __('client_messages.key_required'));
         $result = $send->send($sender, $client, $this->input($request), $key);
@@ -76,10 +73,8 @@ final class ClientMessagesController extends Controller
         return $request->all();
     }
 
-    private function sender(Request $request, Client $client, ClientPolicy $policy): User
+    private function sender(User $user, Client $client, ClientPolicy $policy): User
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         $policy->view($user, $client)->authorize();
         abort_unless(Gate::forUser($user)->allows('update', $client), 403);
 

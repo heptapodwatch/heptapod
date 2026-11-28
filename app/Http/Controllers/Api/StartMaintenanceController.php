@@ -7,11 +7,12 @@ namespace Heptapod\Http\Controllers\Api;
 use Dedoc\Scramble\Attributes\Group;
 use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\StartMaintenance;
-use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Http\Resources\OhDear\MaintenancePeriodResource;
 use Heptapod\Models\Site;
+use Heptapod\Models\User;
 use Heptapod\Support\Api\Idempotency;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -20,12 +21,9 @@ use Illuminate\Support\Facades\Validator;
 #[Group('Maintenance')]
 final class StartMaintenanceController extends Controller
 {
-    use ResolvesApiPrincipal;
-
-    public function __invoke(Request $request, Site $monitor, StartMaintenance $start, Idempotency $idempotency, AuthorizeSiteWrite $authorize): JsonResponse
+    public function __invoke(#[CurrentUser] User $user, Request $request, Site $monitor, StartMaintenance $start, Idempotency $idempotency, AuthorizeSiteWrite $authorize): JsonResponse
     {
         Gate::authorize('update', $monitor);
-        $user = $this->principal($request);
         /** @var array{stop_maintenance_after_seconds?: int, name?: string|null} $data */
         $data = Validator::make($request->all(), [
             'stop_maintenance_after_seconds' => 'sometimes|integer|min:5',

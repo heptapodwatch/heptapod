@@ -10,7 +10,6 @@ use Heptapod\Actions\AuthorizeSiteWrite;
 use Heptapod\Actions\CreateMaintenanceWindow;
 use Heptapod\Actions\DeleteMaintenancePeriod;
 use Heptapod\Actions\UpdateMaintenancePeriod;
-use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Enums\Capability;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Http\Resources\OhDear\MaintenancePeriodResource;
@@ -21,6 +20,7 @@ use Heptapod\Models\Site;
 use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
 use Heptapod\Support\Api\Idempotency;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\Query\JoinClause;
@@ -34,12 +34,10 @@ use Illuminate\Validation\ValidationException;
 #[Group('Maintenance')]
 final class MaintenancePeriodController extends Controller
 {
-    use ResolvesApiPrincipal;
-
     /** Bounds memory and response size for monitors with large maintenance histories. */
     public const int MaxPeriods = 1000;
 
-    public function index(Request $request, Site $monitor): JsonResponse
+    public function index(#[CurrentUser] User $user, Request $request, Site $monitor): JsonResponse
     {
         Gate::authorize('view', $monitor);
         /** @var array{filter?: array{started_at?: string, ended_at?: string}} $data */
@@ -52,7 +50,6 @@ final class MaintenancePeriodController extends Controller
         $query->getQuery()->leftJoin('maintenance_site_exclusions as site_exit', static fn (JoinClause $join): JoinClause => $join
             ->on('site_exit.maintenance_period_id', '=', 'maintenance_periods.id')->where('site_exit.site_id', $monitor->id))
             ->select('maintenance_periods.*', 'site_exit.left_at as site_ended_at');
-        $user = $this->principal($request);
         if ($user->isRestrictedMember()) {
             $query->getQuery()->where('target_type', '!=', 'tag');
         }
@@ -81,9 +78,8 @@ final class MaintenancePeriodController extends Controller
         }, $query->get()->all())]);
     }
 
-    public function store(Request $request, CreateMaintenanceWindow $create, Idempotency $idempotency, SitePolicy $sites, AuthorizeSiteWrite $authorize): JsonResponse
+    public function store(#[CurrentUser] User $user, Request $request, CreateMaintenanceWindow $create, Idempotency $idempotency, SitePolicy $sites, AuthorizeSiteWrite $authorize): JsonResponse
     {
-        $user = $this->principal($request);
         /** @var array{monitor_id: int, starts_at: string, ends_at: string, name?: string|null} $data */
         $data = Validator::make($request->all(), [
             'monitor_id' => ['required', 'integer', $sites->visibleSiteRule($user)], 'starts_at' => 'required|date_format:Y-m-d H:i',
@@ -107,11 +103,11 @@ final class MaintenancePeriodController extends Controller
             }), $site);
     }
 
-    public function update(Request $request, int $maintenancePeriod, UpdateMaintenancePeriod $update,
+    public function update(#[CurrentUser] User $user, Request $request, int $maintenancePeriod, UpdateMaintenancePeriod $update,
         LocalMaintenanceTime $localTime, SitePolicy $sites, AuthorizeSiteWrite $authorize): MaintenancePeriodResource
     {
-        $period = $this->reachable($request, $sites)->findOrFail($maintenancePeriod);
-        [$user, $site] = $this->writable($request, $period);
+        $period = $this->reachable($user, $sites)->findOrFail($maintenancePeriod);
+        $site = $this->writable($user, $period);
         /** @var array{starts_at: string, ends_at: string, name?: string|null} $data */
         $data = Validator::make($request->all(), [
             'starts_at' => 'required|date_format:Y-m-d H:i', 'ends_at' => 'required|date_format:Y-m-d H:i',
@@ -129,10 +125,10 @@ final class MaintenancePeriodController extends Controller
             }), $site));
     }
 
-    public function destroy(Request $request, int $maintenancePeriod, DeleteMaintenancePeriod $delete, SitePolicy $sites, AuthorizeSiteWrite $authorize): Response
+    public function destroy(#[CurrentUser] User $user, int $maintenancePeriod, DeleteMaintenancePeriod $delete, SitePolicy $sites, AuthorizeSiteWrite $authorize): Response
     {
-        $period = $this->reachable($request, $sites)->findOrFail($maintenancePeriod);
-        [$user, $site] = $this->writable($request, $period);
+        $period = $this->reachable($user, $sites)->findOrFail($maintenancePeriod);
+        $site = $this->writable($user, $period);
         $authorize($user, 'update', static fn () => $delete($period, static function (MaintenancePeriod $locked, CarbonImmutable $now) use ($site): void {
             self::sameSiteWindow($locked, $site);
             if ($locked->starts_at <= $now) {
@@ -149,9 +145,8 @@ final class MaintenancePeriodController extends Controller
      *
      * @return Builder<MaintenancePeriod>
      */
-    private function reachable(Request $request, SitePolicy $sites): Builder
+    private function reachable(User $user, SitePolicy $sites): Builder
     {
-        $user = $this->principal($request, 403);
         [$covers, $bindings] = MaintenanceTargets::coversSiteSql('maintenance_periods', 'visible_site');
         $visibleSites = $sites->visibleSites($user, includeArchived: true)->getQuery()->select('sites.id', 'sites.client_id');
         $query = MaintenancePeriod::query();
@@ -162,10 +157,8 @@ final class MaintenancePeriodController extends Controller
         return $query;
     }
 
-    /** @return array{User, Site} */
-    private function writable(Request $request, MaintenancePeriod $period): array
+    private function writable(User $user, MaintenancePeriod $period): Site
     {
-        $user = $this->principal($request, 403);
         abort_unless(Capability::Manage->allows($user), 403);
         if ($period->target_type !== 'site') {
             throw ValidationException::withMessages(['maintenance_period_id' => __('maintenance.shared_window_web_only')]);
@@ -173,7 +166,7 @@ final class MaintenancePeriodController extends Controller
         $site = Site::query()->findOrFail($period->site_id);
         Gate::authorize('update', $site);
 
-        return [$user, $site];
+        return $site;
     }
 
     /** The locked window must still be the one-site window of the site authorized under the lock. */

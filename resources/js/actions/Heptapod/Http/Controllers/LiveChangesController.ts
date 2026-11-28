@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\LiveChangesController::__invoke
-* @see app/Http/Controllers/LiveChangesController.php:19
+* @see app/Http/Controllers/LiveChangesController.php:20
 * @route '/live/changes'
 */
 const LiveChangesController = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ LiveChangesController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\LiveChangesController::__invoke
-* @see app/Http/Controllers/LiveChangesController.php:19
+* @see app/Http/Controllers/LiveChangesController.php:20
 * @route '/live/changes'
 */
 LiveChangesController.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ LiveChangesController.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\LiveChangesController::__invoke
-* @see app/Http/Controllers/LiveChangesController.php:19
+* @see app/Http/Controllers/LiveChangesController.php:20
 * @route '/live/changes'
 */
 LiveChangesController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ LiveChangesController.get = (options?: RouteQueryOptions): RouteDefinition<'get'
 
 /**
 * @see \Heptapod\Http\Controllers\LiveChangesController::__invoke
-* @see app/Http/Controllers/LiveChangesController.php:19
+* @see app/Http/Controllers/LiveChangesController.php:20
 * @route '/live/changes'
 */
 LiveChangesController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ LiveChangesController.head = (options?: RouteQueryOptions): RouteDefinition<'hea
 
 /**
 * @see \Heptapod\Http\Controllers\LiveChangesController::__invoke
-* @see app/Http/Controllers/LiveChangesController.php:19
+* @see app/Http/Controllers/LiveChangesController.php:20
 * @route '/live/changes'
 */
 const LiveChangesControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const LiveChangesControllerForm = (options?: RouteQueryOptions): RouteFormDefini
 
 /**
 * @see \Heptapod\Http\Controllers\LiveChangesController::__invoke
-* @see app/Http/Controllers/LiveChangesController.php:19
+* @see app/Http/Controllers/LiveChangesController.php:20
 * @route '/live/changes'
 */
 LiveChangesControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ LiveChangesControllerForm.get = (options?: RouteQueryOptions): RouteFormDefiniti
 
 /**
 * @see \Heptapod\Http\Controllers\LiveChangesController::__invoke
-* @see app/Http/Controllers/LiveChangesController.php:19
+* @see app/Http/Controllers/LiveChangesController.php:20
 * @route '/live/changes'
 */
 LiveChangesControllerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

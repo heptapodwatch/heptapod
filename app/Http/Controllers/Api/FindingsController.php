@@ -6,7 +6,6 @@ namespace Heptapod\Http\Controllers\Api;
 
 use Carbon\CarbonImmutable;
 use Dedoc\Scramble\Attributes\Group;
-use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Contracts\CheckRunEvidence;
 use Heptapod\Contracts\Findings\AvailableFindingsSnapshot;
@@ -25,10 +24,12 @@ use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
 use Heptapod\Models\Incident;
 use Heptapod\Models\Site;
+use Heptapod\Models\User;
 use Heptapod\Queries\IncidentsReader;
 use Heptapod\Support\Api\ApiProblem;
 use Heptapod\Support\Api\CursorCodec;
 use Heptapod\Support\RedactionContext;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -36,12 +37,9 @@ use Illuminate\Support\Facades\Gate;
 #[Group('Check runs')]
 final class FindingsController extends Controller
 {
-    use ResolvesApiPrincipal;
-
-    public function __invoke(FindingsRequest $request, IncidentsReader $incidents, CheckRegistry $registry, CursorCodec $cursors): JsonResponse
+    public function __invoke(#[CurrentUser] User $user, FindingsRequest $request, IncidentsReader $incidents, CheckRegistry $registry, CursorCodec $cursors): JsonResponse
     {
-        $user = $this->principal($request);
-        $token = $this->token($user);
+        $token = $user->currentAccessToken();
         /** @var array{incident_id?: int|string, snapshot?: string, check_id?: int|string, run_ref?: array{id: int|string, endedAt: string}, baseline_run_ref?: array{id: int|string, endedAt: string}, status?: string, only_new_since?: string, limit?: int|string, cursor?: string} $input */
         $input = $request->validated();
         $incident = isset($input['incident_id']) ? $incidents->scoped($user, includeArchived: true)->findOrFail($input['incident_id']) : null;

@@ -12,7 +12,7 @@ use Heptapod\Export\ExportResponse;
 use Heptapod\Models\Client;
 use Heptapod\Models\Event;
 use Heptapod\Models\User;
-use Illuminate\Http\Request;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -24,10 +24,8 @@ final class ClientMessageAttachmentController extends Controller
      * GET …/client-messages/{message}/attachment.{format}: the CSV stored at approval, checked against its hash. CSV
      * serves the sent file byte for byte; Markdown and plain text show the same rows.
      */
-    public function __invoke(Request $request, Client $client, int $message, ExportFormat $format): StreamedResponse
+    public function __invoke(#[CurrentUser] User $user, Client $client, int $message, ExportFormat $format): StreamedResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         Gate::forUser($user)->authorize('view', $client);
         $query = Event::query()->whereKey($message)->where('client_id', $client->id);
         $query->getQuery()->whereIn('type', ['client_message.findings', 'client_message.incident']);

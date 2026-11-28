@@ -6,12 +6,13 @@ namespace Heptapod\Http\Controllers\Api;
 
 use Carbon\CarbonImmutable;
 use Dedoc\Scramble\Attributes\Group;
-use Heptapod\Concerns\ResolvesApiPrincipal;
 use Heptapod\Contracts\UpcomingPosition;
 use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\Client;
+use Heptapod\Models\User;
 use Heptapod\Queries\UpcomingReader;
 use Heptapod\Support\Api\CursorCodec;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -19,14 +20,11 @@ use Illuminate\Support\Facades\Validator;
 #[Group('Activity & upcoming')]
 final class UpcomingController extends Controller
 {
-    use ResolvesApiPrincipal;
-
     private const array DetailSources = ['maintenance' => 'maintenance_name', 'certificate' => 'certificate_issuer', 'domain' => 'domain_registrar', 'task' => 'cron_task_name'];
 
-    public function __invoke(Request $request, UpcomingReader $upcoming, CursorCodec $cursors): JsonResponse
+    public function __invoke(#[CurrentUser] User $user, Request $request, UpcomingReader $upcoming, CursorCodec $cursors): JsonResponse
     {
-        $user = $this->principal($request);
-        $token = $this->token($user);
+        $token = $user->currentAccessToken();
         /** @var array{days?: int|string, client_id?: int|string, type?: string, limit?: int|string, cursor?: string} $input */
         $input = Validator::make($request->query(), ['days' => ['sometimes', 'integer', 'min:1', 'max:90'], 'client_id' => ['sometimes', 'integer', 'min:1'],
             'type' => ['sometimes', 'in:maintenance,certificate,domain,task'], 'limit' => ['sometimes', 'integer', 'min:1', 'max:100'], 'cursor' => ['sometimes', 'string']])->validate();

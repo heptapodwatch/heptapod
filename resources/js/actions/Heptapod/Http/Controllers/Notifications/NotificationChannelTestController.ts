@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelTestController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationChannelTestController.php:20
+* @see app/Http/Controllers/Notifications/NotificationChannelTestController.php:21
 * @route '/notification-channels/{channel}/test'
 */
 const NotificationChannelTestController = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ NotificationChannelTestController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelTestController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationChannelTestController.php:20
+* @see app/Http/Controllers/Notifications/NotificationChannelTestController.php:21
 * @route '/notification-channels/{channel}/test'
 */
 NotificationChannelTestController.url = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ NotificationChannelTestController.url = (args: { channel: number | { id: number 
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelTestController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationChannelTestController.php:20
+* @see app/Http/Controllers/Notifications/NotificationChannelTestController.php:21
 * @route '/notification-channels/{channel}/test'
 */
 NotificationChannelTestController.post = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ NotificationChannelTestController.post = (args: { channel: number | { id: number
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelTestController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationChannelTestController.php:20
+* @see app/Http/Controllers/Notifications/NotificationChannelTestController.php:21
 * @route '/notification-channels/{channel}/test'
 */
 const NotificationChannelTestControllerForm = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ const NotificationChannelTestControllerForm = (args: { channel: number | { id: n
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationChannelTestController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationChannelTestController.php:20
+* @see app/Http/Controllers/Notifications/NotificationChannelTestController.php:21
 * @route '/notification-channels/{channel}/test'
 */
 NotificationChannelTestControllerForm.post = (args: { channel: number | { id: number } } | [channel: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

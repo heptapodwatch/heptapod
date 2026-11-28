@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailLogoController::__invoke
-* @see app/Http/Controllers/Settings/EmailLogoController.php:19
+* @see app/Http/Controllers/Settings/EmailLogoController.php:16
 * @route '/settings/email/logo/{variant}/{file}'
 */
 const EmailLogoController = (args: { variant: string | number, file: string | number } | [variant: string | number, file: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ EmailLogoController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailLogoController::__invoke
-* @see app/Http/Controllers/Settings/EmailLogoController.php:19
+* @see app/Http/Controllers/Settings/EmailLogoController.php:16
 * @route '/settings/email/logo/{variant}/{file}'
 */
 EmailLogoController.url = (args: { variant: string | number, file: string | number } | [variant: string | number, file: string | number ], options?: RouteQueryOptions) => {
@@ -42,7 +42,7 @@ EmailLogoController.url = (args: { variant: string | number, file: string | numb
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailLogoController::__invoke
-* @see app/Http/Controllers/Settings/EmailLogoController.php:19
+* @see app/Http/Controllers/Settings/EmailLogoController.php:16
 * @route '/settings/email/logo/{variant}/{file}'
 */
 EmailLogoController.get = (args: { variant: string | number, file: string | number } | [variant: string | number, file: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -52,7 +52,7 @@ EmailLogoController.get = (args: { variant: string | number, file: string | numb
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailLogoController::__invoke
-* @see app/Http/Controllers/Settings/EmailLogoController.php:19
+* @see app/Http/Controllers/Settings/EmailLogoController.php:16
 * @route '/settings/email/logo/{variant}/{file}'
 */
 EmailLogoController.head = (args: { variant: string | number, file: string | number } | [variant: string | number, file: string | number ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -62,7 +62,7 @@ EmailLogoController.head = (args: { variant: string | number, file: string | num
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailLogoController::__invoke
-* @see app/Http/Controllers/Settings/EmailLogoController.php:19
+* @see app/Http/Controllers/Settings/EmailLogoController.php:16
 * @route '/settings/email/logo/{variant}/{file}'
 */
 const EmailLogoControllerForm = (args: { variant: string | number, file: string | number } | [variant: string | number, file: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -72,7 +72,7 @@ const EmailLogoControllerForm = (args: { variant: string | number, file: string 
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailLogoController::__invoke
-* @see app/Http/Controllers/Settings/EmailLogoController.php:19
+* @see app/Http/Controllers/Settings/EmailLogoController.php:16
 * @route '/settings/email/logo/{variant}/{file}'
 */
 EmailLogoControllerForm.get = (args: { variant: string | number, file: string | number } | [variant: string | number, file: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ EmailLogoControllerForm.get = (args: { variant: string | number, file: string | 
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\EmailLogoController::__invoke
-* @see app/Http/Controllers/Settings/EmailLogoController.php:19
+* @see app/Http/Controllers/Settings/EmailLogoController.php:16
 * @route '/settings/email/logo/{variant}/{file}'
 */
 EmailLogoControllerForm.head = (args: { variant: string | number, file: string | number } | [variant: string | number, file: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

@@ -14,6 +14,8 @@ use Heptapod\Contracts\Http\PaginatedCollection;
 use Heptapod\Contracts\Http\PaginationRequest;
 use Heptapod\Contracts\SiteDirectory;
 use Heptapod\Contracts\SnoozeEnd;
+use Illuminate\Container\Attributes\CurrentUser;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -36,10 +38,9 @@ final class ServersApiController
         return PaginatedCollection::ofBodies($page);
     }
 
-    public function show(Request $request, Server $server, ServerReader $reader, SiteDirectory $directory): JsonResponse
+    public function show(#[CurrentUser] Authenticatable $user, Server $server, ServerReader $reader, SiteDirectory $directory): JsonResponse
     {
         Gate::authorize('view', $server);
-        $user = $request->user() ?? throw new \LogicException('The server API needs a signed-in user.');
 
         return response()->json(ServerApi::detail($reader->server(CarbonImmutable::now(), $server->id), $directory->visible($user, $reader->linkedSiteIds($server->id))));
     }

@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Settings\SecurityController::edit
-* @see app/Http/Controllers/Settings/SecurityController.php:23
+* @see app/Http/Controllers/Settings/SecurityController.php:24
 * @route '/settings/security'
 */
 export const edit = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ edit.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\SecurityController::edit
-* @see app/Http/Controllers/Settings/SecurityController.php:23
+* @see app/Http/Controllers/Settings/SecurityController.php:24
 * @route '/settings/security'
 */
 edit.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ edit.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\SecurityController::edit
-* @see app/Http/Controllers/Settings/SecurityController.php:23
+* @see app/Http/Controllers/Settings/SecurityController.php:24
 * @route '/settings/security'
 */
 edit.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ edit.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\SecurityController::edit
-* @see app/Http/Controllers/Settings/SecurityController.php:23
+* @see app/Http/Controllers/Settings/SecurityController.php:24
 * @route '/settings/security'
 */
 edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\SecurityController::edit
-* @see app/Http/Controllers/Settings/SecurityController.php:23
+* @see app/Http/Controllers/Settings/SecurityController.php:24
 * @route '/settings/security'
 */
 const editForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const editForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\SecurityController::edit
-* @see app/Http/Controllers/Settings/SecurityController.php:23
+* @see app/Http/Controllers/Settings/SecurityController.php:24
 * @route '/settings/security'
 */
 editForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ editForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\Settings\SecurityController::edit
-* @see app/Http/Controllers/Settings/SecurityController.php:23
+* @see app/Http/Controllers/Settings/SecurityController.php:24
 * @route '/settings/security'
 */
 editForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

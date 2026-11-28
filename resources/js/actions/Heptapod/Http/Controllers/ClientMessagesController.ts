@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagesController::index
-* @see app/Http/Controllers/ClientMessagesController.php:25
+* @see app/Http/Controllers/ClientMessagesController.php:26
 * @route '/clients/{client}/client-messages'
 */
 export const index = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagesController::index
-* @see app/Http/Controllers/ClientMessagesController.php:25
+* @see app/Http/Controllers/ClientMessagesController.php:26
 * @route '/clients/{client}/client-messages'
 */
 index.url = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ index.url = (args: { client: number | { id: number } } | [client: number | { id:
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagesController::index
-* @see app/Http/Controllers/ClientMessagesController.php:25
+* @see app/Http/Controllers/ClientMessagesController.php:26
 * @route '/clients/{client}/client-messages'
 */
 index.get = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -59,7 +59,7 @@ index.get = (args: { client: number | { id: number } } | [client: number | { id:
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagesController::index
-* @see app/Http/Controllers/ClientMessagesController.php:25
+* @see app/Http/Controllers/ClientMessagesController.php:26
 * @route '/clients/{client}/client-messages'
 */
 index.head = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -69,7 +69,7 @@ index.head = (args: { client: number | { id: number } } | [client: number | { id
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagesController::index
-* @see app/Http/Controllers/ClientMessagesController.php:25
+* @see app/Http/Controllers/ClientMessagesController.php:26
 * @route '/clients/{client}/client-messages'
 */
 const indexForm = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ const indexForm = (args: { client: number | { id: number } } | [client: number |
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagesController::index
-* @see app/Http/Controllers/ClientMessagesController.php:25
+* @see app/Http/Controllers/ClientMessagesController.php:26
 * @route '/clients/{client}/client-messages'
 */
 indexForm.get = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -89,7 +89,7 @@ indexForm.get = (args: { client: number | { id: number } } | [client: number | {
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagesController::index
-* @see app/Http/Controllers/ClientMessagesController.php:25
+* @see app/Http/Controllers/ClientMessagesController.php:26
 * @route '/clients/{client}/client-messages'
 */
 indexForm.head = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -106,7 +106,7 @@ index.form = indexForm
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagesController::show
-* @see app/Http/Controllers/ClientMessagesController.php:39
+* @see app/Http/Controllers/ClientMessagesController.php:38
 * @route '/clients/{client}/client-messages/{message}'
 */
 export const show = (args: { client: number | { id: number }, message: string | number } | [client: number | { id: number }, message: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -121,7 +121,7 @@ show.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagesController::show
-* @see app/Http/Controllers/ClientMessagesController.php:39
+* @see app/Http/Controllers/ClientMessagesController.php:38
 * @route '/clients/{client}/client-messages/{message}'
 */
 show.url = (args: { client: number | { id: number }, message: string | number } | [client: number | { id: number }, message: string | number ], options?: RouteQueryOptions) => {
@@ -149,7 +149,7 @@ show.url = (args: { client: number | { id: number }, message: string | number } 
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagesController::show
-* @see app/Http/Controllers/ClientMessagesController.php:39
+* @see app/Http/Controllers/ClientMessagesController.php:38
 * @route '/clients/{client}/client-messages/{message}'
 */
 show.get = (args: { client: number | { id: number }, message: string | number } | [client: number | { id: number }, message: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -159,7 +159,7 @@ show.get = (args: { client: number | { id: number }, message: string | number } 
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagesController::show
-* @see app/Http/Controllers/ClientMessagesController.php:39
+* @see app/Http/Controllers/ClientMessagesController.php:38
 * @route '/clients/{client}/client-messages/{message}'
 */
 show.head = (args: { client: number | { id: number }, message: string | number } | [client: number | { id: number }, message: string | number ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -169,7 +169,7 @@ show.head = (args: { client: number | { id: number }, message: string | number }
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagesController::show
-* @see app/Http/Controllers/ClientMessagesController.php:39
+* @see app/Http/Controllers/ClientMessagesController.php:38
 * @route '/clients/{client}/client-messages/{message}'
 */
 const showForm = (args: { client: number | { id: number }, message: string | number } | [client: number | { id: number }, message: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -179,7 +179,7 @@ const showForm = (args: { client: number | { id: number }, message: string | num
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagesController::show
-* @see app/Http/Controllers/ClientMessagesController.php:39
+* @see app/Http/Controllers/ClientMessagesController.php:38
 * @route '/clients/{client}/client-messages/{message}'
 */
 showForm.get = (args: { client: number | { id: number }, message: string | number } | [client: number | { id: number }, message: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -189,7 +189,7 @@ showForm.get = (args: { client: number | { id: number }, message: string | numbe
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagesController::show
-* @see app/Http/Controllers/ClientMessagesController.php:39
+* @see app/Http/Controllers/ClientMessagesController.php:38
 * @route '/clients/{client}/client-messages/{message}'
 */
 showForm.head = (args: { client: number | { id: number }, message: string | number } | [client: number | { id: number }, message: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -206,7 +206,7 @@ show.form = showForm
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagesController::store
-* @see app/Http/Controllers/ClientMessagesController.php:62
+* @see app/Http/Controllers/ClientMessagesController.php:59
 * @route '/clients/{client}/client-messages'
 */
 export const store = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -221,7 +221,7 @@ store.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagesController::store
-* @see app/Http/Controllers/ClientMessagesController.php:62
+* @see app/Http/Controllers/ClientMessagesController.php:59
 * @route '/clients/{client}/client-messages'
 */
 store.url = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -254,7 +254,7 @@ store.url = (args: { client: number | { id: number } } | [client: number | { id:
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagesController::store
-* @see app/Http/Controllers/ClientMessagesController.php:62
+* @see app/Http/Controllers/ClientMessagesController.php:59
 * @route '/clients/{client}/client-messages'
 */
 store.post = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -264,7 +264,7 @@ store.post = (args: { client: number | { id: number } } | [client: number | { id
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagesController::store
-* @see app/Http/Controllers/ClientMessagesController.php:62
+* @see app/Http/Controllers/ClientMessagesController.php:59
 * @route '/clients/{client}/client-messages'
 */
 const storeForm = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -274,7 +274,7 @@ const storeForm = (args: { client: number | { id: number } } | [client: number |
 
 /**
 * @see \Heptapod\Http\Controllers\ClientMessagesController::store
-* @see app/Http/Controllers/ClientMessagesController.php:62
+* @see app/Http/Controllers/ClientMessagesController.php:59
 * @route '/clients/{client}/client-messages'
 */
 storeForm.post = (args: { client: number | { id: number } } | [client: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

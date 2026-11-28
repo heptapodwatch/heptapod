@@ -727,7 +727,7 @@ dashboard.form = dashboardForm
 
 /**
 * @see \Heptapod\Http\Controllers\SearchController::__invoke
-* @see app/Http/Controllers/SearchController.php:15
+* @see app/Http/Controllers/SearchController.php:16
 * @route '/search'
 */
 export const search = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -742,7 +742,7 @@ search.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\SearchController::__invoke
-* @see app/Http/Controllers/SearchController.php:15
+* @see app/Http/Controllers/SearchController.php:16
 * @route '/search'
 */
 search.url = (options?: RouteQueryOptions) => {
@@ -751,7 +751,7 @@ search.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \Heptapod\Http\Controllers\SearchController::__invoke
-* @see app/Http/Controllers/SearchController.php:15
+* @see app/Http/Controllers/SearchController.php:16
 * @route '/search'
 */
 search.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -761,7 +761,7 @@ search.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\SearchController::__invoke
-* @see app/Http/Controllers/SearchController.php:15
+* @see app/Http/Controllers/SearchController.php:16
 * @route '/search'
 */
 search.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -771,7 +771,7 @@ search.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\SearchController::__invoke
-* @see app/Http/Controllers/SearchController.php:15
+* @see app/Http/Controllers/SearchController.php:16
 * @route '/search'
 */
 const searchForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -781,7 +781,7 @@ const searchForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => 
 
 /**
 * @see \Heptapod\Http\Controllers\SearchController::__invoke
-* @see app/Http/Controllers/SearchController.php:15
+* @see app/Http/Controllers/SearchController.php:16
 * @route '/search'
 */
 searchForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -791,7 +791,7 @@ searchForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \Heptapod\Http\Controllers\SearchController::__invoke
-* @see app/Http/Controllers/SearchController.php:15
+* @see app/Http/Controllers/SearchController.php:16
 * @route '/search'
 */
 searchForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -808,7 +808,7 @@ search.form = searchForm
 
 /**
 * @see \Heptapod\Http\Controllers\PickerController::__invoke
-* @see app/Http/Controllers/PickerController.php:16
+* @see app/Http/Controllers/PickerController.php:17
 * @route '/pickers/{kind}'
 */
 export const pickers = (args: { kind: string | number } | [kind: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -823,7 +823,7 @@ pickers.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\PickerController::__invoke
-* @see app/Http/Controllers/PickerController.php:16
+* @see app/Http/Controllers/PickerController.php:17
 * @route '/pickers/{kind}'
 */
 pickers.url = (args: { kind: string | number } | [kind: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -850,7 +850,7 @@ pickers.url = (args: { kind: string | number } | [kind: string | number ] | stri
 
 /**
 * @see \Heptapod\Http\Controllers\PickerController::__invoke
-* @see app/Http/Controllers/PickerController.php:16
+* @see app/Http/Controllers/PickerController.php:17
 * @route '/pickers/{kind}'
 */
 pickers.get = (args: { kind: string | number } | [kind: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -860,7 +860,7 @@ pickers.get = (args: { kind: string | number } | [kind: string | number ] | stri
 
 /**
 * @see \Heptapod\Http\Controllers\PickerController::__invoke
-* @see app/Http/Controllers/PickerController.php:16
+* @see app/Http/Controllers/PickerController.php:17
 * @route '/pickers/{kind}'
 */
 pickers.head = (args: { kind: string | number } | [kind: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -870,7 +870,7 @@ pickers.head = (args: { kind: string | number } | [kind: string | number ] | str
 
 /**
 * @see \Heptapod\Http\Controllers\PickerController::__invoke
-* @see app/Http/Controllers/PickerController.php:16
+* @see app/Http/Controllers/PickerController.php:17
 * @route '/pickers/{kind}'
 */
 const pickersForm = (args: { kind: string | number } | [kind: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -880,7 +880,7 @@ const pickersForm = (args: { kind: string | number } | [kind: string | number ] 
 
 /**
 * @see \Heptapod\Http\Controllers\PickerController::__invoke
-* @see app/Http/Controllers/PickerController.php:16
+* @see app/Http/Controllers/PickerController.php:17
 * @route '/pickers/{kind}'
 */
 pickersForm.get = (args: { kind: string | number } | [kind: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -890,7 +890,7 @@ pickersForm.get = (args: { kind: string | number } | [kind: string | number ] | 
 
 /**
 * @see \Heptapod\Http\Controllers\PickerController::__invoke
-* @see app/Http/Controllers/PickerController.php:16
+* @see app/Http/Controllers/PickerController.php:17
 * @route '/pickers/{kind}'
 */
 pickersForm.head = (args: { kind: string | number } | [kind: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

@@ -13,6 +13,7 @@ use Heptapod\Enums\SiteStatus;
 use Heptapod\Models\Client;
 use Heptapod\Models\User;
 use Heptapod\Queries\ClientsReader;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -22,10 +23,8 @@ use Spatie\QueryBuilder\AllowedFilter;
 
 final class ClientsIndexController extends Controller
 {
-    public function __invoke(Request $request, ClientsReader $reader): Response
+    public function __invoke(#[CurrentUser] User $user, Request $request, ClientsReader $reader): Response
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         abort_unless(Capability::ViewInstance->allows($user), 403);
         $filters = ListFilters::read($request, [
             'search' => ['kind' => FilterKind::Search, 'label' => 'Search clients', 'rules' => ['nullable', 'string', 'max:255'],

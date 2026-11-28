@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults, validateParameters } from './../../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationScheduleController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationScheduleController.php:18
+* @see app/Http/Controllers/Notifications/NotificationScheduleController.php:19
 * @route '/notification-schedules/{kind}/{id?}'
 */
 const NotificationScheduleController = (args: { kind: string | number, id?: string | number } | [kind: string | number, id: string | number ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -16,7 +16,7 @@ NotificationScheduleController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationScheduleController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationScheduleController.php:18
+* @see app/Http/Controllers/Notifications/NotificationScheduleController.php:19
 * @route '/notification-schedules/{kind}/{id?}'
 */
 NotificationScheduleController.url = (args: { kind: string | number, id?: string | number } | [kind: string | number, id: string | number ], options?: RouteQueryOptions) => {
@@ -46,7 +46,7 @@ NotificationScheduleController.url = (args: { kind: string | number, id?: string
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationScheduleController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationScheduleController.php:18
+* @see app/Http/Controllers/Notifications/NotificationScheduleController.php:19
 * @route '/notification-schedules/{kind}/{id?}'
 */
 NotificationScheduleController.patch = (args: { kind: string | number, id?: string | number } | [kind: string | number, id: string | number ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -56,7 +56,7 @@ NotificationScheduleController.patch = (args: { kind: string | number, id?: stri
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationScheduleController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationScheduleController.php:18
+* @see app/Http/Controllers/Notifications/NotificationScheduleController.php:19
 * @route '/notification-schedules/{kind}/{id?}'
 */
 const NotificationScheduleControllerForm = (args: { kind: string | number, id?: string | number } | [kind: string | number, id: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -71,7 +71,7 @@ const NotificationScheduleControllerForm = (args: { kind: string | number, id?: 
 
 /**
 * @see \Heptapod\Http\Controllers\Notifications\NotificationScheduleController::__invoke
-* @see app/Http/Controllers/Notifications/NotificationScheduleController.php:18
+* @see app/Http/Controllers/Notifications/NotificationScheduleController.php:19
 * @route '/notification-schedules/{kind}/{id?}'
 */
 NotificationScheduleControllerForm.patch = (args: { kind: string | number, id?: string | number } | [kind: string | number, id: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

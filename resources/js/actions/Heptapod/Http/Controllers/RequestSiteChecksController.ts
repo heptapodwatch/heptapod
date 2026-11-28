@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\RequestSiteChecksController::__invoke
-* @see app/Http/Controllers/RequestSiteChecksController.php:17
+* @see app/Http/Controllers/RequestSiteChecksController.php:18
 * @route '/sites/{site}/run-all'
 */
 const RequestSiteChecksController = (args: { site: string | number } | [site: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ RequestSiteChecksController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\RequestSiteChecksController::__invoke
-* @see app/Http/Controllers/RequestSiteChecksController.php:17
+* @see app/Http/Controllers/RequestSiteChecksController.php:18
 * @route '/sites/{site}/run-all'
 */
 RequestSiteChecksController.url = (args: { site: string | number } | [site: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -43,7 +43,7 @@ RequestSiteChecksController.url = (args: { site: string | number } | [site: stri
 
 /**
 * @see \Heptapod\Http\Controllers\RequestSiteChecksController::__invoke
-* @see app/Http/Controllers/RequestSiteChecksController.php:17
+* @see app/Http/Controllers/RequestSiteChecksController.php:18
 * @route '/sites/{site}/run-all'
 */
 RequestSiteChecksController.post = (args: { site: string | number } | [site: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -53,7 +53,7 @@ RequestSiteChecksController.post = (args: { site: string | number } | [site: str
 
 /**
 * @see \Heptapod\Http\Controllers\RequestSiteChecksController::__invoke
-* @see app/Http/Controllers/RequestSiteChecksController.php:17
+* @see app/Http/Controllers/RequestSiteChecksController.php:18
 * @route '/sites/{site}/run-all'
 */
 const RequestSiteChecksControllerForm = (args: { site: string | number } | [site: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -63,7 +63,7 @@ const RequestSiteChecksControllerForm = (args: { site: string | number } | [site
 
 /**
 * @see \Heptapod\Http\Controllers\RequestSiteChecksController::__invoke
-* @see app/Http/Controllers/RequestSiteChecksController.php:17
+* @see app/Http/Controllers/RequestSiteChecksController.php:18
 * @route '/sites/{site}/run-all'
 */
 RequestSiteChecksControllerForm.post = (args: { site: string | number } | [site: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

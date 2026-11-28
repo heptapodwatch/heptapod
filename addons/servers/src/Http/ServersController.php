@@ -21,6 +21,8 @@ use Heptapod\Contracts\PaginationData;
 use Heptapod\Contracts\ServersAccess;
 use Heptapod\Contracts\SiteDirectory;
 use Heptapod\Contracts\SnoozeEnd;
+use Illuminate\Container\Attributes\CurrentUser;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -66,10 +68,9 @@ final class ServersController
         return to_route('servers.show', $server);
     }
 
-    public function show(Request $request, Server $server, ServerReader $reader, ServersAccess $access, SiteDirectory $directory): Response
+    public function show(#[CurrentUser] Authenticatable $user, Server $server, ServerReader $reader, ServersAccess $access, SiteDirectory $directory): Response
     {
         Gate::authorize('view', $server);
-        $user = $request->user() ?? throw new \LogicException('The server page needs a signed-in user.');
         $now = CarbonImmutable::now();
         $tag = $access->agentReleaseTag();
         $row = null;

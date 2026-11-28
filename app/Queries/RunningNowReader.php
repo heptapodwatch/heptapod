@@ -102,7 +102,7 @@ final readonly class RunningNowReader
     }
 
     /**
-     * Imports are Owner/Admin work (AuthorizesSettingsOperator). Never `results`: one row per monitor, too large for every page.
+     * Imports are Owner/Admin work (Capability::Manage). Never `results`: one row per monitor, too large for every page.
      * import_runs_active and import_runs_user_finished keep the read off the finished history.
      *
      * @return list<RunningImportData>

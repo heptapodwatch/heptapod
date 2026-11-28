@@ -15,6 +15,7 @@ use Heptapod\Http\Controllers\Controller;
 use Heptapod\Models\Client;
 use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,21 +27,20 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 final class ApiTokensController extends Controller
 {
-    public function edit(Request $request, CreateApiToken $create, SitePolicy $policy): Response
+    public function edit(#[CurrentUser] User $user, CreateApiToken $create, SitePolicy $policy): Response
     {
         return Inertia::render('settings/api-tokens', new ApiTokensPageData(
-            tokensPage: $this->data($request, $create, $policy),
+            tokensPage: $this->data($user, $create, $policy),
         ));
     }
 
-    public function index(Request $request, CreateApiToken $create, SitePolicy $policy): JsonResponse
+    public function index(#[CurrentUser] User $user, CreateApiToken $create, SitePolicy $policy): JsonResponse
     {
-        return response()->json($this->data($request, $create, $policy));
+        return response()->json($this->data($user, $create, $policy));
     }
 
-    private function data(Request $request, CreateApiToken $create, SitePolicy $policy): ApiTokenSettingsData
+    private function data(User $user, CreateApiToken $create, SitePolicy $policy): ApiTokenSettingsData
     {
-        $user = $this->user($request);
         // Do not apply the topbar preference: token reach is constrained separately, including empty clients.
         // ClientPolicy denies client reads without a team role; self-token management has no such role gate.
         $tokenRows = $user->tokens()->getQuery()->get();
@@ -69,9 +69,8 @@ final class ApiTokensController extends Controller
             array_values($clients->map(static fn (Client $client): array => ['id' => $client->id, 'name' => $client->displayName(), 'short_name' => $client->short_name, 'accent_color' => $client->accent_color, 'avatar' => app(ResolveClientAvatar::class)($client), 'is_internal' => $client->is_internal])->all()), $hasClients, $user->resolvedTimezone());
     }
 
-    public function store(Request $request, CreateApiToken $create): JsonResponse
+    public function store(#[CurrentUser] User $user, Request $request, CreateApiToken $create): JsonResponse
     {
-        $user = $this->user($request);
         $presets = $create->presets($user);
         /** @var array{name: string, abilities?: list<string>, preset?: string, client_id?: int|null, expires_at?: string|null, expires_in_days?: int|null} $data */
         $data = Validator::make($request->all(), ['name' => ['required', 'string', 'max:255'],
@@ -88,18 +87,10 @@ final class ApiTokensController extends Controller
         return response()->json(['token' => $plainTextToken, 'expires_at' => $expiresAt?->toIso8601String()], 201)->header('Cache-Control', 'no-store');
     }
 
-    public function destroy(Request $request, int $token, RevokeApiToken $revoke): JsonResponse
+    public function destroy(#[CurrentUser] User $user, int $token, RevokeApiToken $revoke): JsonResponse
     {
-        $revoke($this->user($request), $token);
+        $revoke($user, $token);
 
         return response()->json(null, 204);
-    }
-
-    private function user(Request $request): User
-    {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
-
-        return $user;
     }
 }

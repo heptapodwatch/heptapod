@@ -28,6 +28,7 @@ use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
 use Heptapod\Queries\IncidentsReader;
 use Heptapod\Support\RedactionContext;
+use Illuminate\Container\Attributes\CurrentUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -37,10 +38,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 final class FindingsExportController extends Controller
 {
     /** GET sites/{site}/checks/{check}/findings.{format}: one retained findings snapshot; each group's `<group>_page` and `<group>_per_page` (This page) limit it to the rows that page lists. */
-    public function __invoke(Request $request, int $site, int $check, ExportFormat $format, SitePolicy $sites, IncidentsReader $incidents, CheckRegistry $registry, CheckRunPresentations $presentations): StreamedResponse
+    public function __invoke(#[CurrentUser] User $user, Request $request, int $site, int $check, ExportFormat $format, SitePolicy $sites, IncidentsReader $incidents, CheckRegistry $registry, CheckRunPresentations $presentations): StreamedResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User, 401);
         $siteRow = $sites->visibleSites($user, includeArchived: true)->whereKey($site)->firstOrFail();
         $checkRow = Check::query()->where('site_id', $site)->whereKey($check)->firstOrFail();
         $checkRow->setRelation('site', $siteRow);

@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:40
+* @see app/Http/Controllers/FindingsExportController.php:41
 * @route '/sites/{site}/checks/{check}/findings.{format}'
 */
 const FindingsExportController = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ FindingsExportController.definition = {
 
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:40
+* @see app/Http/Controllers/FindingsExportController.php:41
 * @route '/sites/{site}/checks/{check}/findings.{format}'
 */
 FindingsExportController.url = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions) => {
@@ -45,7 +45,7 @@ FindingsExportController.url = (args: { site: string | number, check: string | n
 
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:40
+* @see app/Http/Controllers/FindingsExportController.php:41
 * @route '/sites/{site}/checks/{check}/findings.{format}'
 */
 FindingsExportController.get = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -55,7 +55,7 @@ FindingsExportController.get = (args: { site: string | number, check: string | n
 
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:40
+* @see app/Http/Controllers/FindingsExportController.php:41
 * @route '/sites/{site}/checks/{check}/findings.{format}'
 */
 FindingsExportController.head = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -65,7 +65,7 @@ FindingsExportController.head = (args: { site: string | number, check: string | 
 
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:40
+* @see app/Http/Controllers/FindingsExportController.php:41
 * @route '/sites/{site}/checks/{check}/findings.{format}'
 */
 const FindingsExportControllerForm = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -75,7 +75,7 @@ const FindingsExportControllerForm = (args: { site: string | number, check: stri
 
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:40
+* @see app/Http/Controllers/FindingsExportController.php:41
 * @route '/sites/{site}/checks/{check}/findings.{format}'
 */
 FindingsExportControllerForm.get = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -85,7 +85,7 @@ FindingsExportControllerForm.get = (args: { site: string | number, check: string
 
 /**
 * @see \Heptapod\Http\Controllers\FindingsExportController::__invoke
-* @see app/Http/Controllers/FindingsExportController.php:40
+* @see app/Http/Controllers/FindingsExportController.php:41
 * @route '/sites/{site}/checks/{check}/findings.{format}'
 */
 FindingsExportControllerForm.head = (args: { site: string | number, check: string | number, format: string | number } | [site: string | number, check: string | number, format: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
