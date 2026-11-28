@@ -322,16 +322,24 @@ function routeAccessFixture(string $key): array
     $server = Server::named('route-access');
     $server->issueToken();
     $hash = str_repeat('a', 64);
-    $png = routeAccessPng();
-    $iconHash = hash('sha256', $png);
-    Storage::put('site-icons/'.$site->id.'/'.$iconHash.'.png', $png);
-    $site->forceFill(['icon_hash' => $iconHash])->save();
-    $client->addMediaFromString($png)->usingFileName('logo.png')->toMediaCollection('logo');
-    $logoHash = $client->refresh()->getFirstMedia('logo')?->getCustomProperty('avatar_hash');
-    $message = str_contains($key, 'client-messages/{message}') ? routeAccessClientMessage($users['owner'], $client, $site) : 999999;
+    // The stored icon, logo and message only for the routes that serve them: a logo conversion per case would carry
+    // every one of the many cases in a worker towards its memory limit.
+    $iconHash = $logoHash = $hash;
+    $message = 999999;
+    if (str_starts_with($key, 'GET sites/{site}/icon/')) {
+        $png = routeAccessPng();
+        $iconHash = hash('sha256', $png);
+        Storage::put('site-icons/'.$site->id.'/'.$iconHash.'.png', $png);
+        $site->forceFill(['icon_hash' => $iconHash])->save();
+    } elseif (str_starts_with($key, 'GET clients/{client}/logo/')) {
+        $client->addMediaFromString(routeAccessPng())->usingFileName('logo.png')->toMediaCollection('logo');
+        $logoHash = (string) $client->refresh()->getFirstMedia('logo')?->getCustomProperty('avatar_hash');
+    } elseif (str_contains($key, 'client-messages/{message}')) {
+        $message = routeAccessClientMessage($users['owner'], $client, $site);
+    }
 
     return ['users' => $users, 'tokens' => $tokens, 'tokenIds' => $tokenIds, 'parameters' => [
-        'client' => (string) $client->id, 'hash' => $hash, 'iconHash' => $iconHash, 'logoHash' => (string) $logoHash, 'message' => (string) $message, 'format' => 'csv',
+        'client' => (string) $client->id, 'hash' => $hash, 'iconHash' => $iconHash, 'logoHash' => $logoHash, 'message' => (string) $message, 'format' => 'csv',
         'series' => (string) $series->id, 'window' => (string) $window->id, 'maintenancePeriod' => (string) $window->id,
         'incident' => (string) $incident->id, 'event' => (string) $event->id,
         'site' => (string) $site->id, 'monitor' => (string) $site->id, 'url' => rawurlencode($site->url),
