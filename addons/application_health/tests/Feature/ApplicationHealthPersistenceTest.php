@@ -48,7 +48,7 @@ it('isolates attempts and makes publication transactional and idempotent', funct
         ->and(DB::table('application_health_snapshots')->value('run_ended_at'))->toContain('.123456')
         ->and(DB::table('application_health_components')->value('active'))->toBeTrue();
     expect(fn () => $type->execute($other))->toThrow(LogicException::class, 'Cannot stage an accepted');
-    expect(fn () => $store->finalize(new RunReference($run->id, $run->endedAt->addSecond()), $other->claimToken))->toThrow(LogicException::class, 'different timestamp');
+    expect(fn () => $store->finalize(new RunReference($run->id, $run->endedAt->addSecond()), $other->claimToken))->toThrow(LogicException::class, 'different run timestamp');
     $absent = new RunReference($run->id + 1, $run->endedAt);
     $store->finalize($absent, $first->claimToken);
     $store->discard($absent->id, $first->claimToken);

@@ -12,6 +12,7 @@ use Heptapod\Contracts\RunPersistence;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\SecurityAdvisoryIndex;
 use Heptapod\Contracts\SecurityAdvisoryPackageData;
+use Heptapod\Contracts\StagedSnapshots;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -153,39 +154,20 @@ final readonly class ApplicationHealthPersistence implements RunPersistence, Sec
         if (DB::table('application_health_components')->where('check_id', $context->checkId)->whereIn('id', $ids)->count() !== count($ids)) {
             throw new \InvalidArgumentException('Application health component belongs to another check.');
         }
-        DB::transaction(function () use ($context, $validated): void {
-            $row = DB::table('application_health_snapshots')->where('run_id', $context->runId)->where('claim_token', $context->claimToken)->lockForUpdate()->first();
-            if ($row !== null && $row->run_ended_at !== null) {
-                throw new \LogicException('Cannot stage an accepted application health snapshot.');
-            }
-            DB::table('application_health_snapshots')->updateOrInsert(['run_id' => $context->runId, 'claim_token' => $context->claimToken], [
-                'check_id' => $context->checkId,
-                'components' => json_encode($validated['components'], JSON_THROW_ON_ERROR),
-                'created_at' => now()->format('Y-m-d H:i:s.uP'),
-            ]);
-        });
+        StagedSnapshots::stage('application_health_snapshots', $context, [
+            'check_id' => $context->checkId,
+            'components' => json_encode($validated['components'], JSON_THROW_ON_ERROR),
+            'created_at' => now()->format('Y-m-d H:i:s.uP'),
+        ]);
     }
 
     public function finalize(RunReference $run, string $claimToken): void
     {
-        DB::transaction(function () use ($run, $claimToken): void {
-            $query = DB::table('application_health_snapshots')->where('run_id', $run->id)->where('claim_token', $claimToken);
-            $row = $query->lockForUpdate()->first();
-            // Endpoint failures have no component observation to publish.
-            if ($row === null) {
-                return;
-            }
-            /** @var \stdClass&object{check_id: int, components: string, run_ended_at: string|null} $row */
-            if ($row->run_ended_at !== null) {
-                if (! CarbonImmutable::parse($row->run_ended_at)->eq($run->endedAt)) {
-                    throw new \LogicException('Application health attempt finalized at a different timestamp.');
-                }
-
-                return;
-            }
+        // Endpoint failures have no component observation to publish.
+        StagedSnapshots::finalize('application_health_snapshots', $run, $claimToken, function (\stdClass $row, string $endedAt) use ($run): void {
+            /** @var \stdClass&object{check_id: int, components: string} $row */
             /** @var list<array{snapshot: array{id: int, name: string, meta: array<int|string, mixed>, latest_result: string}, change_identity: string}> $components */
             $components = json_decode($row->components, true, flags: JSON_THROW_ON_ERROR);
-            $endedAt = $run->endedAt->format('Y-m-d H:i:s.uP');
             DB::table('application_health_components')->where('check_id', $row->check_id)->update(['active' => false]);
             foreach ($components as $component) {
                 DB::table('application_health_components')->where('check_id', $row->check_id)->where('id', $component['snapshot']['id'])->update([
@@ -195,7 +177,6 @@ final readonly class ApplicationHealthPersistence implements RunPersistence, Sec
                 ]);
             }
             $this->replaceAdvisories($row->check_id, $components);
-            $query->update(['run_ended_at' => $endedAt]);
         });
     }
 
@@ -223,24 +204,14 @@ final readonly class ApplicationHealthPersistence implements RunPersistence, Sec
 
     public function discard(int $runId, string $claimToken): void
     {
-        DB::table('application_health_snapshots')->where('run_id', $runId)->where('claim_token', $claimToken)->whereNull('run_ended_at')->delete();
+        StagedSnapshots::discard('application_health_snapshots', $runId, $claimToken);
     }
 
     public function purgeCheck(int $checkId, int $limit): int
     {
-        // Accepted snapshots through their partial check index.
-        $statements = [
-            'DELETE FROM application_health_snapshots WHERE ctid = ANY(ARRAY(SELECT ctid FROM application_health_snapshots
-                WHERE check_id = ? AND run_ended_at IS NOT NULL ORDER BY run_ended_at DESC, run_id DESC LIMIT ?))',
-        ];
-        foreach ($statements as $statement) {
-            $deleted = DB::delete($statement, [$checkId, $limit]);
-            if ($deleted > 0) {
-                return $deleted;
-            }
-        }
-
-        return 0;
+        // Accepted snapshots newest first, along their partial (check_id, run_ended_at DESC, run_id DESC) index.
+        return DB::delete('DELETE FROM application_health_snapshots WHERE ctid = ANY(ARRAY(SELECT ctid FROM application_health_snapshots
+            WHERE check_id = ? AND run_ended_at IS NOT NULL ORDER BY run_ended_at DESC, run_id DESC LIMIT ?))', [$checkId, $limit]);
     }
 
     public function prunedTables(): array
