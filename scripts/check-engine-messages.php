@@ -38,6 +38,8 @@ use Heptapod\SystemHealth\DiskReadException;
 // possible message must map through EngineMessage::summary(), or declared below as carrying no engine text.
 require __DIR__.'/../vendor/autoload.php';
 $root = $argv[1] ?? dirname(__DIR__);
+require __DIR__.'/translation-locales.php';
+$locales = translationLocales($root);
 $failures = 0;
 $fail = static function (string $message) use (&$failures): void {
     fwrite(STDERR, $message.PHP_EOL);
@@ -180,7 +182,7 @@ foreach (FetchFailureKind::cases() as $kind) {
     $keys[] = 'causes.outbound.'.$kind->value;
 }
 $keys = [...$keys, 'causes.outbound.http_status_with_status', 'causes.timeout'];
-foreach (['en', 'de'] as $locale) {
+foreach ($locales as $locale) {
     $catalog = [];
     foreach ([...glob($root.'/lang/'.$locale.'/*.json') ?: [], ...glob($root.'/addons/*/lang/'.$locale.'.json') ?: []] as $path) {
         $catalog += json_decode(file_get_contents($path) ?: throw new RuntimeException('Could not read '.$path), true, flags: JSON_THROW_ON_ERROR);

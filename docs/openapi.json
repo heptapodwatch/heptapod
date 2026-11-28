@@ -3789,7 +3789,7 @@
                 "operationId": "listActivity",
                 "parameters": [
                     {
-                        "description": "Language of `headline` and `display_headline`: `en` or `de`. Default: the language of the token's user.",
+                        "description": "Language of `headline` and `display_headline`: a supported locale. Default: the language of the token's user.",
                         "in": "query",
                         "name": "locale",
                         "schema": {
@@ -7524,7 +7524,7 @@
                 "operationId": "listIncidents",
                 "parameters": [
                     {
-                        "description": "Language of `headline` and `display_headline`: `en` or `de`. Default: the language of the token's user.",
+                        "description": "Language of `headline` and `display_headline`: a supported locale. Default: the language of the token's user.",
                         "in": "query",
                         "name": "locale",
                         "schema": {
@@ -7919,7 +7919,7 @@
                         }
                     },
                     {
-                        "description": "Language of `headline` and `display_headline`: `en` or `de`. Default: the language of the token's user.",
+                        "description": "Language of `headline` and `display_headline`: a supported locale. Default: the language of the token's user.",
                         "in": "query",
                         "name": "locale",
                         "schema": {
@@ -16269,7 +16269,7 @@
                         }
                     },
                     {
-                        "description": "Language of `headline` and `display_headline`: `en` or `de`. Default: the language of the token's user.",
+                        "description": "Language of `headline` and `display_headline`: a supported locale. Default: the language of the token's user.",
                         "in": "query",
                         "name": "locale",
                         "schema": {

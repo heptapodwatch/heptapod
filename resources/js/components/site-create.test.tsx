@@ -25,6 +25,7 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
                 auth: { user: { id: userId }, canManageChannels: true },
                 timezone: 'UTC',
                 instanceTimezone: 'UTC',
+                supportedLocales: [{ code: 'en', name: 'English' }],
                 overallHealth: { notifications_covered: notificationsCovered },
             },
         }),

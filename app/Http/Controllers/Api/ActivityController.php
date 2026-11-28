@@ -35,7 +35,7 @@ final class ActivityController extends Controller
         $user = $this->principal($request);
         $token = $this->token($user);
         /** @var array{days?: int|string, client_id?: int|string, limit?: int|string, cursor?: string, locale?: string} $input */
-        $input = Validator::make($request->query(), ['locale' => ApiHeadline::LocaleRule, 'days' => ['sometimes', 'integer', 'min:1', 'max:90'], 'client_id' => ['sometimes', 'integer', 'min:1'],
+        $input = Validator::make($request->query(), ['locale' => ApiHeadline::localeRules(), 'days' => ['sometimes', 'integer', 'min:1', 'max:90'], 'client_id' => ['sometimes', 'integer', 'min:1'],
             'limit' => ['sometimes', 'integer', 'min:1', 'max:100'], 'cursor' => ['sometimes', 'string']])->validate();
         ApiHeadline::applyLocale($input['locale'] ?? null);
         $days = (int) ($input['days'] ?? 7);

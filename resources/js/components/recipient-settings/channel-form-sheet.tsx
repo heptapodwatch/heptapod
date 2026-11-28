@@ -1,3 +1,4 @@
+import { LanguageSelect } from '@/components/language-select';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -30,7 +31,7 @@ import type { FieldValue } from '@/types/monitoring';
 type Draft = {
     channel: string;
     label: string;
-    locale: 'en' | 'de';
+    locale: string;
     /** Null follows the recipient's zone. */
     timezone: string | null;
     scope_client_id: number | null;
@@ -63,9 +64,7 @@ export function ChannelFormSheet({
     const form = useHttpRequest<Draft, { id: number }>({
         channel: channel?.channel ?? first.key,
         label: channel?.label ?? '',
-        locale:
-            (channel?.locale as Draft['locale'] | null) ??
-            (i18n.language === 'de' ? 'de' : 'en'),
+        locale: channel?.locale ?? i18n.language,
         timezone: channel?.timezone ?? null,
         scope_client_id: channel?.scope_client_id ?? null,
         check_types: channel?.check_types ?? null,
@@ -300,31 +299,13 @@ export function ChannelFormSheet({
                     />
                 )}
                 {team && (
-                    <div className="space-y-2">
-                        <Label id={`${id}-locale`}>{t('Language')}</Label>
-                        <RadioGroup
-                            aria-labelledby={`${id}-locale`}
-                            {...fieldErrorProps(
-                                `${id}-locale-group`,
-                                form.errors.locale,
-                            )}
-                            value={form.data.locale}
-                            onValueChange={(value) =>
-                                form.setData('locale', value as Draft['locale'])
-                            }
-                        >
-                            <RadioGroupItem value="en">
-                                {t('English')}
-                            </RadioGroupItem>
-                            <RadioGroupItem value="de">
-                                {t('German')}
-                            </RadioGroupItem>
-                        </RadioGroup>
-                        <InputError
-                            field={`${id}-locale-group`}
-                            message={form.errors.locale}
-                        />
-                    </div>
+                    <LanguageSelect
+                        id={`${id}-locale`}
+                        name="locale"
+                        value={form.data.locale}
+                        onValueChange={(value) => form.setData('locale', value)}
+                        error={form.errors.locale}
+                    />
                 )}
                 <div className="space-y-2">
                     <Label htmlFor={`${id}-timezone`}>{t('Timezone')}</Label>

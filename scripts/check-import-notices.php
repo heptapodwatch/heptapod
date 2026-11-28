@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 // Proves that every Oh Dear import reason the pinned spec (and the recorded real account) can produce has a
-// declared label in Support\OhDearImportNotices, and that every declared label exists in EN and DE.
+// declared label in Support\OhDearImportNotices, and that every declared label exists in every locale.
 
 use Heptapod\Actions\ImportOhDearMonitor;
 use Heptapod\Contracts\CheckKey;
@@ -18,6 +18,8 @@ use Symfony\Component\Yaml\Yaml;
 
 require dirname(__DIR__).'/vendor/autoload.php';
 $root = dirname(__DIR__);
+require __DIR__.'/translation-locales.php';
+$locales = translationLocales($root);
 $app = require $root.'/bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
 $failures = 0;
@@ -120,7 +122,7 @@ foreach ($codes as $code) {
 }
 
 $keys = array_unique([...array_values(OhDearImportNotices::Keys), OhDearImportNotices::Undeclared, 'import.notice.failed', 'import.notice.failed_remote']);
-foreach (['en', 'de'] as $locale) {
+foreach ($locales as $locale) {
     $catalog = json_decode((string) file_get_contents($root."/lang/{$locale}/import.json"), true, flags: JSON_THROW_ON_ERROR);
     foreach ($keys as $key) {
         if (! is_string($catalog[$key] ?? null) || $catalog[$key] === '' || $catalog[$key] === $key) {
@@ -132,4 +134,4 @@ foreach (['en', 'de'] as $locale) {
 if ($failures > 0) {
     exit(1);
 }
-echo 'Import notices: '.count(array_unique($codes)).' reachable codes declared; '.count($keys).' labels in EN and DE.'.PHP_EOL;
+echo 'Import notices: '.count(array_unique($codes)).' reachable codes declared; '.count($keys).' labels in all locales.'.PHP_EOL;

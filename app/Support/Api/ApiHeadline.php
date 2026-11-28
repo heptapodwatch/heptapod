@@ -9,6 +9,8 @@ use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckRunPresentationData;
 use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\SummaryKey;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\In;
 
 /**
  * Agent-facing headline from the shared check presenter.
@@ -17,8 +19,11 @@ use Heptapod\Contracts\SummaryKey;
  */
 final class ApiHeadline
 {
-    /** Query rule for the optional headline language; without it the token owner's locale applies. */
-    public const array LocaleRule = ['sometimes', 'in:en,de'];
+    /** @return array{string, string, In} */
+    public static function localeRules(): array
+    {
+        return ['sometimes', 'string', Rule::in(config()->array('app.supported_locales'))];
+    }
 
     public static function applyLocale(?string $locale): void
     {

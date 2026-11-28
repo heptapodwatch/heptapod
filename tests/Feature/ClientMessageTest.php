@@ -27,6 +27,7 @@ use Heptapod\Settings\InstanceSettings;
 use Heptapod\Testing\FakeSmtpTransport;
 use Illuminate\Mail\Transport\ArrayTransport;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -143,6 +144,21 @@ it('previews only non-ignored links and refuses a report with no findings', func
     $this->patch($settings, ['whitelisted_urls' => ['https://shop.example.test/missing-*']])->assertSessionHasNoErrors();
     $this->postJson($preview, $payload)->assertUnprocessable()->assertJsonValidationErrors('check_id');
 });
+
+it('formats the check date in the client language without changing English and German output', function (string $locale, string $date): void {
+    config(['app.supported_locales' => [...config()->array('app.supported_locales'), 'es-ES']]);
+    Lang::addJsonPath(base_path('tests/Fixtures/locales'));
+    $client = Client::factory()->create(['locale' => $locale, 'timezone' => 'UTC']);
+    $check = clientMessageFindings($client);
+
+    $this->actingAs(clientMessageUser('Admin'))->postJson(route('clients.messages.preview', $client), [
+        'kind' => 'findings', 'design' => 'branded', 'check_id' => $check->id, 'channel_ids' => [], 'one_off' => 'alerts@example.test',
+    ])->assertOk()->assertJsonPath('locale', $locale)->assertJsonPath('html', fn (string $html): bool => str_contains($html, $date));
+})->with([
+    'EN' => ['en', '28 Oct 2026 at 21:40'],
+    'DE' => ['de', '28.10.2026 um 21:40 Uhr'],
+    'ES' => ['es-ES', '28 octubre 2026 a las 21:40'],
+]);
 
 it('previews without writing, then sends once per key with frozen addresses, Reply-To, CSV and audit', function (): void {
     $sender = clientMessageUser('Admin', ['name' => 'Anna Berger', 'email' => 'anna@studio.test']);

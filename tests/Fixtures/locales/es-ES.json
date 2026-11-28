@@ -1,0 +1,5 @@
+{
+    "Language": "Idioma",
+    "client_messages.date_format": "j F Y",
+    "client_messages.when": ":date a las :time"
+}

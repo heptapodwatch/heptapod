@@ -249,7 +249,8 @@ export function DateTimeField({
     const [text, setText] = useState(value.replace('T', ' '));
     const [open, setOpen] = useState(false);
     const parsed = parseDateTime(value);
-    const zone = useZoneChip(timezone, text || (locale.startsWith('de') ? 'TT.MM.JJJJ HH:MM' : 'YYYY-MM-DD HH:MM'));
+    const placeholder = t('date_time.input_placeholder');
+    const zone = useZoneChip(timezone, text || placeholder);
     const today = todayInZone(timezone);
     const [view, setView] = useState(() => dateToView(parsed?.date ?? today));
     const [invalidText, setInvalidText] = useState(false);
@@ -363,7 +364,7 @@ export function DateTimeField({
                 type="text"
                 inputMode="numeric"
                 autoComplete="off"
-                placeholder={locale.startsWith('de') ? 'TT.MM.JJJJ HH:MM' : 'YYYY-MM-DD HH:MM'}
+                placeholder={placeholder}
                 className={cn(fieldTextClass, 'pr-10')}
                 style={zone.padding === undefined ? undefined : { paddingRight: zone.padding }}
                 value={text}

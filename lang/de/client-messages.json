@@ -1,5 +1,6 @@
 {
     "client_messages.greeting": "Guten Tag,",
+    "client_messages.date_format": "d.m.Y",
     "client_messages.when": ":date um :time Uhr",
     "client_messages.subject.broken_links": "Defekte Links auf :site: :count gefunden|Defekte Links auf :site: :count gefunden",
     "client_messages.subject.mixed_content": "Unsichere Inhalte auf :site: :count gefunden|Unsichere Inhalte auf :site: :count gefunden",
@@ -62,8 +63,7 @@
     "client_messages.sheet.right_away": "Wird sofort gesendet, auch während der Ruhezeiten.",
     "client_messages.sheet.preview": "Vorschau",
     "client_messages.sheet.preview_failed": "Die Vorschau konnte nicht geladen werden.",
-    "client_messages.sheet.language_en": "Englisch · Sprache des Kunden",
-    "client_messages.sheet.language_de": "Deutsch · Sprache des Kunden",
+    "client_messages.sheet.language": "{{language}} · Sprache des Kunden",
     "client_messages.sheet.submit": "An Kunden senden",
     "client_messages.sending": "Wird gesendet…",
     "client_messages.send_failed": "Die Nachricht konnte nicht gesendet werden. Versuchen Sie es erneut.",

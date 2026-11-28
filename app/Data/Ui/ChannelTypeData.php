@@ -17,9 +17,12 @@ final class ChannelTypeData extends Data
     /** @return list<self> */
     public static function installed(ChannelRegistry $registry): array
     {
-        return array_values(array_map(static function (ChannelType $channel): self {
+        /** @var list<string> $supported */
+        $supported = config()->array('app.supported_locales');
+
+        return array_values(array_map(static function (ChannelType $channel) use ($supported): self {
             $descriptionKey = $channel->descriptionKey();
-            foreach (['en', 'de'] as $locale) {
+            foreach ($supported as $locale) {
                 if (! Lang::hasForLocale($descriptionKey, $locale)) {
                     throw new \LogicException('Channel '.$channel->key().' description translation missing: '.$descriptionKey.' ('.$locale.').');
                 }

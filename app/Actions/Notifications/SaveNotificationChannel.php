@@ -41,7 +41,7 @@ final readonly class SaveNotificationChannel
         $data = Validator::make($attributes, [
             'channel' => ['required', 'string', Rule::in(array_keys($this->channels->all()))],
             'label' => ['required', 'string', 'max:255'],
-            'locale' => [$kind === RecipientKind::Team ? 'required' : 'prohibited', Rule::in(['en', 'de'])],
+            'locale' => [$kind === RecipientKind::Team ? 'required' : 'prohibited', Rule::in(config()->array('app.supported_locales'))],
             'timezone' => ['sometimes', 'nullable', 'string', 'timezone:all'],
             'scope_client_id' => [$kind === RecipientKind::Team ? 'nullable' : 'prohibited', 'integer', 'exists:clients,id'],
             'config' => ['present', 'array'],
@@ -96,8 +96,12 @@ final readonly class SaveNotificationChannel
             foreach ($categories as $category) {
                 $grid[$category->value] = NotificationMode::Immediate;
             }
+            $locale = app()->getLocale();
+            if (! in_array($locale, config()->array('app.supported_locales'), true)) {
+                $locale = config()->string('app.fallback_locale');
+            }
             $attributes = ['oh_dear_id' => $sourceId, 'recipient_kind' => $recipient, 'client_id' => $clientId, 'channel' => $kind, 'label' => $label,
-                'locale' => $clientId === null ? ($existing->locale ?? (app()->getLocale() === 'de' ? 'de' : 'en')) : null,
+                'locale' => $clientId === null ? ($existing->locale ?? $locale) : null,
                 'scope_client_id' => $clientId === null ? ($existing->scope_client_id ?? null) : null,
                 'config' => $config, 'enabled' => $enabled, 'check_types' => $checks];
             if ($existing === null) {
@@ -162,7 +166,7 @@ final readonly class SaveNotificationChannel
         /** @var array{label?: string, locale?: string, timezone?: string|null, scope_client_id?: int|null, check_types?: list<string>|null, config?: array<string, mixed>} $data */
         $data = Validator::make($attributes, [
             'label' => ['sometimes', 'string', 'max:255'],
-            'locale' => [$team ? 'sometimes' : 'prohibited', Rule::in(['en', 'de'])],
+            'locale' => [$team ? 'sometimes' : 'prohibited', Rule::in(config()->array('app.supported_locales'))],
             // Every channel may have its own zone; null follows its recipient.
             'timezone' => ['sometimes', 'nullable', 'string', 'timezone:all'],
             'scope_client_id' => [$team ? 'sometimes' : 'prohibited', 'nullable', 'integer', 'exists:clients,id'],

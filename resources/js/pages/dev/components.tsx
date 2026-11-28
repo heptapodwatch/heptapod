@@ -198,7 +198,8 @@ import {
     states,
 } from '@/fixtures/design';
 import { useAppearance, type ResolvedAppearance } from '@/hooks/use-appearance';
-import { setLocale, type Locale } from '@/lib/i18n';
+import { setLocale } from '@/lib/i18n';
+import { LanguageSelect } from '@/components/language-select';
 import { statusLabels } from '@/lib/status';
 import { cn } from '@/lib/utils';
 
@@ -3581,16 +3582,11 @@ export default function Components() {
                                 },
                             ]}
                         />
-                        <SegmentedControl
-                            label={t('Language')}
+                        <LanguageSelect
+                            id="gallery-locale"
+                            name="locale"
                             value={i18n.language}
-                            onValueChange={(value) =>
-                                setLocale(value as Locale)
-                            }
-                            options={[
-                                { value: 'en', label: 'EN' },
-                                { value: 'de', label: 'DE' },
-                            ]}
+                            onValueChange={setLocale}
                         />
                     </div>
                 </div>

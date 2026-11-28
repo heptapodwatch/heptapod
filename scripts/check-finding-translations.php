@@ -10,6 +10,8 @@ use Heptapod\Contracts\Http\FetchFailureKind;
 
 require dirname(__DIR__).'/vendor/autoload.php';
 $root = $argv[1] ?? dirname(__DIR__);
+require __DIR__.'/translation-locales.php';
+$locales = translationLocales($root);
 $failures = 0;
 $required = [
     'crawl' => [...array_values(CrawlFindingValues::Results), ...array_values(CrawlFindingValues::NotVerifiableReasons), ...array_values(CrawlFindingValues::Kinds), ...array_values(CrawlFindingValues::MixedKinds)],
@@ -49,7 +51,7 @@ foreach (CrawlFindingValues::crawlerKinds() as $kind) {
 }
 $keys = 0;
 foreach ($required as $addon => $translations) {
-    foreach (['en', 'de'] as $locale) {
+    foreach ($locales as $locale) {
         $path = $root.'/addons/'.$addon.'/lang/'.$locale.'.json';
         $source = file_get_contents($path);
         if ($source === false) {

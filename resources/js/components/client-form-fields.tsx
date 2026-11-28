@@ -1,5 +1,5 @@
+import { LanguageSelect } from '@/components/language-select';
 import { TooltipHint } from '@/components/truncated-text';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { formatDateTime } from '@/lib/date-time';
 import { useTranslation } from 'react-i18next';
 import { FormSection } from '@/components/form-section';
@@ -109,35 +109,15 @@ export function ClientFormFields(form: {
             >
                 <div className="space-y-4">
                     <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)]">
-                        <div className="space-y-2">
-                            <Label id="client-locale-label">
-                                {t('Language')}
-                            </Label>
-                            <RadioGroup
-                                id="client-locale"
-                                aria-labelledby="client-locale-label"
-                                {...fieldErrorProps(
-                                    'client-locale',
-                                    form.errors.locale,
-                                )}
-                                name="locale"
-                                value={String(form.data.locale)}
-                                onValueChange={(value) =>
-                                    form.setData('locale', value)
-                                }
-                            >
-                                <RadioGroupItem value={String('en')}>
-                                    {t('English')}
-                                </RadioGroupItem>
-                                <RadioGroupItem value={String('de')}>
-                                    {t('German')}
-                                </RadioGroupItem>
-                            </RadioGroup>
-                            <InputError
-                                field="client-locale"
-                                message={form.errors.locale}
-                            />
-                        </div>
+                        <LanguageSelect
+                            id="client-locale"
+                            name="locale"
+                            value={form.data.locale}
+                            onValueChange={(value) =>
+                                form.setData('locale', value)
+                            }
+                            error={form.errors.locale}
+                        />
                         <div className="space-y-2">
                             <Label htmlFor="client-timezone">
                                 {t('Timezone')}

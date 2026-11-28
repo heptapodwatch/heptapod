@@ -2,7 +2,7 @@ export type User = {
     id: number;
     name: string;
     email: string;
-    locale: 'en' | 'de';
+    locale: string;
     /** The zone in use: the user's own, else the instance's. */
     timezone: string;
     /** The user's own choice; null follows the instance. */

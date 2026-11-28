@@ -1,7 +1,9 @@
+import { languageCatalogs } from './scripts/language-catalogs';
 import { fileURLToPath } from 'node:url';
 import { configDefaults, defineConfig } from 'vitest/config';
 
 export default defineConfig({
+    plugins: [languageCatalogs()],
     resolve: {
         alias: {
             '@': fileURLToPath(new URL('./resources/js', import.meta.url)),

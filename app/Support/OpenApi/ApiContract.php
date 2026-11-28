@@ -329,7 +329,7 @@ final class ApiContract
                 'required' => ['id', 'name', 'short_name', 'locale', 'timezone', 'accent_color', 'is_internal', 'archived', 'archived_at', 'created_at', 'updated_at'], 'properties' => [
                     'id' => ['type' => 'integer'], 'name' => ['type' => 'string', 'description' => self::ClientName.' The internal client is named `Internal` and shown as "No client" in the app.'],
                     'short_name' => ['type' => ['string', 'null'], 'description' => 'Short label for the client avatar. '.self::Untrusted],
-                    'locale' => ['type' => 'string', 'enum' => ['en', 'de']], 'timezone' => ['type' => ['string', 'null'], 'description' => 'The client\'s own IANA time zone; null follows the instance.'],
+                    'locale' => ['type' => 'string', 'enum' => config()->array('app.supported_locales')], 'timezone' => ['type' => ['string', 'null'], 'description' => 'The client\'s own IANA time zone; null follows the instance.'],
                     'accent_color' => ['type' => ['string', 'null']],
                     'is_internal' => ['type' => 'boolean', 'description' => 'True for the one internal client that holds the monitors without a customer ("No client"). It cannot be archived or renamed.'],
                     'archived' => ['type' => 'boolean'], 'archived_at' => ['type' => ['string', 'null'], 'description' => 'UTC, Y-m-d H:i:s.'],
@@ -426,7 +426,7 @@ final class ApiContract
         // Mirrors the UpdateClient rules for the fields ClientController::Fields passes on.
         $client = ['type' => 'object', 'additionalProperties' => false, 'properties' => [
             'name' => ['type' => 'string', 'maxLength' => 255], 'short_name' => ['type' => ['string', 'null'], 'maxLength' => 8, 'description' => 'Short label for the client avatar.'],
-            'locale' => ['type' => 'string', 'enum' => ['en', 'de'], 'description' => 'Language of client reports and messages. Default `en`.'],
+            'locale' => ['type' => 'string', 'enum' => config()->array('app.supported_locales'), 'description' => 'Language of client reports and messages. Default `en`.'],
             'timezone' => ['type' => ['string', 'null'], 'description' => 'IANA time zone of the client. Null follows the instance time zone.'],
             'accent_color' => ['type' => 'string', 'enum' => ['#7C5E10', '#3B5068', '#2F5D4A', '#5B3A4A', '#4B4B57', '#3F4A3A', '#4A4A2F', '#3F3F46'], 'description' => 'Avatar colour.']]];
 
@@ -719,7 +719,7 @@ final class ApiContract
         $perPage = 'Page size, 1–200 (default 200).';
 
         return [
-            'locale' => 'Language of `headline` and `display_headline`: `en` or `de`. Default: the language of the token\'s user.',
+            'locale' => 'Language of `headline` and `display_headline`: a supported locale. Default: the language of the token\'s user.',
             'client_id' => 'Only rows of this client.',
             'cursor' => 'The `next_cursor` of the previous page. Send it with otherwise identical parameters.',
             'cronTask' => 'The scheduled task ID.',

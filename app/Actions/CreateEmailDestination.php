@@ -21,7 +21,7 @@ final readonly class CreateEmailDestination
     {
         /** @var array{address: string, label: string, locale: string} $data */
         $data = Validator::make($attributes, ['address' => ['required', 'email:rfc', 'max:254'],
-            'label' => ['required', 'string', 'max:255'], 'locale' => ['required', Rule::in(['en', 'de'])]])->validate();
+            'label' => ['required', 'string', 'max:255'], 'locale' => ['required', Rule::in(config()->array('app.supported_locales'))]])->validate();
         $config = $this->channels->get('mail')->configSchema()->validateConfig(['email' => $data['address']]);
 
         return DB::transaction(function () use ($data, $config): NotificationDestination {

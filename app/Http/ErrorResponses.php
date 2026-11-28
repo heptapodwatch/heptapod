@@ -273,10 +273,12 @@ final class ErrorResponses
 
     private static function resolveLocale(Request $request, int $status): void
     {
+        /** @var list<string> $supported */
+        $supported = config()->array('app.supported_locales');
         $locale = ($status === 503 ? null : $request->attributes->get('locale'))
             ?? $request->cookie('locale')
-            ?? $request->getPreferredLanguage([config()->string('app.locale'), 'en', 'de']);
-        app()->setLocale(in_array($locale, ['en', 'de'], true) ? $locale : 'en');
+            ?? $request->getPreferredLanguage([config()->string('app.locale'), ...$supported]);
+        app()->setLocale(is_string($locale) && in_array($locale, $supported, true) ? $locale : 'en');
     }
 
     private static function isSignedIn(Request $request, int $status): bool

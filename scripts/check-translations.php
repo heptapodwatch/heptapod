@@ -5,8 +5,10 @@ declare(strict_types=1);
 // Native PHP tokens and the installed TypeScript parser inspect source, not catalog parity alone.
 $root = $argv[1] ?? dirname(__DIR__);
 $root = realpath($root) ?: throw new RuntimeException('Translation source root does not exist.');
-$catalog = ['en' => [], 'de' => []];
-$sources = ['en' => [], 'de' => []];
+require __DIR__.'/translation-locales.php';
+$locales = translationLocales($root);
+$catalog = array_fill_keys($locales, []);
+$sources = $catalog;
 $references = [];
 $dynamic = 0;
 $failures = 0;
@@ -57,7 +59,7 @@ $load = static function (string $file, string $locale, string $prefix = '') use 
         }
     }
 };
-foreach (['en', 'de'] as $locale) {
+foreach ($locales as $locale) {
     foreach ([$root.'/lang/'.$locale.'.json', ...glob($root.'/lang/'.$locale.'/*.json'), ...glob($root.'/addons/*/lang/'.$locale.'.json')] as $file) {
         if (is_file($file)) {
             $load($file, $locale);
@@ -79,7 +81,7 @@ foreach (glob($vendor.'/*/*/src/*ServiceProvider.php') as $provider) {
     $source = file_get_contents($provider);
     preg_match_all('/loadTranslationsFrom\(\s*__DIR__\s*\.\s*[\x27\x22]([^\x27\x22]+)[\x27\x22]\s*,\s*[\x27\x22]([^\x27\x22]+)[\x27\x22]/', $source, $matches, PREG_SET_ORDER);
     foreach ($matches as $match) {
-        foreach (['en', 'de'] as $locale) {
+        foreach ($locales as $locale) {
             foreach (glob(dirname($provider).$match[1].'/'.$locale.'/*.php') as $file) {
                 $load($file, $locale, $match[2].'::'.basename($file, '.php').'.');
             }
@@ -97,7 +99,7 @@ $glossary = [
     'EN "agent" must read "KI-Agent" in DE' => ['/\bagents?\b/i', '/Agents\b|Coding-Agent/u'],
 ];
 // UI copy names API abilities in words; the raw scope ("checks:read") comes from code beside the name, never from a catalog value.
-foreach (['en', 'de'] as $locale) {
+foreach ($locales as $locale) {
     foreach ($catalog[$locale] as $key => $value) {
         // Overflow is "Show all N" (a link to the full list) or "and N more" in running text, never a "+N more" counter.
         if (preg_match('/\+\s*(?:\d+|\{\{\w+\}\}|:\w+)\s+(?:more|weiter)/iu', $value) === 1) {
@@ -124,7 +126,7 @@ foreach ($files($root.'/resources/js') as $file) {
         if (! in_array($tag, ['FormSection', 'SheetForm', 'PageHeader'], true)) {
             continue;
         }
-        foreach (['en', 'de'] as $locale) {
+        foreach ($locales as $locale) {
             if ($sentences($catalog[$locale][$key] ?? $key) > 1) {
                 echo str_replace($root.'/', '', $file).':'.(substr_count(substr($source, 0, $prop[0][1]), "\n") + 1)." {$tag} description has more than one sentence ({$locale}); move the rest to detail: ".$key.PHP_EOL;
                 $failures++;
@@ -155,7 +157,7 @@ foreach ($files($root.'/resources/js') as $file) {
         }
     }
 }
-foreach (['en', 'de'] as $locale) {
+foreach ($locales as $locale) {
     foreach ($catalog[$locale] as $key => $value) {
         if (str_starts_with($key, 'pages.') && str_ends_with($key, '.description') && $sentences($value) > 1) {
             echo $sources[$locale][$key].' page description has more than one sentence: '.$key.PHP_EOL;
@@ -348,7 +350,7 @@ $javascript = json_decode($output, true, flags: JSON_THROW_ON_ERROR);
 $dynamic += $javascript['dynamic'];
 $references = [...$references, ...$javascript['references']];
 foreach ($references as $reference) {
-    foreach (['en', 'de'] as $locale) {
+    foreach ($locales as $locale) {
         $key = $reference['key'];
         if (! isset($catalog[$locale][$key]) && ! (isset($catalog[$locale][$key.'_one']) && isset($catalog[$locale][$key.'_other']))) {
             echo $reference['file'].':'.$reference['line'].' missing '.$locale.' translation: '.$key.PHP_EOL;

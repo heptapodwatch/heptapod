@@ -54,7 +54,7 @@ final class RunController extends Controller
         $user = $this->principal($request);
         $this->token($user);
         /** @var array{locale?: string} $input */
-        $input = Validator::make($request->query(), ['locale' => ApiHeadline::LocaleRule])->validate();
+        $input = Validator::make($request->query(), ['locale' => ApiHeadline::localeRules()])->validate();
         ApiHeadline::applyLocale($input['locale'] ?? null);
         $attempt = CheckRunAttempt::query()->find((int) substr($attemptRef, strlen('attempt:')));
         if (! $attempt instanceof CheckRunAttempt) {

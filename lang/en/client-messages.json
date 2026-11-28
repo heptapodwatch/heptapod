@@ -1,5 +1,6 @@
 {
     "client_messages.greeting": "Hello,",
+    "client_messages.date_format": "j M Y",
     "client_messages.when": ":date at :time",
     "client_messages.subject.broken_links": "Broken links on :site: :count found|Broken links on :site: :count found",
     "client_messages.subject.mixed_content": "Insecure content on :site: :count found|Insecure content on :site: :count found",
@@ -62,8 +63,7 @@
     "client_messages.sheet.right_away": "Sent right away, regardless of quiet hours.",
     "client_messages.sheet.preview": "Preview",
     "client_messages.sheet.preview_failed": "The preview could not load.",
-    "client_messages.sheet.language_en": "English · client language",
-    "client_messages.sheet.language_de": "German · client language",
+    "client_messages.sheet.language": "{{language}} · client language",
     "client_messages.sheet.submit": "Send to client",
     "client_messages.sending": "Sending…",
     "client_messages.send_failed": "The message could not be sent. Try again.",

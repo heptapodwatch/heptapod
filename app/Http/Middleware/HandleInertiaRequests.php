@@ -62,6 +62,19 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'csrfToken' => Inertia::always(static fn (): string => $request->session()->token()),
             'locale' => app()->getLocale(),
+            'supportedLocales' => Inertia::once(static function (): array {
+                /** @var list<string> $supported */
+                $supported = config()->array('app.supported_locales');
+
+                return array_map(static function (string $code): array {
+                    $name = \Locale::getDisplayName($code, $code);
+                    if ($name === false) {
+                        throw new \LogicException('No display language for locale '.$code.'.');
+                    }
+
+                    return ['code' => $code, 'name' => $name];
+                }, $supported);
+            }),
             // The viewer's zone: their own, else the instance's (guests too); lazy so non-Inertia responses stay zero-DB.
             'timezone' => static fn (): string => User::viewerTimezone($user instanceof User ? $user : null),
             'exportRowLimit' => Table::RowLimit,

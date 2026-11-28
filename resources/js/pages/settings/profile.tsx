@@ -1,4 +1,4 @@
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { LanguageSelect } from '@/components/language-select';
 import {
     BrowserTimezoneHint,
     TimezoneCombobox,
@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useInitials } from '@/hooks/use-initials';
-import { setLocale, type Locale } from '@/lib/i18n';
+import { setLocale } from '@/lib/i18n';
 import { update } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
 import { send } from '@/routes/verification';
@@ -255,40 +255,15 @@ export default function Profile({
                                 onUse={(zone) => form.setData('timezone', zone)}
                             />
                             <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)]">
-                                <div className="space-y-1.5">
-                                    <Label id="locale-label">
-                                        {t('Language')}
-                                    </Label>
-                                    <RadioGroup
-                                        id="locale"
-                                        aria-labelledby="locale-label"
-                                        aria-invalid={!!form.errors.locale}
-                                        aria-describedby={
-                                            form.errors.locale
-                                                ? 'locale-error'
-                                                : undefined
-                                        }
-                                        name="locale"
-                                        value={String(form.data.locale)}
-                                        onValueChange={(value) =>
-                                            form.setData(
-                                                'locale',
-                                                value as Locale,
-                                            )
-                                        }
-                                    >
-                                        <RadioGroupItem value={String('en')}>
-                                            {t('English')}
-                                        </RadioGroupItem>
-                                        <RadioGroupItem value={String('de')}>
-                                            {t('German')}
-                                        </RadioGroupItem>
-                                    </RadioGroup>
-                                    <InputError
-                                        id="locale-error"
-                                        message={form.errors.locale}
-                                    />
-                                </div>
+                                <LanguageSelect
+                                    id="locale"
+                                    name="locale"
+                                    value={form.data.locale}
+                                    onValueChange={(value) =>
+                                        form.setData('locale', value)
+                                    }
+                                    error={form.errors.locale}
+                                />
                                 <div className="space-y-1.5">
                                     <Label htmlFor="timezone">
                                         {t('Timezone')}
