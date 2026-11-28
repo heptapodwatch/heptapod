@@ -53,10 +53,10 @@ Identifying the client does not get past a challenge or WAF rule. Use **Ignored 
 
 ### Ignore a broken link
 
-1. On the **Broken links** check, select **Ignore** next to the link. The check updates without a new crawl.
+1. On the **Broken links** check, select **Ignore** next to the link. It leaves the current report immediately.
 2. To bring a link back into the report, switch to **Ignored** and select **Stop ignoring**. For links ignored by a pattern, change the pattern in **Check settings** instead.
 
-Only people who can change the check's settings can ignore or restore links. Ignoring a link does not send an alert. **Send to client** does not include ignored links.
+Only people who can change the check's settings can ignore or restore links. The check result updates on the next evaluation, usually within a minute. If that result resolves an incident, the normal recovery alert rules apply. **Send to client** does not include ignored links.
 
 ### Ignored URLs
 
@@ -94,7 +94,7 @@ Progress reads "N pages checked · M URLs discovered · limit reached". M includ
 Both checks run once a day and share one recent crawl.
 
 - A change to depth, limits, resource types, crawl lists, external checking or robots.txt starts a new crawl.
-- A change to **Ignored URLs** re-evaluates the current crawl without a new one.
+- A change to **Ignored URLs** schedules an evaluation that reuses a recent crawl if it is still available. If there is no reusable crawl, the check collects a new one.
 - **Run check** on either check always starts a new crawl.
 
 ## Mixed content

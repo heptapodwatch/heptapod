@@ -34,6 +34,7 @@
     "crawl.ignore.empty": "No ignored findings",
     "crawl.ignore.saved": "Link ignored",
     "crawl.ignore.restored": "Link restored to the report",
+    "crawl.ignore.next_evaluation": "The check result updates on the next evaluation, usually within a minute.",
     "crawl.ignore.error": "Could not change whether this link is ignored. Check the Ignored URLs setting and try again.",
     "crawl.settings.check_include_external_links": "Check external links",
     "crawl.settings.new_links_only": "Only new links",

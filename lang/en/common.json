@@ -511,7 +511,6 @@
     "events.failed": "Failed",
     "events.warning": "Warning",
     "events.changed": "Changed",
-    "events.ignored_urls_changed": "Ignored URLs changed",
     "events.findings_reclassified": "Link policy v:version reclassified previously broken links as not verifiable (:count). They were not verified as fixed.",
     "reclassify_links.description": "Relabel stored link findings under the current classification policy (upgrade step)",
     "reclassify_links.unknown_policy": "This version applies link classification policy :version only.",

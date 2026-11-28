@@ -35,9 +35,8 @@ final readonly class IncidentTransitions
         return is_array($error) && ($error['class'] ?? null) === ReclassifiedCheckError::class;
     }
 
-    public function apply(Check $check, CheckRun $run, CheckResult $from, bool $incomplete = false, bool $confirmedIncompleteFailure = false, bool $verifiedNothing = false, ?CarbonImmutable $settingsChangedAt = null): ?Incident
+    public function apply(Check $check, CheckRun $run, CheckResult $from, bool $incomplete = false, bool $confirmedIncompleteFailure = false, bool $verifiedNothing = false): ?Incident
     {
-        $at = $settingsChangedAt ?? $run->ended_at;
         $query = $check->incidents()->getQuery();
         $query->getQuery()->whereNull('resolved_at');
         $incident = $query->first();
@@ -88,9 +87,8 @@ final readonly class IncidentTransitions
                 if ($incomplete) {
                     $check->update(['failing_since' => null, 'consecutive_failures' => 0]);
                 }
-                $incident->update(['resolved_at' => $at]);
-                $this->outbox->record($check, $at, 'incident.resolved', $from, $to, $payload, $incident, $incident->cause,
-                    suppressionReason: $settingsChangedAt instanceof CarbonImmutable ? 'ignored_urls_changed' : null);
+                $incident->update(['resolved_at' => $run->ended_at]);
+                $this->outbox->record($check, $run->ended_at, 'incident.resolved', $from, $to, $payload, $incident, $incident->cause);
                 $this->dependencies->synchronize($check, $run, $incident, $this->outbox);
             }
 
@@ -108,7 +106,7 @@ final readonly class IncidentTransitions
                 $incident->update(['cause' => $cause, 'evidence' => [...$incident->evidence,
                     'requires_complete_recovery' => $requiresCompleteRecovery || $incident->cause === IncidentCause::Failed || $cause === IncidentCause::Failed,
                     ...($preActivation ? ['upgrade_reclassification_consumed' => $run->id] : [])]]);
-                $this->outbox->record($check, $at, 'incident.cause_changed', $from, $to, $payload, $incident, $cause,
+                $this->outbox->record($check, $run->ended_at, 'incident.cause_changed', $from, $to, $payload, $incident, $cause,
                     suppressionReason: $reclassified ? 'policy_reclassified' : null);
             }
 
@@ -119,14 +117,14 @@ final readonly class IncidentTransitions
         if ($check->consecutive_failures < $check->failure_threshold) {
             return null;
         }
-        $windowQuery = MaintenancePeriod::forSite($check->site_id, $at);
+        $windowQuery = MaintenancePeriod::forSite($check->site_id, $run->ended_at);
         $windowQuery->getQuery()->where('mute_alerts', true)
-            ->where('starts_at', '<=', $at->format('Y-m-d H:i:s.uP'))
-            ->where('ends_at', '>', $at->format('Y-m-d H:i:s.uP'))
+            ->where('starts_at', '<=', $run->ended_at->format('Y-m-d H:i:s.uP'))
+            ->where('ends_at', '>', $run->ended_at->format('Y-m-d H:i:s.uP'))
             ->orderByDesc('catch_up_at_end')->orderBy('ends_at')->orderBy('id');
         $window = $windowQuery->first();
         $incident = $check->incidents()->create([
-            'site_id' => $check->site_id, 'cause' => $cause, 'opened_at' => $at,
+            'site_id' => $check->site_id, 'cause' => $cause, 'opened_at' => $run->ended_at,
             'opened_during_maintenance_window_id' => $window?->id,
             'first_failure_at' => $check->failing_since,
             ...UptimeAlertEpisode::opening($check, $check->failing_since ?? throw new \LogicException('An opening incident requires its first failure.')),
@@ -136,7 +134,7 @@ final readonly class IncidentTransitions
                 'requires_complete_recovery' => $cause === IncidentCause::Failed],
         ]);
         $this->dependencies->synchronize($check, $run, $incident, $this->outbox);
-        $this->outbox->record($check, $at, 'incident.opened', $from, $to, $payload, $incident, $cause);
+        $this->outbox->record($check, $run->ended_at, 'incident.opened', $from, $to, $payload, $incident, $cause);
 
         return $incident;
     }

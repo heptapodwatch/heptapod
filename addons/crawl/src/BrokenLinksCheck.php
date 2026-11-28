@@ -9,7 +9,6 @@ use Heptapod\Contracts\BrokenLinkSettings;
 use Heptapod\Contracts\CheckContext;
 use Heptapod\Contracts\CheckDefinition;
 use Heptapod\Contracts\CheckDetailProvider;
-use Heptapod\Contracts\CheckHistoryProvider;
 use Heptapod\Contracts\CheckKey;
 use Heptapod\Contracts\CheckOutcome;
 use Heptapod\Contracts\CheckRunPresentationData;
@@ -18,6 +17,7 @@ use Heptapod\Contracts\CheckRunPresentationPartData;
 use Heptapod\Contracts\CheckRunPresenter;
 use Heptapod\Contracts\CheckType;
 use Heptapod\Contracts\ExecutionMode;
+use Heptapod\Contracts\Findings\FindingsView;
 use Heptapod\Contracts\LatestRunEvidence;
 use Heptapod\Contracts\Mail\Cell;
 use Heptapod\Contracts\Mail\DiffBlock;
@@ -36,7 +36,7 @@ use Heptapod\Contracts\Schema\Schema;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Validation\ValidationException;
 
-final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetailProvider, CheckHistoryProvider, CheckRunPresenter, CheckType, MailEvidenceProvider
+final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetailProvider, CheckRunPresenter, CheckType, MailEvidenceProvider
 {
     public function __construct(private CrawlEvaluation $evaluation, private CrawlPersistence $store) {}
 
@@ -131,9 +131,9 @@ final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetail
         return CrawlSnapshot::fromRun(CheckKey::BrokenLinks, $latestRun);
     }
 
-    public function history(int $checkId, bool $canViewCapabilities = false): CrawlFindingsData
+    public function history(int $checkId, bool $canViewCapabilities = false, FindingsView $view = FindingsView::Current): CrawlFindingsData
     {
-        return $this->store->findings($checkId, false);
+        return $this->store->findings($checkId, false, $view);
     }
 
     public function editIgnoredUrls(array $entries, string $url, bool $ignore): array
@@ -151,11 +151,6 @@ final readonly class BrokenLinksCheck implements BrokenLinkSettings, CheckDetail
         $target = CrawlWhitelist::canonical($url);
 
         return array_values(array_filter($entries, static fn (string $entry): bool => str_contains($entry, '*') || CrawlWhitelist::canonical($entry) !== $target));
-    }
-
-    public function reEvaluateIgnoredUrls(int $checkId, RunReference $run, array $before, array $after, array $secrets, string $siteUrl): ?array
-    {
-        return $this->store->reEvaluateIgnoredUrls($checkId, $run, $before, $after, $secrets, $siteUrl);
     }
 
     public function presentRun(CheckRunPresentationInput $run): ?CheckRunPresentationData

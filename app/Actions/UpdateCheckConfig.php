@@ -27,7 +27,7 @@ use Illuminate\Validation\ValidationException;
 
 final readonly class UpdateCheckConfig
 {
-    public function __construct(private CheckRegistry $registry, private ClaimService $claims, private DatabaseClock $clock, private ReevaluateBrokenLinks $reevaluateBrokenLinks) {}
+    public function __construct(private CheckRegistry $registry, private ClaimService $claims, private DatabaseClock $clock) {}
 
     /** @param array<string, mixed> $settings
      * @param  array<string, mixed>|null  $expectedPreviousConfig
@@ -109,29 +109,13 @@ final readonly class UpdateCheckConfig
                 }
             }
             if ($check->exists && $check->executionConfig() !== $previous) {
-                // Ignored URLs affect evaluation, not collection or cadence. Fence a run using the old list without making a new one due.
-                $listOnly = $brokenLinks instanceof BrokenLinkSettings
-                    && Arr::except($check->executionConfig(), ['whitelisted_urls']) === Arr::except($previous, ['whitelisted_urls'])
-                    && ! $check->isDirty('interval_seconds');
-                if (! $listOnly || $check->claim_token !== null) {
-                    $this->claims->revoke($check);
-                    if ($listOnly) {
-                        Check::query()->whereKey($check->id)->update(['next_run_at' => $check->next_run_at]);
-                    }
-                }
+                $this->claims->revoke($check);
             } elseif ($check->exists && $check->isDirty('interval_seconds')) {
                 $check->next_run_at = CheckSchedule::nextSlot($check->id, $check->interval_seconds, $this->clock->now());
             } elseif (! $check->exists) {
                 $check->next_run_at = $this->clock->now();
             }
             $check->save();
-            if ($brokenLinks instanceof BrokenLinkSettings && array_key_exists('whitelisted_urls', $incoming)) {
-                /** @var list<string> $entries */
-                $entries = $validated->public['whitelisted_urls'] ?? [];
-                if ($entries !== $previousEntries) {
-                    ($this->reevaluateBrokenLinks)($check, $brokenLinks, $previousEntries, $entries);
-                }
-            }
         });
         $check->refresh();
     }

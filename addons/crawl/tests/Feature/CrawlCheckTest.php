@@ -40,12 +40,15 @@ use Heptapod\Contracts\Http\PublicRequestProfile;
 use Heptapod\Contracts\Http\RedirectPolicy;
 use Heptapod\Contracts\Http\TargetAddressScope;
 use Heptapod\Contracts\PreviousResult;
+use Heptapod\Contracts\RunPhase;
 use Heptapod\Contracts\RunReference;
 use Heptapod\Contracts\RunResult;
+use Heptapod\Events\Notifications\AlertConfirmation;
 use Heptapod\Jobs\RefreshSiteIcon;
 use Heptapod\Jobs\RunCheck;
 use Heptapod\Models\Check;
 use Heptapod\Models\CheckRun;
+use Heptapod\Models\CheckRunAttempt;
 use Heptapod\Models\Event;
 use Heptapod\Models\Site;
 use Heptapod\Models\User;
@@ -696,39 +699,153 @@ function crawlForIgnoredFindings(array $ignored = []): Check
     return $check->refresh();
 }
 
-it('ignores and restores a finding through check settings without another crawl', function (): void {
+function evaluateDueCrawl(Check $check): void
+{
+    expect(app(ClaimService::class)->dispatchDue())->toBe(1);
+    $token = $check->refresh()->claim_token ?? throw new LogicException('Dispatcher must claim the due check.');
+    app(CheckExecutor::class)->execute($check->id, $token, 300);
+    $check->refresh();
+}
+
+it('hides ignored findings at once and records the recovery on a new cached evaluation', function (): void {
+    $settings = app(InstanceSettings::class);
+    $settings->alert_confirms_other_checks = false;
+    $settings->save();
     $check = crawlForIgnoredFindings();
-    $nextRun = $check->next_run_at;
     $incident = $check->incidents()->sole();
-    $run = $check->refresh()->latest_run_id;
+    $original = $check->runs()->sole();
+    $originalAttributes = $original->getAttributes();
+    $originalSnapshot = DB::table('crawl_snapshots')->where('check_id', $check->id)->sole();
     $internal = $check->site->url.'/missing-internal';
     $nested = $check->site->url.'/missing-nested';
     $page = route('sites.checks.show', ['site' => $check->site_id, 'check' => $check->id]);
     $this->actingAs(User::factory()->owner()->create());
+    $this->travel(2)->seconds();
     foreach ([$internal, $nested] as $url) {
         $this->from($page)->patch($page, ['ignore_finding' => ['url' => $url, 'ignore' => true]])->assertRedirect($page)->assertSessionHasNoErrors();
     }
     $this->get($page)->assertInertia(fn (Assert $props): AssertableInertia => $props
         ->has('history.findings', 0)->where('history.ignored_count', 2));
-    expect($check->refresh()->latest_run_result)->toBe(CheckResult::Succeeded);
-    expect($check->executionConfig()['whitelisted_urls'])->toBe([$internal, $nested]);
-    expect($incident->refresh()->resolved_at)->not->toBeNull();
-    expect(Event::query()->where('incident_id', $incident->id)->where('type', 'incident.resolved')->sole()->suppressed)->toBeTrue();
+    expect($check->refresh()->executionConfig()['whitelisted_urls'])->toBe([$internal, $nested]);
+    expect($check->latest_run_result)->toBe(CheckResult::Failed);
+    expect($check->runs()->count())->toBe(1);
+    expect($incident->refresh()->resolved_at)->toBeNull();
 
+    evaluateDueCrawl($check);
+
+    expect($check->latest_run_result)->toBe(CheckResult::Succeeded);
+    expect($check->runs()->count())->toBe(2);
+    expect($original->refresh()->getAttributes())->toBe($originalAttributes);
+    expect((array) DB::table('crawl_snapshots')->where('id', $originalSnapshot->id)->sole())->toBe((array) $originalSnapshot);
+    expect(DB::table('crawl_snapshots')->where('check_id', $check->id)->distinct()->pluck('collected_at')->all())->toBe([$originalSnapshot->collected_at]);
+    expect(app(OutboundHttp::class)->requests)->toHaveCount(3);
+    expect($incident->refresh()->resolved_at)->not->toBeNull();
+    expect(Event::query()->where('incident_id', $incident->id)->where('type', 'incident.resolved')->sole()->suppressed)->toBeFalse();
+    $audit = Activity::query()->where('subject_type', $check->getMorphClass())->where('subject_id', $check->id)->where('event', 'updated')->whereNotNull('causer_id')->get();
+    expect($audit->count())->toBe(2);
+});
+
+it('restores an exact finding through a regular evaluation and confirms it with a fresh crawl', function (): void {
+    // Fresh collection compares its deadline to wall time; freeze the engine clock at that same instant.
+    $this->travelBack();
+    $this->freezeTime();
+    $settings = app(InstanceSettings::class);
+    $settings->alert_confirms_other_checks = true;
+    $settings->save();
+    $root = 'https://fixtures.test/ignored-findings';
+    $internal = $root.'/missing-internal';
+    $check = crawlForIgnoredFindings([$internal, $root.'/missing-nested']);
+    $page = route('sites.checks.show', ['site' => $check->site_id, 'check' => $check->id]);
     $ignored = $page.'?findings_view=ignored';
-    $this->get($ignored)->assertInertia(fn (Assert $props): AssertableInertia => $props->has('history.findings', 2)->where('history.findings.0.ignored_by', 'exact'));
+    $this->actingAs(User::factory()->owner()->create())->get($ignored)
+        ->assertInertia(fn (Assert $props): AssertableInertia => $props->has('history.findings', 2)->where('history.findings.0.ignored_by', 'exact'));
+    $this->travel(2)->seconds();
     $this->from($ignored)->patch($page, ['ignore_finding' => ['url' => $internal, 'ignore' => false]])->assertRedirect($ignored)->assertSessionHasNoErrors();
     $this->get($page)->assertInertia(fn (Assert $props): AssertableInertia => $props
         ->has('history.findings', 1)->where('history.findings.0.url', $internal)->where('history.ignored_count', 1));
-    expect($check->refresh()->latest_run_result)->toBe(CheckResult::Failed);
-    expect($check->latest_run_id)->toBe($run);
+    expect($check->refresh()->latest_run_result)->toBe(CheckResult::Succeeded);
+
+    evaluateDueCrawl($check);
+    expect($check->latest_run_result)->toBe(CheckResult::Failed);
+    $opening = Event::query()->where('check_id', $check->id)->where('type', 'incident.opened')->sole();
+    expect(AlertConfirmation::state($opening))->toBe(AlertConfirmation::Pending);
+    expect(app(OutboundHttp::class)->requests)->toHaveCount(3);
+
+    $this->travelTo($check->next_run_at->addSecond());
+    evaluateDueCrawl($check);
+    expect($check->latest_run_result)->toBe(CheckResult::Failed);
+    expect(AlertConfirmation::state($opening))->toBe(AlertConfirmation::Confirmed);
+    expect(app(OutboundHttp::class)->requests)->toHaveCount(6);
+});
+
+it('reschedules a running manual crawl after ignoring a link', function (): void {
+    $this->travelBack();
+    $this->freezeTime();
+    $settings = app(InstanceSettings::class);
+    $settings->alert_confirms_other_checks = false;
+    $settings->save();
+    $root = 'https://fixtures.test/ignored-findings';
+    $missing = $root.'/missing-internal';
+    $check = crawlForIgnoredFindings([$root.'/missing-nested']);
+    $oldRun = $check->latest_run_id;
+    $this->travel(2)->seconds();
+    $owner = User::factory()->owner()->create();
+    $page = route('sites.checks.show', ['site' => $check->site_id, 'check' => $check->id]);
+    Bus::fake([RunCheck::class]);
+    $attempt = app(ClaimService::class)->runNow($check->id, RunOrigin::Manual, actorUserId: $owner->id)
+        ?? throw new LogicException('Manual run was not admitted.');
+    $edited = false;
+    $fake = (new FakeOutboundHttp)->respondUsing(function (FetchRequest $request) use ($attempt, $owner, $page, $root, $missing, &$edited): FetchResult {
+        if ($request->url === $root) {
+            if (! $edited) {
+                expect($attempt->refresh()->phase)->toBe(RunPhase::Running);
+                $this->actingAs($owner)->from($page)->patch($page, ['ignore_finding' => ['url' => $missing, 'ignore' => true]])
+                    ->assertRedirect($page)->assertSessionHasNoErrors();
+                $edited = true;
+            }
+
+            return new FetchResult(200, '<a href="'.$missing.'">Missing</a>', ['Content-Type' => ['text/html']]);
+        }
+
+        return new FetchResult(404, failure: new FetchFailure(FetchFailureKind::HttpStatus, 404));
+    });
+    app()->instance(OutboundHttp::class, $fake);
+
+    app(CheckExecutor::class)->execute($check->id, $attempt->claim_token, 300);
+    expect($edited)->toBeTrue();
+    expect($attempt->refresh()->phase)->toBe(RunPhase::Skipped);
     expect($check->runs()->count())->toBe(1);
-    expect($check->next_run_at->equalTo($nextRun))->toBeTrue();
-    $newIncident = $check->incidents()->whereNull('resolved_at')->sole();
-    expect($newIncident->id)->not->toBe($incident->id);
-    expect(Event::query()->where('incident_id', $newIncident->id)->where('type', 'incident.opened')->sole()->suppressed)->toBeFalse();
-    $audit = Activity::query()->where('subject_type', $check->getMorphClass())->where('subject_id', $check->id)->where('event', 'updated')->whereNotNull('causer_id')->get();
-    expect($audit->count())->toBe(3);
+    evaluateDueCrawl($check);
+    expect($check->latest_run_result)->toBe(CheckResult::Succeeded);
+    expect($check->runs()->count())->toBe(2);
+    expect($check->latest_run_id)->not->toBe($oldRun);
+    expect(CheckRunAttempt::query()->where('check_id', $check->id)->where('check_run_id', $check->latest_run_id)->sole()->phase)->toBe(RunPhase::Done);
+});
+
+it('compares only findings in the selected view with the same ignore rules on both crawls', function (): void {
+    $root = 'https://fixtures.test/weekly-ignore';
+    $missing = $root.'/missing';
+    $check = crawlCheck(url: $root, config: ['respect_robots' => false, 'types' => ['link']]);
+    $fake = (new FakeOutboundHttp)->respondWith(crawlHttpRequest($root), new FetchResult(200, 'OK', ['Content-Type' => ['text/html']]));
+    app()->instance(OutboundHttp::class, $fake);
+    recordCrawl(crawlContext($check));
+    $this->travel(8)->days();
+    $fake = (new FakeOutboundHttp)
+        ->respondWith(crawlHttpRequest($root), new FetchResult(200, '<a href="'.$missing.'">Missing</a>', ['Content-Type' => ['text/html']]))
+        ->respondWith(crawlHttpRequest($missing), new FetchResult(404, failure: new FetchFailure(FetchFailureKind::HttpStatus, 404)));
+    app()->instance(OutboundHttp::class, $fake);
+    recordCrawl(crawlContext($check));
+    $params = ['site' => $check->site_id, 'check' => $check->id];
+    $page = route('sites.checks.show', $params);
+    $this->actingAs(User::factory()->owner()->create())->from($page)
+        ->patch($page, ['ignore_finding' => ['url' => $missing, 'ignore' => true]])->assertSessionHasNoErrors();
+
+    $this->get($page)->assertInertia(fn (Assert $props): AssertableInertia => $props
+        ->has('history.findings', 0)->where('history.weekly_change.current', 0)->where('history.weekly_change.previous', 0)
+        ->where('history.weekly_change.new', 0)->where('history.weekly_change.fixed', 0));
+    $this->get(route('sites.checks.show', [...$params, 'findings_view' => 'ignored']))->assertInertia(fn (Assert $props): AssertableInertia => $props
+        ->has('history.findings', 1)->where('history.weekly_change.current', 1)->where('history.weekly_change.previous', 0)
+        ->where('history.weekly_change.new', 1)->where('history.weekly_change.fixed', 0));
 });
 
 it('keeps pattern rules in settings and refuses a Member or an invalid row URL', function (): void {

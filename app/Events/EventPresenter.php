@@ -112,7 +112,6 @@ final readonly class EventPresenter
         }
         $message = match (true) {
             $administrativeResolution => __($resolutionKey),
-            $event->type === 'check.ignored_urls_changed' => __('events.ignored_urls_changed'),
             $event->type === 'check.findings_reclassified' => __('events.findings_reclassified', [
                 'count' => is_int($event->payload['count'] ?? null) ? $event->payload['count'] : throw new \LogicException('A reclassification note needs its count.'),
                 'version' => is_int($event->payload['policy_version'] ?? null) ? $event->payload['policy_version'] : throw new \LogicException('A reclassification note needs its policy version.')]),

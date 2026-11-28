@@ -61,6 +61,7 @@ export function CheckDetail({
                                 ? 'crawl.ignore.saved'
                                 : 'crawl.ignore.restored',
                         ),
+                        { description: t('crawl.ignore.next_evaluation') },
                     );
                 },
                 onError: () => {
