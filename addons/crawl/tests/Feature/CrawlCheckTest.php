@@ -58,6 +58,7 @@ use Heptapod\Models\User;
 use Heptapod\Settings\InstanceSettings;
 use Heptapod\Testing\ClaimedRun;
 use Heptapod\Testing\FakeOutboundHttp;
+use Illuminate\Database\QueryException;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Crypt;
@@ -2467,7 +2468,7 @@ it('bounds first-seen history to the exported historical crawl snapshot', functi
         ->and($rows[0][5])->toBe('No');
 });
 
-it('stores no collection once its site is marked for deletion and leaves no crawl row of the deleted site', function (): void {
+it('leaves no crawl row of a deleted site, nor of a crawl still running during the deletion', function (): void {
     Queue::fake();
     $check = crawlCheck();
     recordCrawl(crawlContext($check));
@@ -2477,13 +2478,8 @@ it('stores no collection once its site is marked for deletion and leaves no craw
     $this->travel(2)->seconds();
     $live = crawlContext($check);
     app(RequestSiteDeletion::class)($check->site);
-    // The purge passes the crawl tables (they have no foreign key to the check) while the crawl still runs.
-    while (app(CrawlPersistence::class)->purgeCheck($check->id, 1000) > 0);
-    expect(DB::table('crawl_snapshots')->where('check_id', $check->id)->exists())->toBeFalse()
-        ->and(DB::table('crawl_collections')->where('site_id', $check->site_id)->exists())->toBeFalse();
 
     $outcome = app(CheckRegistry::class)->get($check->type)->execute($live);
-    expect(DB::table('crawl_collections')->where('site_id', $check->site_id)->exists())->toBeFalse();
     $recorded = app(TransactionalResultRecorder::class)->record(new RecordableRun($check->id, $live->claimToken, $live->startedAt, $live->startedAt->addSecond(), $outcome));
     app()->call(Queue::pushed(PurgeDeletedSite::class)->sole()->handle(...));
 
@@ -2493,7 +2489,50 @@ it('stores no collection once its site is marked for deletion and leaves no craw
         ->and(DB::table('crawl_snapshots')->where('check_id', $check->id)->exists())->toBeFalse()
         ->and(DB::table('crawl_findings')->count())->toBe(0);
 
-    // A worker still crawling after the deletion stores no cache for the gone check and site either.
-    app(CheckRegistry::class)->get(CheckKey::BrokenLinks)->execute($live);
-    expect(DB::table('crawl_collections')->where('site_id', $check->site_id)->exists())->toBeFalse();
+    // A worker still crawling after the deletion stores no cache for the gone check and site, and the foreign key refuses its snapshot.
+    expect(fn () => app(CheckRegistry::class)->get(CheckKey::BrokenLinks)->execute($live))->toThrow(QueryException::class, 'crawl_snapshots_check_id_foreign');
+    expect(DB::table('crawl_collections')->where('site_id', $check->site_id)->exists())->toBeFalse()
+        ->and(DB::table('crawl_snapshots')->count())->toBe(0);
+});
+
+it('deletes the crawl rows of a site whose crawl addon is not loaded with the site', function (): void {
+    $check = crawlCheck();
+    recordCrawl(crawlContext($check));
+    app()->instance(CheckRegistry::class, new CheckRegistry(app()));
+    $owner = User::factory()->create();
+    $owner->assignRole('Owner');
+
+    $this->withToken($owner->createToken('crawl-deletion', ['*'])->plainTextToken)->deleteJson('/api/monitors/'.$check->site_id)->assertNoContent();
+
+    expect(Site::query()->find($check->site_id))->toBeNull()
+        ->and(DB::table('crawl_collections')->count())->toBe(0)
+        ->and(DB::table('crawl_snapshots')->count())->toBe(0)
+        ->and(DB::table('crawl_findings')->count())->toBe(0);
+});
+
+it('removes the crawl rows earlier deletions left behind and then keeps every crawl row tied to its check and site', function (): void {
+    $migration = 'addons/crawl/database/migrations/2026_11_28_130000_cascade_crawl_rows_with_their_check.php';
+    $kept = crawlCheck();
+    recordCrawl(crawlContext($kept));
+    $orphaned = crawlCheck(CheckKey::MixedContent, 'https://fixtures.test/mixed-content.html');
+    recordCrawl(crawlContext($orphaned));
+    (include base_path($migration))->down();
+    // A deletion before the keys existed: the check and site went, their crawl rows stayed.
+    DB::table('sites')->where('id', $orphaned->site_id)->delete();
+    DB::table('migrations')->where('migration', basename($migration, '.php'))->delete();
+    $findingsOf = static fn (string $table, Check $check): int => DB::table($table)->whereIn('snapshot_id', DB::table('crawl_snapshots')->where('check_id', $check->id)->select('id'))->count();
+    $keptFindings = [$findingsOf('crawl_findings', $kept), $findingsOf('mixed_content_findings', $kept)];
+    expect($findingsOf('mixed_content_findings', $orphaned))->toBeGreaterThan(0)
+        ->and(DB::table('crawl_collections')->count())->toBe(2);
+
+    $this->artisan('migrate', ['--path' => $migration, '--force' => true])->assertSuccessful();
+
+    expect(DB::table('crawl_snapshots')->pluck('check_id')->all())->toBe([$kept->id])
+        ->and([DB::table('crawl_findings')->count(), DB::table('mixed_content_findings')->count()])->toBe($keptFindings)
+        ->and(DB::table('crawl_collections')->pluck('site_id')->all())->toBe([$kept->site_id]);
+    DB::table('sites')->where('id', $kept->site_id)->delete();
+    expect(DB::table('crawl_snapshots')->count())->toBe(0)
+        ->and(DB::table('crawl_findings')->count())->toBe(0)
+        ->and(DB::table('mixed_content_findings')->count())->toBe(0)
+        ->and(DB::table('crawl_collections')->count())->toBe(0);
 });
