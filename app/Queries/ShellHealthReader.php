@@ -40,10 +40,10 @@ final readonly class ShellHealthReader
             ->selectRaw('MAX(checks.latest_run_ended_at) AS latest')
             ->selectRaw("COUNT(*) FILTER (WHERE checks.latest_run_result = ? AND NOT EXISTS (
                 SELECT 1 FROM incidents held_incident WHERE held_incident.check_id = checks.id AND ({$held}))) AS errors", [CheckResult::Errored->value])
-            ->selectRaw('COUNT(*) FILTER (WHERE sites.paused_at IS NULL AND sites.marked_for_deletion_at IS NULL) AS active_checks')
+            ->selectRaw('COUNT(*) FILTER (WHERE sites.paused_at IS NULL) AS active_checks')
             ->selectSub($siteCount, 'site_count')->selectSub($incidentCount, 'open_incident_count')
             ->selectRaw(<<<'SQL'
-                COUNT(*) FILTER (WHERE sites.paused_at IS NULL AND sites.marked_for_deletion_at IS NULL
+                COUNT(*) FILTER (WHERE sites.paused_at IS NULL
                     AND (checks.next_run_at < ? OR checks.lease_expires_at < ?)
                     AND (checks.latest_run_ended_at IS NULL OR checks.latest_run_ended_at < ?)) AS stale_count
                 SQL, [$staleBefore, $staleBefore, $staleBefore])->first();

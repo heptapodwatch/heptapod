@@ -37,7 +37,7 @@ final class MaintenanceSeriesController extends Controller
         ])->validate();
         if (isset($data['target_type']) || isset($data['target_id'])) {
             $targetType = $data['target_type'] ?? $series->target_type;
-            $targetId = $data['target_id'] ?? $series->target_id ?? $series->site_id;
+            $targetId = $data['target_id'] ?? $series->target_id;
             if (! is_string($targetType) || ! is_int($targetId)) {
                 throw new \LogicException('Maintenance target must have a type and ID.');
             }

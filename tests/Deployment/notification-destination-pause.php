@@ -3,7 +3,8 @@
 // Shared by the disposable production OPS gate and the owned-stack manual proof.
 declare(strict_types=1);
 
-use Heptapod\Actions\CreateEmailDestination;
+use Heptapod\Actions\Notifications\SaveNotificationChannel;
+use Heptapod\Enums\RecipientKind;
 use Heptapod\Models\User;
 use Psr\Http\Message\ResponseInterface;
 use Spatie\Activitylog\Models\Activity;
@@ -14,7 +15,7 @@ use Spatie\Activitylog\Models\Activity;
  */
 function verifyNotificationDestinationPause(Closure $request, array &$cookies, User $owner): array
 {
-    $destination = app(CreateEmailDestination::class)(['address' => 'test@example.test', 'label' => 'OPS destination pause', 'locale' => 'en']);
+    $destination = app(SaveNotificationChannel::class)->add(RecipientKind::Team, null, null, ['channel' => 'mail', 'label' => 'OPS destination pause', 'locale' => 'en', 'config' => ['email' => 'test@example.test']]);
     $path = '/notification-channels/'.$destination->id.'/enabled';
     $xsrf = static function () use (&$cookies): string {
         return urldecode(substr($cookies['XSRF-TOKEN'], strlen('XSRF-TOKEN=')));

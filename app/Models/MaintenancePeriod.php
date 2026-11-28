@@ -19,7 +19,7 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
  * @property int $id
  * @property int|null $site_id
  * @property string $target_type
- * @property int|null $target_id
+ * @property int $target_id
  * @property string|null $name
  * @property string|null $reason
  * @property string|null $timezone

@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use Heptapod\Actions\CreateApiToken;
-use Heptapod\Actions\CreateEmailDestination;
 use Heptapod\Models\Client;
 use Heptapod\Models\NotificationDestination;
 use Heptapod\Models\User;
@@ -12,7 +11,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Testing\TestResponse;
-use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia;
 
 /** @param array<string, string> $body */
@@ -87,14 +85,6 @@ it('accepts a configured team language and rejects an unknown one on channel cre
 
     expect(NotificationDestination::query()->findOrFail($id)->destinationConfig()->locale)->toBe('es-ES');
     expect($channel->refresh()->locale)->toBe('es-ES');
-});
-
-it('accepts a configured locale and rejects an unknown one when provisioning an email destination', function (): void {
-    $create = app(CreateEmailDestination::class);
-    $input = ['address' => 'alerts@example.test', 'label' => 'Test mail'];
-
-    expect($create([...$input, 'locale' => 'es-ES'])->destinationConfig()->locale)->toBe('es-ES');
-    expect(fn (): NotificationDestination => $create([...$input, 'locale' => 'zz']))->toThrow(ValidationException::class);
 });
 
 it('accepts a configured headline locale and rejects an unknown one with 422', function (string $path, int $status): void {

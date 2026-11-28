@@ -6,7 +6,6 @@ namespace Heptapod\Http\Controllers;
 
 use Heptapod\Actions\AcceptDnsSnapshot;
 use Heptapod\Contracts\CheckKey;
-use Heptapod\Contracts\CheckRegistry;
 use Heptapod\Models\Check;
 use Heptapod\Models\User;
 use Heptapod\Policies\SitePolicy;
@@ -19,7 +18,7 @@ use Inertia\Inertia;
 
 final class AcceptDnsSnapshotController extends Controller
 {
-    public function __invoke(Request $request, int $site, int $check, SitePolicy $sites, AcceptDnsSnapshot $accept, CheckRegistry $registry): RedirectResponse
+    public function __invoke(Request $request, int $site, int $check, SitePolicy $sites, AcceptDnsSnapshot $accept): RedirectResponse
     {
         $actor = $request->user();
         abort_unless($actor instanceof User, 401);
@@ -34,10 +33,8 @@ final class AcceptDnsSnapshotController extends Controller
         } catch (ValidationException $error) {
             // Acceptance must roll back before translating a lease refusal. Re-read eligibility to cover a render/click race.
             if ($error->errors() === ['check' => [__('api.run_unavailable')]]) {
-                $target->refresh();
-                $visibleSite->refresh();
-                if ($target->enabled && ! in_array($target->type, $registry->unavailableKeys(), true) && $visibleSite->paused_at === null && $visibleSite->marked_for_deletion_at === null
-                    && $target->lease_expires_at?->isFuture() === true) {
+                $target->refresh()->setRelation('site', $visibleSite->refresh());
+                if ($target->isActive() && $target->lease_expires_at?->isFuture() === true) {
                     throw ValidationException::withMessages(['check' => __('A check is running right now. Try again in a few seconds.')]);
                 }
             }

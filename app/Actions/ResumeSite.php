@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Heptapod\Actions;
 
 use Heptapod\Events\Notifications\NotificationLocks;
+use Heptapod\Models\Check;
 use Heptapod\Models\Client;
 use Heptapod\Models\Site;
 use Illuminate\Support\Facades\DB;
@@ -29,7 +30,7 @@ final class ResumeSite
                 return;
             }
             $locked->update(['paused_at' => null, 'resume_at' => null]);
-            DB::table('checks')->where('site_id', $site->id)->update(['awaiting_result_since' => null, 'lost_attempts' => 0, 'last_loss_started_at' => null]);
+            DB::table('checks')->where('site_id', $site->id)->update(Check::FreshnessReset);
             DB::table('unmonitored_periods')->where('site_id', $site->id)->whereNull('check_id')->whereNull('ended_at')->update(['ended_at' => now()]);
         });
     }

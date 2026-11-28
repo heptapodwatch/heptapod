@@ -30,6 +30,6 @@ final readonly class CheckEnablement
         }
         $definition->configSchema->validateConfig($check->executionConfig());
         Validator::make(['crawler_headers' => $site->crawler_headers ?? []], ['crawler_headers.*.value' => ['string', new SecretMinimum]])->validate();
-        $check->update(['enabled' => true, ...($check->enabled ? [] : ['awaiting_result_since' => null, 'lost_attempts' => 0, 'last_loss_started_at' => null])]);
+        $check->update(['enabled' => true, ...($check->enabled ? [] : Check::FreshnessReset)]);
     }
 }

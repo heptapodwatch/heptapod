@@ -26,9 +26,7 @@ final readonly class CheckRunsReader
         $attempt ??= $check->claim_token === null ? null : CheckRunAttempt::query()->with('actor')->where('claim_token', $check->claim_token)->first();
         $now = CarbonImmutable::now('UTC');
         $due = $attempt === null ? $check->next_run_at : $attempt->due_at;
-        $site = $check->site ?? throw new \LogicException('Check schedule requires an existing site.');
-        $late = $check->enabled && $site->paused_at === null && $site->marked_for_deletion_at === null
-            && in_array($check->type, $this->registry->keys(), true) && $this->registry->availability($check->type)->reason === null
+        $late = $check->isActive() && in_array($check->type, $this->registry->keys(), true)
             && $attempt === null
             && $due !== null && $due->addSeconds(max(60, (int) ceil($check->interval_seconds * 0.1)))->lessThan($now);
         $phase = $late ? RunPhase::Late : ($attempt->phase ?? RunPhase::Scheduled);

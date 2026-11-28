@@ -38,11 +38,11 @@ final readonly class UpdateMaintenancePeriod
                 'catch_up_at_end' => 'sometimes|boolean', 'timezone' => 'sometimes|timezone:all',
                 'target_type' => 'sometimes|in:site,client,tag', 'target_id' => 'sometimes|integer|min:1'])->validate();
             if ($period->starts_at <= $now && isset($validated['target_type'], $validated['target_id'])
-                && ($validated['target_type'] !== $period->target_type || $validated['target_id'] !== ($period->target_id ?? $period->site_id))) {
+                && ($validated['target_type'] !== $period->target_type || $validated['target_id'] !== $period->target_id)) {
                 throw ValidationException::withMessages(['target_id' => 'An active window cannot change target.']);
             }
             $type = $validated['target_type'] ?? $period->target_type;
-            $id = $validated['target_id'] ?? $period->target_id ?? $period->site_id;
+            $id = $validated['target_id'] ?? $period->target_id;
             $affectedClientIds = $this->targets->clientIdsForWindow($period);
             $period->update(['name' => $name, 'starts_at' => $startsAt, 'ends_at' => $endsAt,
                 ...$validated, 'target_type' => $type, 'target_id' => $id, 'site_id' => $type === 'site' ? $id : null]);

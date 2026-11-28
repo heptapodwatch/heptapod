@@ -125,12 +125,9 @@ final readonly class RunsReader
         $now = CarbonImmutable::now('UTC');
         $visible = $this->visibleChecks($user, $filters->check, $filters->client, $filters->type?->value);
         /** @var list<int> $historyIds */
-        $historyIds = (clone $visible)->toBase()->pluck('checks.id')->all();
+        $historyIds = $visible->toBase()->pluck('checks.id')->all();
         // Ids only: hydrating every visible check and site cost more than the rest of the board.
-        $visible->getQuery()->where('enabled', true);
-        $runnableIds = $visible->whereHas('site', static function (Builder $site): void {
-            $site->getQuery()->whereNull('paused_at')->whereNull('marked_for_deletion_at');
-        })->toBase()->pluck('checks.id')->all();
+        $runnableIds = Check::active()->toBase()->whereIntegerInRaw('checks.id', $historyIds)->pluck('checks.id')->all();
         $activeQuery = CheckRunAttempt::query()->with('actor');
         $activeQuery->getQuery()->whereIn('check_id', $runnableIds)->whereIn('phase', ['queued', 'running'])->orderBy('requested_at')->orderBy('id');
         if ($filters->started_manually) {

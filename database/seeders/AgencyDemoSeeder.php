@@ -236,7 +236,7 @@ final class AgencyDemoSeeder extends Seeder
                         }
                         if ($host === 'booking.calloway-hotels.example') {
                             $start = $now->setTimezone($timezone)->addDays(2)->setTime(22, 0)->utc();
-                            MaintenancePeriod::query()->create(['site_id' => $site->id, 'name' => 'Booking engine upgrade', 'timezone' => $timezone, 'starts_at' => $start, 'ends_at' => $start->addMinutes(90)]);
+                            MaintenancePeriod::query()->create(['site_id' => $site->id, 'target_id' => $site->id, 'name' => 'Booking engine upgrade', 'timezone' => $timezone, 'starts_at' => $start, 'ends_at' => $start->addMinutes(90)]);
                         }
                         if (! in_array($host, ['shop.osterberghaus.example', 'api.kestrelmobility.example', 'lumenfilmfestival.example'], true)) {
                             NotificationSiteMute::query()->create(['destination_id' => $ownerChannel->id, 'site_id' => $site->id, 'created_at' => $now]);

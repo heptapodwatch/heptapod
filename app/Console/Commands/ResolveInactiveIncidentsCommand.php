@@ -65,7 +65,7 @@ final class ResolveInactiveIncidentsCommand extends Command
                 ->where(static function (Builder $eligible): void {
                     $eligible->whereHas('check', static fn (Builder $check): Builder => $check->where('enabled', false))
                         ->orWhereHas('site', static function (Builder $site): void {
-                            $site->getQuery()->whereNotNull('paused_at')->orWhereNotNull('marked_for_deletion_at');
+                            $site->getQuery()->whereNotNull('paused_at');
                         });
                 });
             $query->getQuery()->orderBy('id')->limit(100);
